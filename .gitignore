@@ -11,3 +11,4 @@ apps/universal/dist/
 .impeccable/critique/
 .DS_Store
 npm-debug.log*
+.vercel
