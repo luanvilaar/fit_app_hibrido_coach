@@ -1,0 +1,31 @@
+{
+  "subtaskId": "1.12",
+  "critiquedAt": "2026-08-06T15:00:00-03:00",
+  "step5_5": {
+    "predictedBugs": [
+      "Uma resposta atrasada da RPC poderia aplicar os papéis do usuário anterior após a troca de sessão.",
+      "Uma falha de rede na leitura de papéis poderia expulsar um coach legítimo da área de prescrição.",
+      "Um payload inesperado da RPC poderia conceder o papel de coach por coerção de tipo."
+    ],
+    "edgeCases": [
+      "Sessão ausente: nenhuma consulta é feita e os papéis ficam vazios sem estado de carregamento pendente.",
+      "Supabase não configurado: o gate mantém a área bloqueada e exibe a mensagem de configuração.",
+      "Usuário com papel duplo (coach e atleta) mantém a navegação completa e o acesso à área do coach.",
+      "Atleta abrindo /app/coach/calendario por link direto é redirecionado para /app/hoje sem renderizar o conteúdo."
+    ],
+    "errorHandling": true,
+    "securityCheck": true,
+    "passed": true
+  },
+  "step6_5": {
+    "followsPatterns": true,
+    "noHardcoded": true,
+    "testsAdded": true,
+    "docsUpdated": true,
+    "noConsoleLogs": true,
+    "passed": true
+  },
+  "overallVerdict": "PASSED",
+  "skipped": false,
+  "skipWarning": null
+}

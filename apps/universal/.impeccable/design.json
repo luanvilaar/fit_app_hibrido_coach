@@ -1,0 +1,134 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-08-07T22:50:00Z",
+  "title": "Design System: FitBlock",
+  "extensions": {
+    "colorMeta": {
+      "primary": {
+        "role": "primary",
+        "displayName": "FitBlock Blue",
+        "canonical": "#3b82f6",
+        "tonalRamp": ["#0d47a1", "#1565c0", "#1976d2", "#1e88e5", "#2196f3", "#42a5f5", "#64b5f6", "#bbdefb"]
+      },
+      "fitblockPurple": {
+        "role": "accent",
+        "displayName": "FitBlock Purple",
+        "canonical": "#7132f5",
+        "tonalRamp": ["#4a148c", "#6a1b9a", "#7b1fa2", "#8e24aa", "#9c27b0", "#ab47bc", "#ba68c8", "#e1bee7"]
+      },
+      "graphite": {
+        "role": "surface",
+        "displayName": "Dark Graphite",
+        "canonical": "#1f2937",
+        "tonalRamp": ["#000000", "#111827", "#1f2937", "#2d3748", "#4a5568", "#718096", "#a0aec0", "#f7fafc"]
+      },
+      "canvas": {
+        "role": "inverse",
+        "displayName": "Canvas White",
+        "canonical": "#ffffff",
+        "tonalRamp": ["#ffffff", "#f9fafb", "#f3f4f6", "#e5e7eb", "#d1d5db", "#9ca3af", "#6b7280", "#000000"]
+      },
+      "success": {
+        "role": "semantic",
+        "displayName": "Success Green",
+        "canonical": "#10b981",
+        "tonalRamp": ["#065f46", "#047857", "#059669", "#10b981", "#34d399", "#6ee7b7", "#a7f3d0", "#d1fae5"]
+      }
+    },
+    "shadows": [
+      {
+        "name": "subtle",
+        "value": "0 1px 2px 0 rgba(0,0,0,0.05)",
+        "purpose": "Very subtle dividers and borders"
+      },
+      {
+        "name": "default",
+        "value": "0 4px 6px -1px rgba(0,0,0,0.1)",
+        "purpose": "Card and container elevation"
+      }
+    ],
+    "breakpoints": [
+      { "name": "mobile", "value": "320px" },
+      { "name": "tablet", "value": "640px" },
+      { "name": "desktop", "value": "1024px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button (Hero)",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Main call-to-action button in hero section with arrow icon",
+      "html": "<button class=\"ds-btn-primary\">Iniciar treino<svg class=\"ds-btn-icon\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\"><path d=\"M5 12h14M12 5l7 7-7 7\"/></svg></button>",
+      "css": ".ds-btn-primary { display: flex; align-items: center; justify-content: space-between; gap: 16px; background: #ffffff; color: #111827; font-weight: 800; font-size: 14px; padding: 12px 24px 12px 32px; border-radius: 24px; border: none; cursor: pointer; transition: all 0.2s ease; min-height: 52px; } .ds-btn-primary:hover { background: #f3f4f6; transform: translateY(-2px); } .ds-btn-primary:active { transform: translateY(0); opacity: 0.9; } .ds-btn-icon { width: 18px; height: 18px; background: #7132f5; border-radius: 50%; padding: 8px; display: flex; align-items: center; justify-content: center; }"
+    },
+    {
+      "name": "Hero Section",
+      "kind": "custom",
+      "refersTo": "hero-section",
+      "description": "Full-width hero with workout info, call-to-action, and visual branding",
+      "html": "<section class=\"ds-hero\"><div class=\"ds-hero-copy\"><div class=\"ds-hero-topline\"><span class=\"ds-hero-week\">SEMANA 3</span><span class=\"ds-hero-focus\">FORÇA</span></div><h2 class=\"ds-hero-title\">Hoje, o trabalho é seu.</h2><p class=\"ds-hero-desc\">Um treino bem executado começa com uma intenção clara.</p><div class=\"ds-hero-meta\"><span class=\"ds-meta-item\"><svg width=\"17\" height=\"17\">⏱</svg> 45 min</span><span class=\"ds-meta-item\"><svg width=\"17\" height=\"17\">📚</svg> 3 blocos</span></div></div><div class=\"ds-hero-visual\"><div class=\"ds-hero-index\">01</div><div class=\"ds-hero-word\">FIT<br>BLOCK</div></div></section>",
+      "css": ".ds-hero { display: flex; background: linear-gradient(135deg, #1f2937 0%, #111827 100%); border-radius: 16px; min-height: 280px; overflow: hidden; margin-bottom: 32px; } .ds-hero-copy { flex: 1; padding: 32px; display: flex; flex-direction: column; justify-content: space-between; color: #ffffff; } .ds-hero-topline { display: flex; gap: 16px; align-items: center; margin-bottom: 16px; } .ds-hero-week { font-size: 12px; font-weight: 700; color: #c7b8ff; letter-spacing: 1px; } .ds-hero-focus { background: #7132f5; color: #ffffff; padding: 6px 16px; border-radius: 20px; font-size: 10px; font-weight: 800; letter-spacing: 1px; } .ds-hero-title { font-size: 32px; font-weight: 700; margin: 0 0 8px; line-height: 1.2; letter-spacing: 0.5px; } .ds-hero-desc { font-size: 15px; color: #d0d1db; margin: 8px 0 0; line-height: 1.5; max-width: 400px; } .ds-hero-meta { display: flex; gap: 24px; margin-top: 24px; font-size: 13px; font-weight: 700; color: #ffffff; } .ds-meta-item { display: flex; gap: 8px; align-items: center; } .ds-hero-visual { width: 28%; background: #5f42f8; padding: 32px; display: flex; flex-direction: column; align-items: flex-end; justify-content: space-between; } .ds-hero-index { font-size: 22px; font-weight: 700; color: #c7b8ff; } .ds-hero-word { font-size: 48px; font-weight: 700; color: #ffffff; line-height: 1; letter-spacing: -1px; text-align: right; }"
+    },
+    {
+      "name": "Blocks List",
+      "kind": "custom",
+      "refersTo": "blocks-card",
+      "description": "Scrollable list of exercise blocks with completion state",
+      "html": "<div class=\"ds-blocks-card\"><div class=\"ds-block-row ds-block-pending\"><span class=\"ds-block-index\">01</span><div class=\"ds-block-info\"><h4 class=\"ds-block-name\">Aquecimento</h4><p class=\"ds-block-detail\">5 minutos · Mobilidade geral</p></div><svg class=\"ds-block-chevron\" width=\"17\" height=\"17\">›</svg></div><div class=\"ds-block-row ds-block-done\"><span class=\"ds-block-index\">✓</span><div class=\"ds-block-info\"><h4 class=\"ds-block-name\">Série A</h4><p class=\"ds-block-detail\">15 minutos · Força - Trem inferior</p></div><svg class=\"ds-block-chevron\" width=\"17\" height=\"17\">›</svg></div></div>",
+      "css": ".ds-blocks-card { background: #ffffff; border: 1px solid #e5e7eb; border-radius: 12px; overflow: hidden; margin-bottom: 32px; } .ds-block-row { display: flex; align-items: center; gap: 16px; padding: 16px 20px; border-top: 1px solid #e5e7eb; cursor: pointer; transition: all 0.2s ease; } .ds-block-row:first-child { border-top: none; } .ds-block-row:hover { background: #f9fafb; } .ds-block-pending .ds-block-index { width: 30px; height: 30px; border: 1px solid #d1d5db; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 800; color: #6b7280; } .ds-block-done { background: #f0fdf4; } .ds-block-done .ds-block-index { width: 30px; height: 30px; background: #10b981; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 700; color: #ffffff; } .ds-block-info { flex: 1; min-width: 0; } .ds-block-name { font-size: 15px; font-weight: 800; color: #111827; margin: 0; } .ds-block-detail { font-size: 13px; color: #6b7280; margin: 4px 0 0; } .ds-block-chevron { color: #9ca3af; opacity: 0.6; }"
+    },
+    {
+      "name": "Info Cards Grid",
+      "kind": "custom",
+      "refersTo": "context-grid",
+      "description": "Two-column grid of readiness and weekly progress cards",
+      "html": "<div class=\"ds-cards-grid\"><div class=\"ds-info-card\"><div class=\"ds-card-header\"><span class=\"ds-card-eyebrow\">PRONTIDÃO</span><span class=\"ds-card-icon\">💓</span></div><div class=\"ds-score-group\"><span class=\"ds-score\">4</span><span class=\"ds-score-max\">/ 5</span></div><h3 class=\"ds-card-title\">Bem descansado</h3><p class=\"ds-card-detail\">Você está preparado para uma sessão intensa hoje.</p></div><div class=\"ds-info-card\"><div class=\"ds-card-header\"><span class=\"ds-card-eyebrow\">ESTA SEMANA</span><span class=\"ds-card-icon\">🔥</span></div><div class=\"ds-score-group\"><span class=\"ds-score\">2</span><span class=\"ds-score-max\">/ 3</span></div><h3 class=\"ds-card-title\">2 de 3 sessões</h3><p class=\"ds-card-detail\">Você tem 5 treinos de consistência</p></div></div>",
+      "css": ".ds-cards-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 32px; } .ds-info-card { background: #ffffff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 20px; } .ds-card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; } .ds-card-eyebrow { font-size: 10px; font-weight: 800; color: #6b7280; letter-spacing: 1.2px; text-transform: uppercase; } .ds-card-icon { font-size: 20px; } .ds-score-group { display: flex; align-items: baseline; gap: 4px; margin-bottom: 8px; } .ds-score { font-size: 42px; font-weight: 700; color: #111827; } .ds-score-max { font-size: 14px; color: #6b7280; } .ds-card-title { font-size: 14px; font-weight: 800; color: #111827; margin: 0 0 4px; } .ds-card-detail { font-size: 12px; color: #6b7280; margin: 0; line-height: 1.5; }"
+    },
+    {
+      "name": "Coach Note Card",
+      "kind": "custom",
+      "refersTo": "coach-card",
+      "description": "Message from coach with avatar and timestamp",
+      "html": "<div class=\"ds-coach-card\"><div class=\"ds-coach-avatar\">FB</div><div class=\"ds-coach-content\"><div class=\"ds-coach-header\"><div><p class=\"ds-coach-name\">Seu coach</p><p class=\"ds-coach-time\">Publicado hoje às 09:30</p></div><span class=\"ds-coach-icon\">💬</span></div><p class=\"ds-coach-text\">Foque em manter a postura na série A. Qualidade de movimento antes de carga!</p></div></div>",
+      "css": ".ds-coach-card { display: flex; gap: 16px; background: #111827; color: #ffffff; border-radius: 12px; padding: 20px; margin-bottom: 32px; } .ds-coach-avatar { width: 40px; height: 40px; border-radius: 50%; background: #7132f5; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 11px; flex-shrink: 0; } .ds-coach-content { flex: 1; min-width: 0; } .ds-coach-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; } .ds-coach-name { font-size: 14px; font-weight: 800; margin: 0; } .ds-coach-time { font-size: 11px; color: #9ca3af; margin: 3px 0 0; } .ds-coach-icon { font-size: 20px; } .ds-coach-text { font-size: 15px; line-height: 1.5; margin: 0; color: #e5e7eb; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "Clear Clarity",
+    "overview": "Clean, purposeful fitness platform designed for clarity and progress tracking. The design prioritizes task focus—whether an athlete is checking today's workout or a coach is reviewing performance—with intuitive navigation and minimal cognitive load.",
+    "keyCharacteristics": [
+      "Clean, minimal aesthetic with breathing space",
+      "Task-focused navigation (athlete vs coach contexts)",
+      "Strategic color usage (blue for actions, neutrals for content)",
+      "Mobile-first, responsive layout",
+      "Clear typography hierarchy with smart use of weight and size"
+    ],
+    "rules": [
+      {
+        "name": "The Clarity Rule",
+        "body": "Every element communicates status or action. No decorative elements; visual weight matches information hierarchy.",
+        "section": "colors"
+      },
+      {
+        "name": "The Breathing Space Rule",
+        "body": "Consistent spacing (8px unit) prevents cognitive overload. Cards and sections have generous padding.",
+        "section": "layout"
+      }
+    ],
+    "dos": [
+      "Do use blue primary color sparingly for key actions and navigation",
+      "Do maintain ample whitespace for breathing room and clarity",
+      "Do ensure 44×44px minimum touch targets on mobile",
+      "Do use semantic colors (green for success, red for error, amber for caution)",
+      "Do respect prefers-reduced-motion for any transitions or animations"
+    ],
+    "donts": [
+      "Don't overuse accent color; keep it reserved for interactive elements",
+      "Don't place text on photographic backgrounds without contrast verification",
+      "Don't create horizontal scroll on mobile; keep single-column layout",
+      "Don't use color alone to communicate status; pair with icons and text"
+    ]
+  }
+}

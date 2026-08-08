@@ -1,0 +1,7 @@
+{
+  "files": ["dist/index.html", "dist/**/*.html"],
+  "exclude": ["dist/_sitemap.html", "dist/+not-found.html"],
+  "insertBefore": "</body>",
+  "commentSyntax": "html",
+  "cspChecked": true
+}

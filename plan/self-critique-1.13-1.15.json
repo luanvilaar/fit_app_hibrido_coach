@@ -1,0 +1,42 @@
+{
+  "subtaskId": "1.13-1.15",
+  "scope": "Auditoria do painel do coach + catálogo de movimentos + editor completo + editar/excluir",
+  "critiquedAt": "2026-08-06T17:30:00-03:00",
+  "step5_5": {
+    "predictedBugs": [
+      "Editar uma sessão poderia mutar um template compartilhado por outras instâncias — resolvido criando template novo e repondo template_id.",
+      "Excluir a sessão antes do template violaria a FK on delete restrict — a ordem foi fixada na RPC.",
+      "Snapshot corrompido ou vazio poderia quebrar a hidratação do editor — toCoachSessionForm valida cada nível do jsonb.",
+      "A data inicial via toISOString sugeriria D+2 em UTC-3 no fim da noite — passou a usar getters locais.",
+      "Publicar em outro mês faria a sessão sumir da visão — o mês passou a acompanhar a data salva."
+    ],
+    "edgeCases": [
+      "Dois ou mais treinos no mesmo dia aparecem todos na célula do calendário e na lista.",
+      "Rascunho não aparece no calendário do atleta: list_athlete_calendar filtra status = 'published'.",
+      "Remover o último bloco, exercício ou série é ignorado para manter a estrutura mínima aceita pelo backend.",
+      "Bloco com tipo desconhecido no snapshot é hidratado como 'livre' em vez de quebrar.",
+      "Exclusão sempre exige confirmação; desistir mantém a sessão intacta.",
+      "Coach sem equipe vê o botão de publicar desabilitado com estado acessível."
+    ],
+    "errorHandling": true,
+    "securityCheck": true,
+    "passed": true
+  },
+  "step6_5": {
+    "followsPatterns": true,
+    "noHardcoded": true,
+    "testsAdded": true,
+    "docsUpdated": true,
+    "noConsoleLogs": true,
+    "passed": true
+  },
+  "openRisks": [
+    "P1 — exercício continua texto livre: typo ainda cria exercício órfão. Catálogo pronto para story de autocomplete.",
+    "P2 — sem constraint única de equipe/data; risco aceito porque duas sessões no mesmo dia são legítimas e agora visíveis e removíveis.",
+    "Editar sessão já iniciada pelo atleta reescreve o snapshot em execução; sem efeito hoje, revisar quando a execução for persistida.",
+    "As duas migrations ainda não foram aplicadas no Supabase remoto."
+  ],
+  "overallVerdict": "PASSED",
+  "skipped": false,
+  "skipWarning": null
+}

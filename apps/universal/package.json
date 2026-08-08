@@ -1,0 +1,23 @@
+{
+  "name": "@fitblock/universal",
+  "version": "0.1.0",
+  "private": true,
+  "main": "expo-router/entry",
+  "scripts": {
+    "start": "node ../../scripts/with-root-env.cjs start",
+    "dev": "node ../../scripts/with-root-env.cjs start --web",
+    "web": "node ../../scripts/with-root-env.cjs start --web",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "jest --runInBand",
+    "build": "node ../../scripts/with-root-env.cjs export --platform web"
+  },
+  "dependencies": {
+    "@fitblock/backend": "0.1.0",
+    "@supabase/supabase-js": "2.112.1",
+    "expo-font": "^57.0.1"
+  },
+  "devDependencies": {
+    "@expo/env": "2.4.2"
+  }
+}

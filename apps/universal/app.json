@@ -1,0 +1,20 @@
+{
+  "expo": {
+    "name": "FitBlock Training",
+    "slug": "fitblock-training",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "scheme": "fitblock",
+    "plugins": ["expo-router"],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "static",
+      "favicon": "./assets/fitblock-mark.png"
+    },
+    "assetBundlePatterns": ["**/*"]
+  }
+}

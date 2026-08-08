@@ -1,0 +1,13 @@
+node_modules/
+.expo/
+dist/
+apps/universal/dist/
+.env
+.env.*
+!.env.example
+.aiox-core/core-config.yaml.backup.*
+.impeccable/config.local.json
+.impeccable/hook.cache.json
+.impeccable/critique/
+.DS_Store
+npm-debug.log*

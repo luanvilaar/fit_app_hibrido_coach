@@ -1,0 +1,53 @@
+{
+  "auditId": "auth-ui-2026-08-06",
+  "mode": "autonomous",
+  "target": [
+    "apps/universal/components/auth-screen.tsx",
+    "apps/universal/components/auth-screen.test.tsx",
+    "packages/design-tokens/src/index.ts"
+  ],
+  "reference": {
+    "figmaFile": "c3hf0zAdN9ON4QfQZn9nsZ",
+    "desktopViewport": "1440x1024",
+    "mobileViewport": "430x932"
+  },
+  "visualVerification": {
+    "desktop": "passed",
+    "mobile": "passed",
+    "notes": "A fotografia, wordmark, fundo escuro e card seguem as proporções dos frames fornecidos."
+  },
+  "metrics": {
+    "interactiveControlsAudited": 5,
+    "formFieldsAudited": 3,
+    "localCampaignAssets": 2,
+    "authenticationModesCovered": 3,
+    "uiTestCases": 7
+  },
+  "findings": [
+    {
+      "id": "AUTH-A11Y-001",
+      "severity": "moderate",
+      "status": "fixed",
+      "issue": "Texto roxo e texto secundário não atendiam contraste AA sobre a superfície #D9D9D9.",
+      "resolution": "Tokens específicos de autenticação agora mantêm pelo menos 4.5:1 para textos de 12–16 px."
+    },
+    {
+      "id": "AUTH-A11Y-002",
+      "severity": "moderate",
+      "status": "fixed",
+      "issue": "Links e o botão de visibilidade da senha não tinham área visual de toque mínima nem estados claros de foco/hover.",
+      "resolution": "Controles secundários receberam 44 px mínimos, foco com borda e hover com superfície roxa suave."
+    },
+    {
+      "id": "AUTH-FORM-003",
+      "severity": "low",
+      "status": "fixed",
+      "issue": "Senha de login usava autocomplete genérico, reduzindo a integração com gerenciadores de senha no web.",
+      "resolution": "O campo de login usa current-password; cadastro e confirmação preservam new-password."
+    }
+  ],
+  "residualRisks": [
+    "A validação visual foi feita por captura estática; uma revisão manual em aparelhos iOS e Android reais continua recomendada antes da publicação."
+  ],
+  "verdict": "passed"
+}

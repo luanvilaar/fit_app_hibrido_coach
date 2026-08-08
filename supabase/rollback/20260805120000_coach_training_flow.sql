@@ -1,0 +1,52 @@
+drop policy if exists "team members can read their teams" on public.teams;
+drop policy if exists "authenticated users can create teams" on public.teams;
+drop policy if exists "team coaches can update teams" on public.teams;
+drop policy if exists "team coaches can archive teams" on public.teams;
+drop policy if exists "team members can read membership" on public.team_members;
+drop policy if exists "team coaches can manage membership" on public.team_members;
+drop policy if exists "team coaches can update membership" on public.team_members;
+drop policy if exists "team coaches can remove membership" on public.team_members;
+drop policy if exists "authenticated users can read exercises" on public.exercises;
+drop policy if exists "authenticated users can create exercises" on public.exercises;
+drop policy if exists "coaches can manage owned templates" on public.session_templates;
+drop policy if exists "coaches can manage owned session blocks" on public.session_blocks;
+drop policy if exists "coaches can manage owned block items" on public.block_items;
+drop policy if exists "coaches can manage owned prescriptions" on public.prescriptions;
+drop policy if exists "coaches can manage owned prescription sets" on public.prescription_sets;
+drop policy if exists "team members can read session instances" on public.session_instances;
+drop policy if exists "team coaches can create session instances" on public.session_instances;
+drop policy if exists "team coaches can update session instances" on public.session_instances;
+drop policy if exists "team coaches can delete session instances" on public.session_instances;
+
+drop trigger if exists teams_set_updated_at on public.teams;
+drop trigger if exists teams_add_creator_as_coach on public.teams;
+drop trigger if exists team_members_set_updated_at on public.team_members;
+drop trigger if exists exercises_set_updated_at on public.exercises;
+drop trigger if exists session_templates_set_updated_at on public.session_templates;
+drop trigger if exists session_blocks_set_updated_at on public.session_blocks;
+drop trigger if exists block_items_set_updated_at on public.block_items;
+drop trigger if exists prescriptions_set_updated_at on public.prescriptions;
+drop trigger if exists prescription_sets_set_updated_at on public.prescription_sets;
+drop trigger if exists session_instances_set_updated_at on public.session_instances;
+
+drop function if exists public.create_session_template_with_content(text, jsonb, public.session_status);
+drop function if exists public.apply_session_template_to_team(uuid, uuid, date, public.session_status);
+drop function if exists public.owns_session_template(uuid);
+drop function if exists public.is_team_coach(uuid);
+drop function if exists public.is_team_member(uuid);
+drop function if exists public.add_team_creator_as_coach();
+drop function if exists public.set_updated_at();
+
+drop table if exists public.session_instances cascade;
+drop table if exists public.prescription_sets cascade;
+drop table if exists public.prescriptions cascade;
+drop table if exists public.block_items cascade;
+drop table if exists public.session_blocks cascade;
+drop table if exists public.session_templates cascade;
+drop table if exists public.exercises cascade;
+drop table if exists public.team_members cascade;
+drop table if exists public.teams cascade;
+
+drop type if exists public.session_status;
+drop type if exists public.team_member_role;
+drop type if exists public.training_group_level;

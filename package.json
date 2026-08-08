@@ -1,0 +1,42 @@
+{
+  "name": "fitblock-platform",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "apps/universal",
+    "packages/*"
+  ],
+  "scripts": {
+    "start": "node scripts/with-root-env.cjs start",
+    "dev": "node scripts/with-root-env.cjs start --web",
+    "web": "node scripts/with-root-env.cjs start --web",
+    "lint": "npm --workspace @fitblock/universal run lint",
+    "typecheck": "tsc --noEmit",
+    "test": "npm --workspace @fitblock/universal run test",
+    "verify:schema": "node scripts/verify-schema.mjs",
+    "build": "node scripts/with-root-env.cjs export --platform web"
+  },
+  "devDependencies": {
+    "@testing-library/react-native": "14.0.1",
+    "@types/jest": "29.5.14",
+    "@types/react": "19.2.18",
+    "@types/react-native": "0.73.0",
+    "@typescript-eslint/eslint-plugin": "8.46.2",
+    "@typescript-eslint/parser": "8.46.2",
+    "eslint": "9.39.1",
+    "jest": "29.7.0",
+    "jest-expo": "~57.0.3",
+    "typescript": "5.9.3"
+  },
+  "dependencies": {
+    "@expo/vector-icons": "15.1.1",
+    "expo": "~57.0.10",
+    "expo-router": "~57.0.10",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "react-native": "0.86.2",
+    "react-native-web": "0.21.2",
+    "react-native-safe-area-context": "~5.6.2",
+    "react-native-screens": "~4.16.0"
+  }
+}

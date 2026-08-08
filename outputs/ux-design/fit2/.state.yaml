@@ -1,0 +1,30 @@
+workflow_type: brownfield
+current_phase: audit
+audit_complete: true
+user_research_complete: false
+wireframes_created: []
+ui_prompts_generated: []
+patterns_inventory:
+  target: authentication-ui
+  interactive_controls: 5
+  form_fields: 3
+  findings_fixed: 3
+consolidation_complete: false
+tokens_extracted: true
+components_built:
+  - AuthScreen
+atomic_levels:
+  atoms:
+    - auth tokens
+    - input shell
+    - focusable link control
+  molecules:
+    - password field
+  organisms:
+    - authentication form
+accessibility_score: 100
+wcag_level: AA
+agent_history:
+  - agent: Uma / ux-design-expert
+    action: autonomous authentication UI audit and remediation
+    date: 2026-08-06
