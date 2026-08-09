@@ -1,8 +1,9 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import { useRef, useState } from "react";
+import { createElement, useRef, useState } from "react";
 import {
   Image,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -26,6 +27,7 @@ const mariCardImage = require("@/assets/mari-card.png");
 const daliCardImage = require("@/assets/dali-card.png");
 const finalCtaImage = require("@/assets/tt1.png");
 const finalCtaMobileImage = require("@/assets/tt2.png");
+const heroVideoAsset = require("@/assets/hero.mp4");
 const imageTextShadow = { textShadow: "0px 1px 6px rgba(0, 0, 0, 0.45)" } as unknown as TextStyle;
 
 
@@ -132,7 +134,7 @@ function PublicHeader({
     <View style={[styles.header, isCompact && styles.headerMobile]}>
       <Image
         source={require("../assets/fitblock-wordmark-black.png")}
-        style={styles.headerLogo}
+        style={[styles.headerLogo, isCompact && styles.headerLogoMobile]}
         resizeMode="contain"
         accessibilityLabel="FitBlock Training"
       />
@@ -227,47 +229,76 @@ function MobileMenu({
 function Hero({ onExplore, onOpenApp }: { onExplore: () => void; onOpenApp: () => void }) {
   const { width } = useWindowDimensions();
   const isMobile = width < 768;
+  const isNarrow = width < 360;
+  const mobileContentWidth = Math.max(0, width - spacing[5] * 2);
 
   return (
     <View style={[styles.hero, isMobile && styles.heroMobile]} testID="public-home-hero">
-      <View style={styles.heroTexture}>
-        <Text style={styles.heroTextureText}>FITBLOCK</Text>
-        <Text style={styles.heroTextureText}>FITBLOCK</Text>
-        <Text style={styles.heroTextureText}>FITBLOCK</Text>
-      </View>
-      <View style={[styles.heroContent, isMobile && styles.heroContentMobile]}>
-        <View style={styles.heroEyebrowRow}>
-          <View style={styles.heroEyebrowLine} />
-          <Text style={styles.heroEyebrow}>FITBLOCK TRAINING · PERFORMANCE REAL</Text>
+      <View style={[styles.heroMain, isMobile && styles.heroMainMobile]}>
+        <HeroVideo />
+        <View style={styles.heroTexture}>
+          <Text style={styles.heroTextureText}>FITBLOCK</Text>
+          <Text style={styles.heroTextureText}>FITBLOCK</Text>
+          <Text style={styles.heroTextureText}>FITBLOCK</Text>
         </View>
-        <Text style={[styles.heroTitle, isMobile && styles.heroTitleMobile]}>
-          TREINE{`\n`}
-          <Text style={styles.heroTitleAccent}>COM INTENÇÃO.</Text>
-        </Text>
-        <Text style={styles.heroDescription}>
-          A programação, o acompanhamento e a mentalidade FitBlock em um único lugar.
-        </Text>
-        <View style={styles.heroActions}>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Conhecer programas FitBlock"
-            onPress={onExplore}
-            style={({ pressed }) => [styles.heroPrimaryCta, pressed && styles.pressed]}
+        <View
+          style={[
+            styles.heroContent,
+            isMobile && styles.heroContentMobile,
+            isMobile && { width: mobileContentWidth }
+          ]}
+        >
+          <View style={[styles.heroEyebrowRow, isMobile && styles.heroEyebrowRowMobile]}>
+            <View style={styles.heroEyebrowLine} />
+            <Text
+              style={[
+                styles.heroEyebrow,
+                isMobile && styles.heroEyebrowMobile,
+                isMobile && { maxWidth: Math.max(0, mobileContentWidth - 44 - spacing[2]) }
+              ]}
+            >
+              {isNarrow ? <>FITBLOCK TRAINING ·{`\n`}PERFORMANCE REAL</> : "FITBLOCK TRAINING · PERFORMANCE REAL"}
+            </Text>
+          </View>
+          <Text style={[styles.heroTitle, isMobile && styles.heroTitleMobile, isNarrow && styles.heroTitleNarrow]}>
+            TREINE{`\n`}
+            <Text style={styles.heroTitleAccent}>COM INTENÇÃO.</Text>
+          </Text>
+          <Text
+            style={[
+              styles.heroDescription,
+              isMobile && styles.heroDescriptionMobile,
+              isMobile && { maxWidth: mobileContentWidth }
+            ]}
           >
-            <Text style={styles.heroPrimaryCtaText}>Conheça os programas</Text>
-            <View style={styles.heroCtaIcon}>
-              <Ionicons name="arrow-forward" size={18} color={colors.ink} />
-            </View>
-          </Pressable>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Entrar no app FitBlock"
-            testID="public-home-app-cta"
-            onPress={onOpenApp}
-            style={({ pressed }) => [styles.heroSecondaryCta, pressed && styles.pressed]}
-          >
-            <Text style={styles.heroSecondaryCtaText}>Entrar no app</Text>
-          </Pressable>
+            {isNarrow ? (
+              <>A programação, o acompanhamento{`\n`}e a mentalidade FitBlock em um único lugar.</>
+            ) : (
+              "A programação, o acompanhamento e a mentalidade FitBlock em um único lugar."
+            )}
+          </Text>
+          <View style={[styles.heroActions, isMobile && styles.heroActionsMobile]}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Conhecer programas FitBlock"
+              onPress={onExplore}
+              style={({ pressed }) => [styles.heroPrimaryCta, isMobile && styles.heroCtaMobile, pressed && styles.pressed]}
+            >
+              <Text style={styles.heroPrimaryCtaText}>Conheça os programas</Text>
+              <View style={styles.heroCtaIcon}>
+                <Ionicons name="arrow-forward" size={18} color={colors.ink} />
+              </View>
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Entrar no app FitBlock"
+              testID="public-home-app-cta"
+              onPress={onOpenApp}
+              style={({ pressed }) => [styles.heroSecondaryCta, isMobile && styles.heroCtaMobile, pressed && styles.pressed]}
+            >
+              <Text style={styles.heroSecondaryCtaText}>Entrar no app</Text>
+            </Pressable>
+          </View>
         </View>
       </View>
       <View style={[styles.heroRail, isMobile && styles.heroRailMobile]}>
@@ -280,6 +311,35 @@ function Hero({ onExplore, onOpenApp }: { onExplore: () => void; onOpenApp: () =
           <Text style={[styles.heroRailCaption, isMobile && styles.heroRailCaptionMobile]}>FORÇA · SKILL · ENDURANCE</Text>
         </View>
       </View>
+    </View>
+  );
+}
+
+function HeroVideo() {
+  if (Platform.OS !== "web") {
+    return null;
+  }
+
+  const videoSource = typeof heroVideoAsset === "string" ? heroVideoAsset : heroVideoAsset?.default;
+
+  return (
+    <View
+      accessibilityElementsHidden
+      importantForAccessibility="no"
+      pointerEvents="none"
+      style={styles.heroVideoFrame}
+      testID="public-home-hero-video"
+    >
+      {createElement("video", {
+        "aria-hidden": true,
+        autoPlay: true,
+        loop: true,
+        muted: true,
+        playsInline: true,
+        src: videoSource,
+        style: styles.heroVideo
+      })}
+      <View style={styles.heroVideoShade} />
     </View>
   );
 }
@@ -418,11 +478,13 @@ function CampsSection() {
   const mobileCardWidth = Math.max(280, Math.min(390, width - spacing[5] * 2));
 
   return (
-    <View style={[styles.section, styles.campsSection]} testID="experiences-fitblock-section">
+    <View style={[styles.section, styles.campsSection, isMobile && styles.campsSectionMobile]} testID="experiences-fitblock-section">
       <View style={[styles.darkSectionHeader, isMobile && styles.darkSectionHeaderMobile]}>
         <View>
           <Text style={styles.darkEyebrow}>EXPERIÊNCIAS FITBLOCK</Text>
-          <Text style={styles.darkSectionTitle}>TREINE JUNTO.{`\n`}VÁ MAIS LONGE.</Text>
+          <Text style={[styles.darkSectionTitle, isMobile && styles.darkSectionTitleMobile, width < 360 && styles.darkSectionTitleNarrow]}>
+            TREINE JUNTO.{`\n`}VÁ MAIS LONGE.
+          </Text>
         </View>
         <Text style={[styles.darkSectionDescription, isMobile && styles.darkSectionDescriptionMobile]}>
           Camps e encontros para transformar a energia do treino em comunidade.
@@ -436,6 +498,7 @@ function CampsSection() {
           snapToAlignment="start"
           snapToInterval={mobileCardWidth + spacing[4]}
           contentContainerStyle={styles.campCarouselContent}
+          accessibilityLabel="Experiências FitBlock. Deslize para ver os eventos e a comunidade."
         >
           {featuredCamps.map((experience) => (
             <ExperienceCard
@@ -444,7 +507,7 @@ function CampsSection() {
               style={[styles.campCardMobile, { width: mobileCardWidth }]}
             />
           ))}
-          <CampManifesto style={{ width: mobileCardWidth }} />
+          <CampManifesto mobile style={{ width: mobileCardWidth }} />
         </ScrollView>
       ) : (
         <View style={styles.campGrid}>
@@ -458,11 +521,13 @@ function CampsSection() {
   );
 }
 
-function CampManifesto({ style }: { style?: { width: number } }) {
+function CampManifesto({ mobile = false, style }: { mobile?: boolean; style?: { width: number } }) {
   return (
-    <View style={[styles.campManifesto, style]}>
+    <View style={[styles.campManifesto, mobile && styles.campManifestoMobile, style]}>
       <Text style={styles.campManifestoMark}>+</Text>
-      <Text style={styles.campManifestoText}>O treino é individual.{`\n`}A jornada não precisa ser.</Text>
+      <Text style={[styles.campManifestoText, mobile && styles.campManifestoTextMobile]}>
+        O treino é individual.{`\n`}A jornada não precisa ser.
+      </Text>
       <Text style={styles.campManifestoCaption}>FITBLOCK COMMUNITY</Text>
     </View>
   );
@@ -617,6 +682,10 @@ const styles = StyleSheet.create({
     height: 70,
     paddingHorizontal: spacing[4]
   },
+  headerLogoMobile: {
+    flexShrink: 1,
+    width: 132
+  },
   headerLogo: {
     height: 29,
     width: 150
@@ -661,12 +730,19 @@ const styles = StyleSheet.create({
   mobileHeaderActions: {
     alignItems: "center",
     flexDirection: "row",
-    gap: spacing[2]
+    flexShrink: 0,
+    gap: spacing[2],
+    justifyContent: "flex-end",
+    marginLeft: spacing[3],
+    minWidth: 104,
+    width: 104
   },
   mobileLogin: {
     alignItems: "center",
+    flexShrink: 0,
     minHeight: 44,
-    paddingHorizontal: spacing[2]
+    paddingHorizontal: spacing[2],
+    width: 48
   },
   mobileLoginText: {
     color: colors.fitblockPurple,
@@ -678,6 +754,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     backgroundColor: colors.ink,
     borderRadius: radius.pill,
+    flexShrink: 0,
     height: 44,
     justifyContent: "center",
     width: 44
@@ -743,17 +820,48 @@ const styles = StyleSheet.create({
     flexDirection: "column",
     minHeight: 0
   },
+  heroMain: {
+    minHeight: 620,
+    position: "relative",
+    width: "72%"
+  },
+  heroMainMobile: {
+    minHeight: 0,
+    width: "100%"
+  },
   heroContent: {
     justifyContent: "center",
     paddingHorizontal: "9%",
     paddingVertical: spacing[10],
-    width: "72%",
+    width: "100%",
     zIndex: 2
   },
   heroContentMobile: {
     paddingHorizontal: spacing[5],
     paddingVertical: spacing[8],
+    width: "auto"
+  },
+  heroVideoFrame: {
+    bottom: 0,
+    left: 0,
+    overflow: "hidden",
+    position: "absolute",
+    top: 0,
+    width: "100%",
+    zIndex: 0
+  },
+  heroVideo: {
+    height: "100%",
+    objectFit: "cover",
     width: "100%"
+  } as unknown as TextStyle,
+  heroVideoShade: {
+    backgroundColor: "rgba(17, 17, 17, 0.46)",
+    bottom: 0,
+    left: 0,
+    position: "absolute",
+    right: 0,
+    top: 0
   },
   heroTexture: {
     bottom: -44,
@@ -790,6 +898,17 @@ const styles = StyleSheet.create({
     fontWeight: "500",
     letterSpacing: 1.4
   },
+  heroEyebrowRowMobile: {
+    alignItems: "flex-start",
+    gap: spacing[2],
+    marginBottom: spacing[5]
+  },
+  heroEyebrowMobile: {
+    flex: 1,
+    fontSize: 10,
+    letterSpacing: 1,
+    lineHeight: 16
+  },
   // Tier de campanha: 96px, line-height 0.9, tracking 0 — Bebas já é condensada.
   heroTitle: {
     color: colors.canvas,
@@ -804,6 +923,10 @@ const styles = StyleSheet.create({
     fontSize: typeScale.displayHero,
     lineHeight: typeScale.displayHero * 0.95
   },
+  heroTitleNarrow: {
+    fontSize: 48,
+    lineHeight: 46
+  },
   heroTitleAccent: {
     color: colors.fitblockPurple,
     fontFamily: fontFamilies.display,
@@ -817,12 +940,22 @@ const styles = StyleSheet.create({
     marginTop: spacing[6],
     maxWidth: 520
   },
+  heroDescriptionMobile: {
+    lineHeight: 24,
+    maxWidth: "100%",
+    width: "auto"
+  },
   heroActions: {
     alignItems: "center",
     flexDirection: "row",
     flexWrap: "wrap",
     gap: spacing[4],
     marginTop: spacing[7]
+  },
+  heroActionsMobile: {
+    alignItems: "stretch",
+    flexDirection: "column",
+    gap: spacing[3]
   },
   heroPrimaryCta: {
     alignItems: "center",
@@ -858,6 +991,10 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     minHeight: 56,
     paddingHorizontal: spacing[5]
+  },
+  heroCtaMobile: {
+    alignSelf: "stretch",
+    width: "auto"
   },
   heroSecondaryCtaText: {
     color: colors.canvas,
@@ -1258,6 +1395,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.ink,
     maxWidth: 2000
   },
+  campsSectionMobile: {
+    paddingHorizontal: spacing[5]
+  },
   darkSectionHeader: {
     alignItems: "flex-end",
     flexDirection: "row",
@@ -1268,6 +1408,14 @@ const styles = StyleSheet.create({
     alignItems: "flex-start",
     flexDirection: "column",
     gap: spacing[5]
+  },
+  darkSectionTitleMobile: {
+    fontSize: 48,
+    lineHeight: 44
+  },
+  darkSectionTitleNarrow: {
+    fontSize: 42,
+    lineHeight: 40
   },
   darkEyebrow: {
     color: colors.fitblockPurpleLight,
@@ -1302,7 +1450,8 @@ const styles = StyleSheet.create({
     gap: spacing[2]
   },
   campCarouselContent: {
-    gap: spacing[2]
+    gap: spacing[2],
+    paddingRight: spacing[5]
   },
   campCardMobile: {
     flex: 0
@@ -1317,6 +1466,10 @@ const styles = StyleSheet.create({
     minHeight: 340,
     padding: spacing[5]
   },
+  campManifestoMobile: {
+    minHeight: 300,
+    padding: spacing[5]
+  },
   campManifestoMark: {
     color: colors.fitblockPurple,
     fontFamily: fontFamilies.display,
@@ -1329,6 +1482,10 @@ const styles = StyleSheet.create({
     fontSize: 36,
     fontWeight: "400",
     lineHeight: 32
+  },
+  campManifestoTextMobile: {
+    fontSize: 30,
+    lineHeight: 28
   },
   campManifestoCaption: {
     color: colors.ink,

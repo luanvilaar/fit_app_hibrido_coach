@@ -8,7 +8,8 @@ import {
   StyleSheet,
   Text,
   View,
-  ViewStyle
+  ViewStyle,
+  useWindowDimensions
 } from "react-native";
 import { colors, fontFamilies, radius, spacing } from "@fitblock/design-tokens";
 import {
@@ -43,6 +44,8 @@ function getAnalyticsPayload(experience: FitBlockExperience) {
 }
 
 export function ExperienceCard({ experience, style }: ExperienceCardProps) {
+  const { width } = useWindowDimensions();
+  const isMobile = width < 768;
   const [isFocused, setIsFocused] = useState(false);
   const statusLabel = experienceStatusLabels[experience.status];
 
@@ -88,26 +91,26 @@ export function ExperienceCard({ experience, style }: ExperienceCardProps) {
         pressed && styles.cardPressed
       ]}
     >
-      <View style={styles.hero}>
-        <Text style={styles.order}>{String(experience.order).padStart(2, "0")}</Text>
-        <Ionicons name="arrow-up" size={22} color={colors.canvas} style={styles.arrow} />
-        <Text style={styles.typeLabel}>{experience.typeLabel}</Text>
-        <View style={styles.heroCross} />
+      <View style={[styles.hero, isMobile && styles.heroMobile]}>
+        <Text style={[styles.order, isMobile && styles.orderMobile]}>{String(experience.order).padStart(2, "0")}</Text>
+        <Ionicons name="arrow-up" size={22} color={colors.canvas} style={[styles.arrow, isMobile && styles.arrowMobile]} />
+        <Text style={[styles.typeLabel, isMobile && styles.typeLabelMobile]}>{experience.typeLabel}</Text>
+        <View style={[styles.heroCross, isMobile && styles.heroCrossMobile]} />
       </View>
-      <View style={styles.footer}>
-        <View style={styles.metaRow}>
+      <View style={[styles.footer, isMobile && styles.footerMobile]}>
+        <View style={[styles.metaRow, isMobile && styles.metaRowMobile]}>
           <Text style={styles.date} accessibilityLabel={`Data: ${experience.date}`}>
             {experience.date}
           </Text>
-          <View style={styles.statusRow}>
+          <View style={[styles.statusRow, isMobile && styles.statusRowMobile]}>
             <View style={[styles.statusDot, { backgroundColor: statusColors[experience.status] }]} />
-            <Text style={[styles.status, { color: statusColors[experience.status] }]}>
+            <Text style={[styles.status, isMobile && styles.statusMobile, { color: statusColors[experience.status] }]}>
               {statusLabel}
             </Text>
           </View>
         </View>
-        <Text style={styles.title}>{experience.title}</Text>
-        <Text style={styles.location}>{experience.location}</Text>
+        <Text style={[styles.title, isMobile && styles.titleMobile]}>{experience.title}</Text>
+        <Text style={[styles.location, isMobile && styles.locationMobile]}>{experience.location}</Text>
       </View>
     </Pressable>
   );
@@ -136,17 +139,28 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     padding: spacing[5]
   },
+  heroMobile: {
+    height: 200,
+    padding: spacing[4]
+  },
   order: {
     color: colors.fitblockPurpleLight,
     fontFamily: fontFamilies.interface,
     fontSize: 20,
     fontWeight: "700"
   },
+  orderMobile: {
+    fontSize: 18
+  },
   arrow: {
     position: "absolute",
     right: spacing[5],
     top: spacing[5],
     transform: [{ rotate: "45deg" }]
+  },
+  arrowMobile: {
+    right: spacing[4],
+    top: spacing[4]
   },
   typeLabel: {
     alignSelf: "center",
@@ -157,6 +171,10 @@ const styles = StyleSheet.create({
     letterSpacing: -3,
     lineHeight: 88,
     opacity: 0.92
+  },
+  typeLabelMobile: {
+    fontSize: 72,
+    lineHeight: 68
   },
   heroCross: {
     borderColor: colors.fitblockPurpleLight,
@@ -170,14 +188,27 @@ const styles = StyleSheet.create({
     transform: [{ rotate: "45deg" }],
     width: 80
   },
+  heroCrossMobile: {
+    height: 64,
+    right: spacing[4],
+    top: spacing[4] + 22,
+    width: 64
+  },
   footer: {
     minHeight: 168,
     padding: spacing[5]
+  },
+  footerMobile: {
+    minHeight: 156,
+    padding: spacing[4]
   },
   metaRow: {
     alignItems: "center",
     flexDirection: "row",
     justifyContent: "space-between"
+  },
+  metaRowMobile: {
+    gap: spacing[2]
   },
   date: {
     color: colors.fitblockPurpleLight,
@@ -192,6 +223,9 @@ const styles = StyleSheet.create({
     gap: spacing[2],
     maxWidth: "50%"
   },
+  statusRowMobile: {
+    maxWidth: "100%"
+  },
   statusDot: {
     borderRadius: radius.pill,
     height: 6,
@@ -203,6 +237,9 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     textAlign: "right"
   },
+  statusMobile: {
+    textAlign: "left"
+  },
   title: {
     color: colors.canvas,
     fontFamily: fontFamilies.interface,
@@ -210,10 +247,18 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     marginTop: spacing[4]
   },
+  titleMobile: {
+    fontSize: 23,
+    lineHeight: 26,
+    marginTop: spacing[3]
+  },
   location: {
     color: "#B5B6C2",
     fontFamily: fontFamilies.interface,
     fontSize: 13,
     marginTop: spacing[2]
+  },
+  locationMobile: {
+    fontSize: 12
   }
 });
