@@ -36,7 +36,7 @@ describe("PublicHome", () => {
     if (menuToggle) {
       fireEvent.press(menuToggle);
       expect(screen.getByText("Programas")).toBeTruthy();
-      fireEvent.press(screen.getByTestId("public-menu-toggle"));
+      fireEvent.press(menuToggle);
       expect(screen.getByTestId("public-home-hero")).toBeTruthy();
     } else {
       expect(screen.getByText("Acompanhamento")).toBeTruthy();

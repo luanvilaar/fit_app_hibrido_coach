@@ -72,6 +72,7 @@ describe("navegação por papel", () => {
 
     expect(screen.getByTestId("nav-hoje")).toBeTruthy();
     expect(screen.queryByTestId("nav-coach")).toBeNull();
+    expect(screen.getByLabelText("Coach Híbrido by Fitblock Training")).toBeTruthy();
   });
 
   it("renderiza o atalho Prescrever para o coach", async () => {
@@ -86,5 +87,18 @@ describe("navegação por papel", () => {
     expect(screen.getByTestId("nav-coach")).toBeTruthy();
     expect(screen.getByTestId("nav-coach-equipes")).toBeTruthy();
     expect(screen.getByTestId("nav-coach-treinos")).toBeTruthy();
+  });
+
+  it("mantém a marca Fitblock fora das telas de treino", async () => {
+    mockUseUserRoles.mockReturnValue({ userRoles: athleteRoles });
+
+    const screen = await render(
+      <AthleteShell active="loja">
+        <Text>Loja</Text>
+      </AthleteShell>
+    );
+
+    expect(screen.getByLabelText("FitBlock Training")).toBeTruthy();
+    expect(screen.queryByLabelText("Coach Híbrido by Fitblock Training")).toBeNull();
   });
 });

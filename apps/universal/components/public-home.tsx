@@ -7,6 +7,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  type TextStyle,
   View,
   useWindowDimensions
 } from "react-native";
@@ -21,14 +22,17 @@ import {
 import { homePillars } from "@/data/homePillars";
 import { ExperienceCard } from "@/components/experience-card";
 
-const mari1Image = require("@/assets/mari1.webp");
-const timeCommunityImage = require("@/assets/time-community.webp");
+const mariCardImage = require("@/assets/mari-card.png");
+const daliCardImage = require("@/assets/dali-card.png");
+const finalCtaImage = require("@/assets/tt1.png");
+const finalCtaMobileImage = require("@/assets/tt2.png");
+const imageTextShadow = { textShadow: "0px 1px 6px rgba(0, 0, 0, 0.45)" } as unknown as TextStyle;
 
 
 export function PublicHome() {
   const router = useRouter();
   const { width } = useWindowDimensions();
-  const isMobile = width < 768;
+  const isCompact = width < 1024;
   const [menuOpen, setMenuOpen] = useState(false);
   const sectionOffsets = useRef<Partial<Record<HomeSectionId, number>>>({});
   const scrollRef = useRef<ScrollView>(null);
@@ -53,13 +57,13 @@ export function PublicHome() {
   return (
     <View style={styles.root}>
       <PublicHeader
-        isMobile={isMobile}
+        isCompact={isCompact}
         menuOpen={menuOpen}
         onMenuToggle={() => setMenuOpen((current) => !current)}
         onNavigate={goToSection}
         onOpenApp={openApp}
       />
-      {isMobile && menuOpen && (
+      {isCompact && menuOpen && (
         <MobileMenu onNavigate={goToSection} onOpenApp={openApp} />
       )}
       <ScrollView
@@ -68,7 +72,6 @@ export function PublicHome() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
         onScrollBeginDrag={() => setMenuOpen(false)}
-        scrollEventThrottle={16}
       >
         <Hero onExplore={() => goToSection("programas")} onOpenApp={openApp} />
         <View
@@ -113,27 +116,27 @@ export function PublicHome() {
 }
 
 function PublicHeader({
-  isMobile,
+  isCompact,
   menuOpen,
   onMenuToggle,
   onNavigate,
   onOpenApp
 }: {
-  isMobile: boolean;
+  isCompact: boolean;
   menuOpen: boolean;
   onMenuToggle: () => void;
   onNavigate: (id: HomeSectionId) => void;
   onOpenApp: () => void;
 }) {
   return (
-    <View style={[styles.header, isMobile && styles.headerMobile]}>
+    <View style={[styles.header, isCompact && styles.headerMobile]}>
       <Image
         source={require("../assets/fitblock-wordmark-black.png")}
         style={styles.headerLogo}
         resizeMode="contain"
         accessibilityLabel="FitBlock Training"
       />
-      {!isMobile ? (
+      {!isCompact ? (
         <View style={styles.desktopNav}>
           {homeNavigation.map((item) => (
             <Pressable
@@ -169,22 +172,8 @@ function PublicHeader({
           </Pressable>
         </View>
       )}
-      {!isMobile && (
+      {!isCompact && (
         <View style={styles.headerActions}>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Abrir busca"
-            style={({ pressed }) => [styles.headerIconButton, pressed && styles.pressed]}
-          >
-            <Ionicons name="search-outline" size={19} color={colors.ink} />
-          </Pressable>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Abrir carrinho"
-            style={({ pressed }) => [styles.headerIconButton, pressed && styles.pressed]}
-          >
-            <Ionicons name="bag-handle-outline" size={19} color={colors.ink} />
-          </Pressable>
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Entrar no app FitBlock"
@@ -307,75 +296,65 @@ function PillarsSection() {
         description="Treino, acompanhamento e comunidade para quem quer construir performance sem deixar a vida de lado."
       />
       <View style={[styles.pillarGrid, isMobile && styles.pillarGridMobile]}>
-        {homePillars.map((pillar) => {
-          const hasPhoto = pillar.number === "01" || pillar.number === "03";
-          return (
-            <View
-              key={pillar.number}
-              style={[
-                styles.pillarCard,
-                pillar.tone === "purple" && styles.pillarCardPurple,
-                pillar.tone === "ink" && styles.pillarCardInk,
-                pillar.number === "01" && styles.pillarCardWithImage,
-                pillar.number === "03" && styles.pillarCardWithImageCommunity
-              ]}
-            >
-              {pillar.number === "01" && <View style={styles.pillarCardOverlay} />}
-              {pillar.number === "03" && <View style={styles.pillarCardOverlayDark} />}
-              <View style={styles.cardTopline}>
-                <Text
-                  style={[
-                    styles.cardNumber,
-                    pillar.tone === "ink" && styles.cardNumberLight,
-                    hasPhoto && styles.cardNumberOnImage
-                  ]}
-                >
-                  {pillar.number}
-                </Text>
-                <View style={[styles.cardArrow, pillar.tone === "ink" && styles.cardArrowLight]}>
-                  <Ionicons name="arrow-up" size={17} color={pillar.tone === "ink" ? colors.ink : colors.fitblockPurple} />
-                </View>
-              </View>
-              <View>
-                {hasPhoto ? (
-                  <View style={styles.purpleBadge}>
-                    <Text
-                      style={[
-                        styles.cardEyebrow,
-                        styles.cardEyebrowOnImage,
-                        styles.cardEyebrowBadgeText
-                      ]}
-                    >
-                      {pillar.eyebrow}
-                    </Text>
-                  </View>
-                ) : (
-                  <Text style={[styles.cardEyebrow, pillar.tone === "ink" && styles.cardEyebrowLight]}>
-                    {pillar.eyebrow}
-                  </Text>
-                )}
-                <Text
-                  style={[
-                    styles.pillarTitle,
-                    pillar.tone === "ink" && styles.pillarTitleLight,
-                    hasPhoto && styles.pillarTitleOnImage
-                  ]}
-                >
-                  {pillar.title}
-                </Text>
-                <Text
-                  style={[
-                    styles.pillarDescription,
-                    pillar.tone === "ink" && styles.pillarDescriptionLight,
-                    hasPhoto && styles.pillarDescriptionOnImage
-                  ]}
-                >
-                  {pillar.description}
-                </Text>
-              </View>
+        {homePillars.map((pillar) => <PillarCard key={pillar.number} pillar={pillar} />)}
+      </View>
+    </View>
+  );
+}
+
+function PillarCard({ pillar }: { pillar: (typeof homePillars)[number] }) {
+  const imageSource = pillar.number === "01" ? mariCardImage : pillar.number === "03" ? daliCardImage : null;
+  const hasPhoto = imageSource !== null;
+  const cardStyle = [
+    styles.pillarCard,
+    pillar.tone === "purple" && styles.pillarCardPurple,
+    pillar.tone === "ink" && styles.pillarCardInk,
+    hasPhoto && styles.pillarCardWithPhoto
+  ];
+
+  return (
+    <View style={cardStyle}>
+      {imageSource && (
+        <View style={styles.pillarCardImageFrame}>
+          <Image
+            source={imageSource}
+            resizeMode="cover"
+            accessibilityLabel=""
+            style={styles.pillarCardImage}
+          />
+        </View>
+      )}
+      {pillar.number === "03" && <View style={styles.pillarCardOverlayDark} />}
+      <View style={styles.pillarCardContent}>
+        <View style={styles.cardTopline}>
+          <Text style={[styles.cardNumber, pillar.tone === "ink" && styles.cardNumberLight, hasPhoto && styles.cardNumberOnImage]}>
+            {pillar.number}
+          </Text>
+          <View style={[styles.cardArrow, pillar.tone === "ink" && styles.cardArrowLight]}>
+            <Ionicons name="arrow-up" size={17} color={pillar.tone === "ink" ? colors.ink : colors.fitblockPurple} />
+          </View>
+        </View>
+        <View>
+          {hasPhoto ? (
+            <View style={styles.purpleBadge}>
+              <Text style={[styles.cardEyebrow, styles.cardEyebrowOnImage, styles.cardEyebrowBadgeText]}>{pillar.eyebrow}</Text>
             </View>
-          );
-        })}
+          ) : (
+            <Text style={[styles.cardEyebrow, pillar.tone === "ink" && styles.cardEyebrowLight]}>{pillar.eyebrow}</Text>
+          )}
+          <Text style={[styles.pillarTitle, pillar.tone === "ink" && styles.pillarTitleLight, hasPhoto && styles.pillarTitleOnImage]}>
+            {pillar.title}
+          </Text>
+          <Text
+            style={[
+              styles.pillarDescription,
+              pillar.tone === "ink" && styles.pillarDescriptionLight,
+              hasPhoto && styles.pillarDescriptionOnImage
+            ]}
+          >
+            {pillar.description}
+          </Text>
+        </View>
       </View>
     </View>
   );
@@ -502,17 +481,14 @@ function ContentSection() {
       />
       <View style={styles.contentList}>
         {editorialPosts.map((post) => (
-          <Pressable
+          <View
             key={post.number}
-            accessibilityRole="button"
-            accessibilityLabel={`Ler: ${post.title}`}
-            style={({ pressed }) => [styles.contentRow, isMobile && styles.contentRowMobile, pressed && styles.contentRowPressed]}
+            style={[styles.contentRow, isMobile && styles.contentRowMobile]}
           >
             <Text style={[styles.contentNumber, isMobile && styles.contentNumberMobile]}>{post.number}</Text>
             <Text style={[styles.contentCategory, isMobile && styles.contentCategoryMobile]}>{post.category}</Text>
             <Text style={[styles.contentTitle, isMobile && styles.contentTitleMobile]}>{post.title}</Text>
-            <Ionicons name="arrow-up" size={18} color={colors.fitblockPurple} />
-          </Pressable>
+          </View>
         ))}
       </View>
     </View>
@@ -520,26 +496,34 @@ function ContentSection() {
 }
 
 function FinalCta({ onOpenApp }: { onOpenApp: () => void }) {
+  const { width } = useWindowDimensions();
+  const isMobile = width < 768;
+
   return (
     <View style={styles.finalCta}>
-      <View style={styles.finalCtaPattern}>
-        <Text style={styles.finalCtaPatternText}>F</Text>
-        <Text style={styles.finalCtaPatternText}>B</Text>
+      <Image
+        source={isMobile ? finalCtaMobileImage : finalCtaImage}
+        resizeMode="contain"
+        accessibilityLabel=""
+        style={styles.finalCtaImage}
+      />
+      <View pointerEvents="none" style={styles.finalCtaOverlay} />
+      <View style={[styles.finalCtaContent, isMobile && styles.finalCtaContentMobile]}>
+        <Text style={styles.finalCtaEyebrow}>SEU PRÓXIMO TREINO COMEÇA AQUI</Text>
+        <Text style={styles.finalCtaTitle}>PRONTO PARA{`\n`}ENTRAR NO BLOCO?</Text>
+        <Text style={styles.finalCtaDescription}>Conheça a programação FitBlock e encontre o caminho que faz sentido para você.</Text>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Conhecer a programação FitBlock"
+          onPress={onOpenApp}
+          style={({ pressed }) => [styles.finalCtaButton, pressed && styles.pressed]}
+        >
+          <Text style={styles.finalCtaButtonText}>Começar agora</Text>
+          <View style={styles.finalCtaButtonIcon}>
+            <Ionicons name="arrow-forward" size={18} color={colors.ink} />
+          </View>
+        </Pressable>
       </View>
-      <Text style={styles.finalCtaEyebrow}>SEU PRÓXIMO TREINO COMEÇA AQUI</Text>
-      <Text style={styles.finalCtaTitle}>PRONTO PARA{`\n`}ENTRAR NO BLOCO?</Text>
-      <Text style={styles.finalCtaDescription}>Conheça a programação FitBlock e encontre o caminho que faz sentido para você.</Text>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="Conhecer a programação FitBlock"
-        onPress={onOpenApp}
-        style={({ pressed }) => [styles.finalCtaButton, pressed && styles.pressed]}
-      >
-        <Text style={styles.finalCtaButtonText}>Começar agora</Text>
-        <View style={styles.finalCtaButtonIcon}>
-          <Ionicons name="arrow-forward" size={18} color={colors.ink} />
-        </View>
-      </Pressable>
     </View>
   );
 }
@@ -658,13 +642,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     flexDirection: "row",
     gap: spacing[2]
-  },
-  headerIconButton: {
-    alignItems: "center",
-    borderRadius: radius.pill,
-    height: 44,
-    justifyContent: "center",
-    width: 44
   },
   headerCta: {
     alignItems: "center",
@@ -1030,34 +1007,34 @@ const styles = StyleSheet.create({
     minHeight: 320,
     padding: spacing[5]
   },
+  pillarCardWithPhoto: {
+    overflow: "hidden",
+    position: "relative"
+  },
+  pillarCardImageFrame: {
+    alignItems: "center",
+    bottom: 0,
+    justifyContent: "center",
+    left: 0,
+    position: "absolute",
+    right: 0,
+    top: 0,
+    zIndex: 0
+  },
+  pillarCardImage: {
+    height: "100%",
+    width: "100%"
+  },
+  pillarCardContent: {
+    flex: 1,
+    justifyContent: "space-between",
+    zIndex: 2
+  },
   pillarCardPurple: {
     backgroundColor: colors.softCloud
   },
-  pillarCardWithImage: {
-    backgroundImage: `url(${mari1Image})`,
-    backgroundSize: "cover",
-    backgroundPosition: "center",
-    backgroundRepeat: "no-repeat"
-  },
-  pillarCardWithImageCommunity: {
-    backgroundImage: `url(${timeCommunityImage})`,
-    backgroundSize: "cover",
-    backgroundPosition: "center",
-    backgroundRepeat: "no-repeat"
-  },
   pillarCardInk: {
     backgroundColor: colors.ink
-  },
-  // Degradê ancorado embaixo: o topo do card (número/seta) fica com a foto intacta; o
-  // contraste concentra na metade inferior, onde título e descrição realmente ficam.
-  pillarCardOverlay: {
-    backgroundImage: "linear-gradient(180deg, rgba(113, 50, 245, 0) 0%, rgba(113, 50, 245, 0.15) 40%, rgba(113, 50, 245, 0.55) 65%, rgba(113, 50, 245, 0.9) 100%)",
-    bottom: 0,
-    left: 0,
-    pointerEvents: "none",
-    position: "absolute",
-    right: 0,
-    top: 0
   },
   pillarCardOverlayDark: {
     backgroundImage: "linear-gradient(180deg, rgba(17, 17, 17, 0) 0%, rgba(17, 17, 17, 0.15) 40%, rgba(17, 17, 17, 0.55) 65%, rgba(17, 17, 17, 0.9) 100%)",
@@ -1066,7 +1043,8 @@ const styles = StyleSheet.create({
     pointerEvents: "none",
     position: "absolute",
     right: 0,
-    top: 0
+    top: 0,
+    zIndex: 1
   },
   cardTopline: {
     alignItems: "center",
@@ -1085,9 +1063,7 @@ const styles = StyleSheet.create({
   // O "01"/"03" fica na faixa quase transparente do degradê — sombra garante leitura mesmo ali.
   cardNumberOnImage: {
     color: colors.canvas,
-    textShadowColor: "rgba(0, 0, 0, 0.45)",
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 6
+    ...imageTextShadow
   },
   // alignSelf: hug a largura do texto (sem isso, herda o stretch do container coluna e vira uma barra do tamanho do card).
   purpleBadge: {
@@ -1140,9 +1116,7 @@ const styles = StyleSheet.create({
   },
   pillarTitleOnImage: {
     color: colors.canvas,
-    textShadowColor: "rgba(0, 0, 0, 0.45)",
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 6
+    ...imageTextShadow
   },
   pillarDescription: {
     color: colors.textSecondary,
@@ -1156,9 +1130,7 @@ const styles = StyleSheet.create({
   },
   pillarDescriptionOnImage: {
     color: "rgba(255, 255, 255, 0.78)",
-    textShadowColor: "rgba(0, 0, 0, 0.45)",
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 6
+    ...imageTextShadow
   },
   programsSection: {
     backgroundColor: colors.softCloud,
@@ -1383,9 +1355,6 @@ const styles = StyleSheet.create({
   contentRowMobile: {
     gap: spacing[3]
   },
-  contentRowPressed: {
-    backgroundColor: colors.softCloud
-  },
   contentNumber: {
     color: colors.fitblockPurple,
     fontFamily: fontFamilies.display,
@@ -1420,32 +1389,44 @@ const styles = StyleSheet.create({
   contentTitleMobile: {
     fontSize: 20
   },
-  // campaign-tile: preto puro, headline de campanha queimada por cima, uma pill branca.
+  // CTA editorial: imagem à direita, degradê protege o bloco de leitura à esquerda.
   finalCta: {
-    alignItems: "center",
-    backgroundColor: colors.ink,
-    justifyContent: "center",
-    minHeight: 520,
+    backgroundColor: "#0E0E0E",
+    minHeight: 523,
     overflow: "hidden",
-    paddingHorizontal: spacing[5],
-    paddingVertical: spacing[9]
+    position: "relative"
   },
-  finalCtaPattern: {
-    bottom: -70,
-    flexDirection: "row",
-    gap: 8,
-    opacity: 0.12,
+  finalCtaImage: {
+    alignSelf: "center",
+    bottom: 0,
+    height: "100%",
+    position: "absolute",
+    width: "100%",
+    zIndex: 1
+  },
+  finalCtaOverlay: {
+    backgroundImage: "linear-gradient(90deg, #000000 36.05%, rgba(0, 0, 0, 0) 73.29%)",
+    bottom: 0,
+    left: 0,
     pointerEvents: "none",
     position: "absolute",
-    right: "7%",
-    transform: [{ rotate: "-8deg" }]
+    right: 0,
+    top: 0,
+    zIndex: 2
   },
-  finalCtaPatternText: {
-    color: colors.canvas,
-    fontFamily: fontFamilies.display,
-    fontSize: 240,
-    fontWeight: "400",
-    lineHeight: 220
+  finalCtaContent: {
+    alignItems: "flex-start",
+    justifyContent: "center",
+    minHeight: 523,
+    paddingHorizontal: "6%",
+    paddingVertical: spacing[8],
+    width: "58%",
+    zIndex: 3
+  },
+  finalCtaContentMobile: {
+    minHeight: 520,
+    paddingHorizontal: spacing[5],
+    width: "100%"
   },
   finalCtaEyebrow: {
     color: colors.fitblockPurpleLight,
@@ -1453,7 +1434,7 @@ const styles = StyleSheet.create({
     fontSize: typeScale.caption,
     fontWeight: "500",
     letterSpacing: 1.5,
-    textAlign: "center"
+    textAlign: "left"
   },
   finalCtaTitle: {
     color: colors.canvas,
@@ -1462,7 +1443,7 @@ const styles = StyleSheet.create({
     fontWeight: "400",
     lineHeight: typeScale.displayCampaign * 0.9,
     marginTop: spacing[3],
-    textAlign: "center"
+    textAlign: "left"
   },
   finalCtaDescription: {
     color: colors.stone,
@@ -1471,7 +1452,7 @@ const styles = StyleSheet.create({
     lineHeight: 24,
     marginTop: spacing[4],
     maxWidth: 450,
-    textAlign: "center"
+    textAlign: "left"
   },
   finalCtaButton: {
     alignItems: "center",

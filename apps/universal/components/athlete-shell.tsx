@@ -81,6 +81,7 @@ export function AthleteShell({ children, active }: AthleteShellProps) {
   const { user, signOut } = useAuth();
   const { userRoles } = useUserRoles();
   const items = useMemo(() => getVisibleNavigationItems(userRoles), [userRoles]);
+  const isTrainingContext = active !== "loja" && active !== "perfil";
 
   function navigate(href: Href) {
     if (pathname !== href) router.push(href);
@@ -89,10 +90,15 @@ export function AthleteShell({ children, active }: AthleteShellProps) {
   return (
     <View style={styles.appRoot}>
       {!isMobile && (
-        <Sidebar active={active} items={items} onNavigate={navigate} />
+        <Sidebar active={active} items={items} onNavigate={navigate} isTrainingContext={isTrainingContext} />
       )}
       <View style={styles.mainColumn}>
-        <TopBar isMobile={isMobile} userEmail={user?.email} onSignOut={() => void signOut()} />
+        <TopBar
+          isMobile={isMobile}
+          isTrainingContext={isTrainingContext}
+          userEmail={user?.email}
+          onSignOut={() => void signOut()}
+        />
         <ScrollView
           style={styles.scroll}
           contentContainerStyle={[styles.scrollContent, isMobile && styles.mobileScrollContent]}
@@ -112,17 +118,10 @@ type NavigationProps = {
   onNavigate: (href: Href) => void;
 };
 
-function Sidebar({ active, items, onNavigate }: NavigationProps) {
+function Sidebar({ active, items, onNavigate, isTrainingContext }: NavigationProps & { isTrainingContext: boolean }) {
   return (
     <View style={styles.sidebar}>
-      <View style={styles.sidebarBrand}>
-        <Image
-          source={require("../assets/fitblock-wordmark-white.png")}
-          style={styles.sidebarLogo}
-          resizeMode="contain"
-          accessibilityLabel="FitBlock Training"
-        />
-      </View>
+      {isTrainingContext ? <TrainingBrand /> : <FitblockTrainingBrand />}
       <View style={styles.sidebarDivider} />
       <Text style={styles.sidebarEyebrow}>ÁREA DO ATLETA</Text>
       <View style={styles.sidebarNav}>
@@ -150,22 +149,19 @@ function Sidebar({ active, items, onNavigate }: NavigationProps) {
 
 function TopBar({
   isMobile,
+  isTrainingContext,
   userEmail,
   onSignOut
 }: {
   isMobile: boolean;
+  isTrainingContext: boolean;
   userEmail?: string;
   onSignOut: () => void;
 }) {
   return (
     <View style={[styles.topBar, isMobile && styles.mobileTopBar]}>
       {isMobile ? (
-        <Image
-          source={require("../assets/fitblock-wordmark-black.png")}
-          style={styles.mobileLogo}
-          resizeMode="contain"
-          accessibilityLabel="FitBlock Training"
-        />
+        isTrainingContext ? <TrainingBrand compact /> : <FitblockTrainingBrand compact />
       ) : (
         <View>
           <Text style={styles.topBarEyebrow}>QUARTA · 05 AGO 2026</Text>
@@ -195,6 +191,56 @@ function TopBar({
           <Ionicons name="log-out-outline" size={18} color={colors.textSecondary} />
         </Pressable>
       </View>
+    </View>
+  );
+}
+
+function TrainingBrand({ compact = false }: { compact?: boolean }) {
+  return (
+    <View
+      accessible
+      accessibilityLabel="Coach Híbrido by Fitblock Training"
+      accessibilityRole="image"
+      style={compact ? styles.mobileBrand : styles.sidebarBrand}
+      testID="training-brand"
+    >
+      <Image
+        source={require("../assets/coach-hibrido-mark.webp")}
+        style={compact ? styles.mobileBrandMark : styles.sidebarBrandMark}
+        resizeMode="contain"
+      />
+      <View style={compact ? styles.mobileBrandCopy : styles.sidebarBrandCopy}>
+        <Image
+          source={require("../assets/coach-hibrido-wordmark.webp")}
+          style={compact ? styles.mobileBrandWordmark : styles.sidebarBrandWordmark}
+          resizeMode="contain"
+        />
+        <Text style={compact ? styles.mobileBrandByline : styles.sidebarBrandByline}>by Fitblock Training</Text>
+      </View>
+    </View>
+  );
+}
+
+function FitblockTrainingBrand({ compact = false }: { compact?: boolean }) {
+  if (compact) {
+    return (
+      <Image
+        source={require("../assets/fitblock-wordmark-black.png")}
+        style={styles.mobileFitblockLogo}
+        resizeMode="contain"
+        accessibilityLabel="FitBlock Training"
+      />
+    );
+  }
+
+  return (
+    <View style={styles.sidebarFitblockBrand}>
+      <Image
+        source={require("../assets/fitblock-wordmark-white.png")}
+        style={styles.sidebarFitblockLogo}
+        resizeMode="contain"
+        accessibilityLabel="FitBlock Training"
+      />
     </View>
   );
 }
@@ -291,12 +337,41 @@ const styles = StyleSheet.create({
     width: 252
   },
   sidebarBrand: {
+    alignItems: "center",
+    backgroundColor: colors.canvas,
+    borderRadius: radius.sm,
+    flexDirection: "row",
+    gap: spacing[2],
+    minHeight: 56,
+    paddingHorizontal: spacing[2]
+  },
+  sidebarBrandMark: {
+    height: 36,
+    width: 36
+  },
+  sidebarBrandCopy: {
+    flex: 1,
+    minWidth: 0
+  },
+  sidebarBrandWordmark: {
+    height: 24,
+    width: "100%"
+  },
+  sidebarBrandByline: {
+    color: colors.textSecondary,
+    fontFamily: fontFamilies.interface,
+    fontSize: 8,
+    fontWeight: "700",
+    letterSpacing: 0.3,
+    marginTop: -1
+  },
+  sidebarFitblockBrand: {
     alignItems: "flex-start",
     height: 42,
     justifyContent: "center",
     paddingHorizontal: spacing[3]
   },
-  sidebarLogo: {
+  sidebarFitblockLogo: {
     height: 27,
     width: 148
   },
@@ -386,7 +461,32 @@ const styles = StyleSheet.create({
     minHeight: 70,
     paddingHorizontal: spacing[4]
   },
-  mobileLogo: {
+  mobileBrand: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: spacing[1]
+  },
+  mobileBrandMark: {
+    height: 28,
+    width: 28
+  },
+  mobileBrandCopy: {
+    width: 82
+  },
+  mobileBrandWordmark: {
+    height: 17,
+    width: 82
+  },
+  mobileBrandByline: {
+    color: colors.textSecondary,
+    fontFamily: fontFamilies.interface,
+    fontSize: 7,
+    fontWeight: "700",
+    letterSpacing: 0.1,
+    lineHeight: 9,
+    marginTop: -1
+  },
+  mobileFitblockLogo: {
     height: 25,
     width: 126
   },

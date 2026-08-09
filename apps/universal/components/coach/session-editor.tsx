@@ -397,10 +397,7 @@ const styles = StyleSheet.create({
     marginTop: spacing[1],
     position: "absolute",
     right: 0,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.12,
-    shadowRadius: 8,
+    boxShadow: "0px 4px 8px rgba(0, 0, 0, 0.12)",
     top: "100%",
     zIndex: 20
   },
