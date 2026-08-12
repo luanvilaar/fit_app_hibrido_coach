@@ -26,11 +26,17 @@ const session: CalendarSessionRecord = {
         id: "block-01",
         name: "Força principal",
         kind: "strength",
+        details: {
+          schema_version: 3,
+          body: "@Back Squat\n4 x 5",
+          volume: { sets: 4, reps: 20, source: "auto" }
+        },
         items: [
           {
             id: "item-01",
+            exercise_slug: "back-squat",
             exercise_name: "Back Squat",
-            prescription: { kind: "sets-reps", rest_seconds: 120, sets: [{ set_number: 1, reps: 5 }] }
+            prescription: { kind: "reference" }
           }
         ]
       }
@@ -119,7 +125,7 @@ describe("session history helpers", () => {
     const entry = { session, progress: completedProgress };
 
     expect(getSessionHistoryTitle(entry)).toBe("Base forte");
-    expect(describeSessionHistoryMeta(entry)).toBe("06 de ago · Força · ≈ 1 min");
+    expect(describeSessionHistoryMeta(entry)).toBe("06 de ago · Força · ≈ 5 min");
     expect(describeSessionHistoryStatus(completedProgress)).toBe("Concluído");
   });
 

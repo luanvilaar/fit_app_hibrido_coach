@@ -6,14 +6,13 @@ import type {
   CheckinPainRegion
 } from "@fitblock/backend";
 import {
-  formatBlockSets,
-  formatVolumes,
+  describeBlock,
   getSessionTitle,
-  isFreeTextBlock,
   readSessionBlocks,
-  type SnapshotBlock,
-  type SnapshotItem
-} from "@/data/calendar";
+  type HybridBlock
+} from "@/data/coach-hibrido/session-snapshot";
+
+export { describeBlock };
 
 /** Focos deriváveis do enum de bloco do banco; não há campo de foco na prescrição. */
 export type WorkoutFocus = "Força" | "Endurance" | "Mixed";
@@ -44,10 +43,10 @@ export type SessionStatusView = {
 };
 
 /**
- * Séries de força não têm duração cronometrada na prescrição. A estimativa usa um tempo
- * médio de execução por série somado ao descanso prescrito, e a interface exibe "≈".
+ * Uma série de força não declara duração. A estimativa usa um tempo médio de execução
+ * somado ao descanso típico entre séries, e a interface sempre exibe "≈".
  */
-const SECONDS_PER_SET = 45;
+const SECONDS_PER_SET = 75;
 
 export function parseCalendarDate(value: string): Date {
   // Meio-dia local: evita que o fuso jogue a data para o dia anterior.
@@ -64,84 +63,54 @@ export function formatTodayEyebrow(date: Date): string {
 }
 
 const strengthKinds = ["strength", "lpo", "gymnastics-skill"];
-const enduranceKinds = ["conditioning", "endurance"];
+const conditioningKinds = ["conditioning", "metcon", "endurance", "gymnastics-conditioning"];
 
-export function deriveSessionFocus(blocks: SnapshotBlock[]): WorkoutFocus {
+export function deriveSessionFocus(blocks: HybridBlock[]): WorkoutFocus {
   const hasStrength = blocks.some((block) => strengthKinds.includes(block.kind));
-  const hasConditioning = blocks.some((block) => enduranceKinds.includes(block.kind));
+  const hasConditioning = blocks.some((block) => conditioningKinds.includes(block.kind));
 
   if (hasStrength && !hasConditioning) return "Força";
   if (hasConditioning && !hasStrength) return "Endurance";
   return "Mixed";
 }
 
-function estimateItemSeconds(item: SnapshotItem): number {
-  const rest = item.restSeconds ?? 0;
-  const setCount = item.sets.length;
+/**
+ * Só conta o tempo que o coach realmente declarou: duração de protocolo, minutos de
+ * endurance e o volume de séries lido do texto. Um bloco sem nenhum dos três não
+ * inventa duração — a sessão aparece como "Duração livre".
+ */
+function estimateBlockSeconds(block: HybridBlock): number {
+  const protocol = block.protocol;
 
-  if (item.kind === "timed") {
-    const setsDuration = item.sets.reduce((total, set) => total + (set.durationSeconds ?? 0), 0);
-    const duration = item.durationSeconds ?? setsDuration;
-    return duration + rest * Math.max(setCount - 1, 0);
+  if (protocol) {
+    if (protocol.type === "amrap" || protocol.type === "emom") {
+      return (protocol.durationMinutes ?? 0) * 60;
+    }
+
+    if (protocol.type === "intervals") {
+      const cycle = (protocol.workSeconds ?? 0) + (protocol.restSeconds ?? 0);
+      return (protocol.rounds ?? 0) * cycle;
+    }
+
+    if (protocol.timeCapMinutes) return protocol.timeCapMinutes * 60;
   }
 
-  if (item.kind === "amrap" || item.kind === "emom") {
-    return (item.minutes ?? 0) * 60;
-  }
+  const timedVolume = block.enduranceVolumes
+    .filter((volume) => volume.unit === "min")
+    .reduce((total, volume) => total + volume.value * 60, 0);
 
-  if (setCount === 0) return item.durationSeconds ?? 0;
+  if (timedVolume > 0) return timedVolume;
 
-  return setCount * SECONDS_PER_SET + rest * Math.max(setCount - 1, 0);
+  return (block.volume?.sets ?? 0) * SECONDS_PER_SET;
 }
 
-export function estimateSessionMinutes(blocks: SnapshotBlock[]): number {
-  const seconds = blocks.reduce(
-    (total, block) => total + block.items.reduce((blockTotal, item) => blockTotal + estimateItemSeconds(item), 0),
-    0
-  );
-
+export function estimateSessionMinutes(blocks: HybridBlock[]): number {
+  const seconds = blocks.reduce((total, block) => total + estimateBlockSeconds(block), 0);
   return Math.round(seconds / 60);
 }
 
 export function formatSessionDuration(minutes: number): string {
   return minutes > 0 ? `≈ ${minutes} min` : "Duração livre";
-}
-
-/** Resumo de um bloco: primeiro exercício com a prescrição e quantos mais existem. */
-export function describeBlock(block: SnapshotBlock): string {
-  // Modalidades de texto livre não têm exercício: o resumo é a própria descrição do coach.
-  if (isFreeTextBlock(block)) {
-    const summary = [
-      block.description.split("\n").map((line) => line.trim()).filter(Boolean).join(" · "),
-      formatBlockSets(block.sets),
-      formatVolumes(block.volumes)
-    ]
-      .filter(Boolean)
-      .join(" · ");
-
-    return summary || "Sem prescrição";
-  }
-
-  const [first, ...rest] = block.items;
-
-  if (!first) return "Sem exercícios prescritos";
-
-  const head = `${first.name}${first.sets.length > 0 ? ` · ${formatSetsSummary(first)}` : ""}`;
-
-  return rest.length > 0 ? `${head} · +${rest.length} ${rest.length === 1 ? "exercício" : "exercícios"}` : head;
-}
-
-export function formatSetsSummary(item: SnapshotItem): string {
-  const reps = item.sets.map((set) => {
-    if (typeof set.reps === "number") return String(set.reps);
-    if (typeof set.repsMin === "number" && typeof set.repsMax === "number") {
-      return `${set.repsMin}-${set.repsMax}`;
-    }
-    return "—";
-  });
-
-  const unique = [...new Set(reps)];
-  return `${item.sets.length} × ${unique.join("/")}`;
 }
 
 export function buildTodayBlocks(

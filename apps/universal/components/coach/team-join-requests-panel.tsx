@@ -1,5 +1,6 @@
+import { useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import { colors, fontFamilies, radius, spacing, typeScale } from "@fitblock/design-tokens";
+import { colors, fontFamilies, radius, shadows, spacing, typeScale } from "@fitblock/design-tokens";
 import type { TeamJoinRequestWithAthleteRecord } from "@fitblock/backend";
 
 type TeamJoinRequestsPanelProps = {
@@ -17,6 +18,8 @@ export function TeamJoinRequestsPanel({
   onAccept,
   onDecline
 }: TeamJoinRequestsPanelProps) {
+  const [focusedControl, setFocusedControl] = useState<string | null>(null);
+
   if (!isLoading && requests.length === 0) return null;
 
   return (
@@ -41,7 +44,13 @@ export function TeamJoinRequestsPanel({
                   disabled={isResponding}
                   testID={`accept-join-request-${request.id}`}
                   onPress={() => onAccept(request.id)}
-                  style={({ pressed }) => [styles.acceptButton, pressed && styles.pressed]}
+                  onFocus={() => setFocusedControl(`accept-${request.id}`)}
+                  onBlur={() => setFocusedControl(null)}
+                  style={({ pressed }) => [
+                    styles.acceptButton,
+                    focusedControl === `accept-${request.id}` && styles.focusedControlOnColor,
+                    pressed && styles.pressed
+                  ]}
                 >
                   <Text style={styles.acceptButtonText}>{isResponding ? "..." : "Aceitar"}</Text>
                 </Pressable>
@@ -52,7 +61,13 @@ export function TeamJoinRequestsPanel({
                   disabled={isResponding}
                   testID={`decline-join-request-${request.id}`}
                   onPress={() => onDecline(request.id)}
-                  style={({ pressed }) => [styles.declineButton, pressed && styles.pressed]}
+                  onFocus={() => setFocusedControl(`decline-${request.id}`)}
+                  onBlur={() => setFocusedControl(null)}
+                  style={({ pressed }) => [
+                    styles.declineButton,
+                    focusedControl === `decline-${request.id}` && styles.focusedControl,
+                    pressed && styles.pressed
+                  ]}
                 >
                   <Text style={styles.declineButtonText}>Recusar</Text>
                 </Pressable>
@@ -66,52 +81,54 @@ export function TeamJoinRequestsPanel({
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: colors.canvas,
-    borderColor: colors.hairline,
-    borderRadius: radius.lg,
+    backgroundColor: colors.surface02,
+    borderColor: colors.border,
+    borderRadius: radius.xl,
     borderWidth: 1,
     marginTop: spacing[5],
-    padding: spacing[5]
+    padding: spacing[5],
+    ...shadows.card
   },
-  eyebrow: { color: colors.textMuted, fontFamily: fontFamilies.interface, fontSize: 10, fontWeight: "800", letterSpacing: 1.3 },
+  eyebrow: { color: colors.purple500, fontFamily: fontFamilies.interfaceBold, fontSize: 10, letterSpacing: 1.3 },
   title: {
-    color: colors.ink,
-    fontFamily: fontFamilies.interface,
-    fontSize: typeScale.headingLg,
-    fontWeight: "700",
+    color: colors.textPrimary,
+    fontFamily: fontFamilies.interfaceBold,
+    fontSize: typeScale.headingMd,
     marginBottom: spacing[4],
     marginTop: spacing[2]
   },
   helperText: { color: colors.textSecondary, fontFamily: fontFamilies.interface, fontSize: 13 },
   requestRow: {
     alignItems: "center",
-    borderTopColor: colors.hairline,
+    borderTopColor: colors.border,
     borderTopWidth: StyleSheet.hairlineWidth,
     flexDirection: "row",
     justifyContent: "space-between",
     minHeight: 56,
     paddingVertical: spacing[2]
   },
-  requestName: { color: colors.ink, flex: 1, fontFamily: fontFamilies.interface, fontSize: 13, fontWeight: "700" },
+  requestName: { color: colors.textPrimary, flex: 1, fontFamily: fontFamilies.interfaceBold, fontSize: 13 },
   actions: { flexDirection: "row", gap: spacing[2] },
   acceptButton: {
     alignItems: "center",
-    backgroundColor: colors.fitblockPurple,
+    backgroundColor: colors.success,
     borderRadius: radius.pill,
     justifyContent: "center",
-    minHeight: 36,
+    minHeight: 44,
     paddingHorizontal: spacing[3]
   },
-  acceptButtonText: { color: colors.canvas, fontFamily: fontFamilies.interface, fontSize: 11, fontWeight: "800" },
+  acceptButtonText: { color: colors.white, fontFamily: fontFamilies.interfaceBold, fontSize: 11 },
   declineButton: {
     alignItems: "center",
-    borderColor: colors.hairline,
+    borderColor: colors.border,
     borderRadius: radius.pill,
     borderWidth: 1,
     justifyContent: "center",
-    minHeight: 36,
+    minHeight: 44,
     paddingHorizontal: spacing[3]
   },
-  declineButtonText: { color: colors.textSecondary, fontFamily: fontFamilies.interface, fontSize: 11, fontWeight: "800" },
+  declineButtonText: { color: colors.textSecondary, fontFamily: fontFamilies.interfaceBold, fontSize: 11 },
+  focusedControl: { borderColor: colors.purple400, borderWidth: 3 },
+  focusedControlOnColor: { borderColor: colors.white, borderWidth: 3 },
   pressed: { opacity: 0.72 }
 });

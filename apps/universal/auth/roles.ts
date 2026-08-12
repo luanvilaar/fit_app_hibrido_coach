@@ -67,7 +67,7 @@ export function normalizeUserRoles(payload: unknown): UserRoles {
 }
 
 export function hasRole(userRoles: UserRoles, role: AppRole): boolean {
-  return userRoles.roles.includes(role);
+  return userRoles.roles.includes(role) || userRoles.roles.includes("owner");
 }
 
 export function canAccessCoachArea(userRoles: UserRoles): boolean {

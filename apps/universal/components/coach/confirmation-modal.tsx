@@ -1,6 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
+import { useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import { colors, fontFamilies, radius, spacing } from "@fitblock/design-tokens";
+import { colors, fontFamilies, radius, shadows, spacing } from "@fitblock/design-tokens";
 
 type ConfirmationModalProps = {
   title: string;
@@ -23,14 +24,16 @@ export function ConfirmationModal({
   onConfirm,
   onCancel
 }: ConfirmationModalProps) {
+  const [focusedControl, setFocusedControl] = useState<string | null>(null);
+
   return (
     <View style={styles.backdrop}>
       <View style={styles.modal} testID="confirmation-modal">
-        <View style={styles.iconContainer}>
+        <View style={[styles.iconContainer, isDangerous && styles.iconContainerDanger]}>
           <Ionicons
             name={isDangerous ? "warning-outline" : "checkmark-circle-outline"}
-            size={48}
-            color={isDangerous ? colors.danger : colors.fitblockPurple}
+            size={32}
+            color={isDangerous ? colors.danger : colors.purple500}
           />
         </View>
 
@@ -45,10 +48,13 @@ export function ConfirmationModal({
             disabled={isLoading}
             testID="confirm-modal-button"
             onPress={onConfirm}
+            onFocus={() => setFocusedControl("confirm")}
+            onBlur={() => setFocusedControl(null)}
             style={({ pressed }) => [
               styles.confirmButton,
               isDangerous && styles.confirmButtonDanger,
               isLoading && styles.buttonDisabled,
+              focusedControl === "confirm" && styles.focusedControlOnColor,
               pressed && styles.pressed
             ]}
           >
@@ -61,7 +67,9 @@ export function ConfirmationModal({
             accessibilityLabel={cancelLabel}
             testID="cancel-modal-button"
             onPress={onCancel}
-            style={({ pressed }) => [styles.cancelButton, pressed && styles.pressed]}
+            onFocus={() => setFocusedControl("cancel")}
+            onBlur={() => setFocusedControl(null)}
+            style={({ pressed }) => [styles.cancelButton, focusedControl === "cancel" && styles.focusedControl, pressed && styles.pressed]}
           >
             <Text style={styles.cancelButtonText}>{cancelLabel}</Text>
           </Pressable>
@@ -74,47 +82,83 @@ export function ConfirmationModal({
 const styles = StyleSheet.create({
   backdrop: {
     alignItems: "center",
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    backgroundColor: "rgba(5,5,7,0.78)",
     flex: 1,
     justifyContent: "center",
     padding: spacing[4]
   },
   modal: {
     alignItems: "center",
-    backgroundColor: colors.canvas,
-    borderRadius: radius.lg,
+    backgroundColor: colors.surface02,
+    borderColor: colors.border,
+    borderRadius: radius.xxl,
+    borderWidth: 1,
     maxWidth: 400,
-    padding: spacing[5],
-    width: "100%"
+    padding: spacing[6],
+    width: "100%",
+    ...shadows.card
   },
-  iconContainer: { marginBottom: spacing[4] },
-  title: { color: colors.ink, fontFamily: fontFamilies.interface, fontSize: 18, fontWeight: "700", marginBottom: spacing[3], textAlign: "center" },
-  message: { color: colors.textSecondary, fontFamily: fontFamilies.interface, fontSize: 14, lineHeight: 20, marginBottom: spacing[5], textAlign: "center" },
+  iconContainer: {
+    alignItems: "center",
+    backgroundColor: colors.purple500,
+    borderRadius: radius.pill,
+    height: 56,
+    justifyContent: "center",
+    marginBottom: spacing[4],
+    width: 56
+  },
+  iconContainerDanger: {
+    backgroundColor: colors.bg
+  },
+  title: {
+    color: colors.textPrimary,
+    fontFamily: fontFamilies.interfaceBold,
+    fontSize: 18,
+    marginBottom: spacing[2],
+    textAlign: "center"
+  },
+  message: {
+    color: colors.textSecondary,
+    fontFamily: fontFamilies.interface,
+    fontSize: 14,
+    lineHeight: 21,
+    marginBottom: spacing[5],
+    textAlign: "center"
+  },
   actions: { flexDirection: "row", gap: spacing[3], width: "100%" },
   confirmButton: {
     alignItems: "center",
-    backgroundColor: colors.fitblockPurple,
+    backgroundColor: colors.purple500,
     borderRadius: radius.pill,
     flex: 1,
     justifyContent: "center",
-    minHeight: 44,
+    minHeight: 48,
     paddingVertical: spacing[3]
   },
   confirmButtonDanger: { backgroundColor: colors.danger },
-  confirmButtonDisabled: { backgroundColor: "#E8E6F0", opacity: 1 },
-  confirmButtonText: { color: colors.canvas, fontFamily: fontFamilies.interface, fontSize: 14, fontWeight: "700" },
-  confirmButtonTextDanger: { color: colors.canvas },
+  confirmButtonText: {
+    color: colors.white,
+    fontFamily: fontFamilies.interfaceBold,
+    fontSize: 14
+  },
+  confirmButtonTextDanger: { color: colors.white },
   cancelButton: {
     alignItems: "center",
-    borderColor: colors.hairline,
+    borderColor: colors.border,
     borderRadius: radius.pill,
     borderWidth: 1,
     flex: 1,
     justifyContent: "center",
-    minHeight: 44,
+    minHeight: 48,
     paddingVertical: spacing[3]
   },
-  cancelButtonText: { color: colors.ink, fontFamily: fontFamilies.interface, fontSize: 14, fontWeight: "700" },
+  cancelButtonText: {
+    color: colors.textPrimary,
+    fontFamily: fontFamilies.interfaceBold,
+    fontSize: 14
+  },
+  focusedControl: { borderColor: colors.purple400, borderWidth: 3 },
+  focusedControlOnColor: { borderColor: colors.white, borderWidth: 3 },
   buttonDisabled: { opacity: 0.6 },
   pressed: { opacity: 0.72 }
 });

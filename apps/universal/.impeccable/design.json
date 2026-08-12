@@ -1,134 +1,458 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-08-07T22:50:00Z",
+  "generatedAt": "2026-08-11T19:20:00Z",
   "title": "Design System: FitBlock",
   "extensions": {
     "colorMeta": {
-      "primary": {
+      "ink": {
         "role": "primary",
-        "displayName": "FitBlock Blue",
-        "canonical": "#3b82f6",
-        "tonalRamp": ["#0d47a1", "#1565c0", "#1976d2", "#1e88e5", "#2196f3", "#42a5f5", "#64b5f6", "#bbdefb"]
+        "displayName": "Ink",
+        "canonical": "#111111",
+        "purpose": "Títulos, texto de maior ênfase, bordas de alta prioridade e CTAs escuros.",
+        "tonalRamp": [
+          "#262626",
+          "#434343",
+          "#616161",
+          "#7e7e7e",
+          "#9b9b9b",
+          "#b8b8b8",
+          "#d5d5d5",
+          "#f2f2f2"
+        ]
       },
-      "fitblockPurple": {
-        "role": "accent",
-        "displayName": "FitBlock Purple",
-        "canonical": "#7132f5",
-        "tonalRamp": ["#4a148c", "#6a1b9a", "#7b1fa2", "#8e24aa", "#9c27b0", "#ab47bc", "#ba68c8", "#e1bee7"]
-      },
-      "graphite": {
+      "black": {
         "role": "surface",
-        "displayName": "Dark Graphite",
-        "canonical": "#1f2937",
-        "tonalRamp": ["#000000", "#111827", "#1f2937", "#2d3748", "#4a5568", "#718096", "#a0aec0", "#f7fafc"]
+        "displayName": "Black",
+        "canonical": "#050506",
+        "purpose": "Painel de comando e rail editorial; o preto mais profundo do sistema.",
+        "tonalRamp": [
+          "#23232a",
+          "#3d3d4a",
+          "#585869",
+          "#727289",
+          "#9292a4",
+          "#b2b2be",
+          "#d1d1d9",
+          "#f1f1f3"
+        ]
       },
       "canvas": {
-        "role": "inverse",
-        "displayName": "Canvas White",
-        "canonical": "#ffffff",
-        "tonalRamp": ["#ffffff", "#f9fafb", "#f3f4f6", "#e5e7eb", "#d1d5db", "#9ca3af", "#6b7280", "#000000"]
+        "role": "neutral",
+        "displayName": "Canvas",
+        "canonical": "#FFFFFF",
+        "purpose": "Plano principal de leitura e conteúdo.",
+        "tonalRamp": [
+          "#262626",
+          "#434343",
+          "#616161",
+          "#7e7e7e",
+          "#9b9b9b",
+          "#b8b8b8",
+          "#d5d5d5",
+          "#f2f2f2"
+        ]
+      },
+      "soft-cloud": {
+        "role": "neutral",
+        "displayName": "Soft Cloud",
+        "canonical": "#F5F5F5",
+        "purpose": "Campos de apoio, estados secundários e separação tonal discreta.",
+        "tonalRamp": [
+          "#262626",
+          "#434343",
+          "#616161",
+          "#7e7e7e",
+          "#9b9b9b",
+          "#b8b8b8",
+          "#d5d5d5",
+          "#f2f2f2"
+        ]
+      },
+      "surface-muted": {
+        "role": "neutral",
+        "displayName": "Surface Muted",
+        "canonical": "#ECECF1",
+        "purpose": "Suporte contextual; nunca uma camada elevada.",
+        "tonalRamp": [
+          "#20202c",
+          "#39394e",
+          "#52526f",
+          "#6b6b91",
+          "#8c8caa",
+          "#adadc3",
+          "#cfcfdb",
+          "#f0f0f4"
+        ]
+      },
+      "hairline": {
+        "role": "neutral",
+        "displayName": "Hairline",
+        "canonical": "#CACACB",
+        "purpose": "Regra de 1 px entre linhas, dados e ações adjacentes.",
+        "tonalRamp": [
+          "#262627",
+          "#434344",
+          "#606061",
+          "#7c7c7f",
+          "#9a9a9c",
+          "#b7b7b9",
+          "#d5d5d6",
+          "#f2f2f2"
+        ]
+      },
+      "hairline-soft": {
+        "role": "neutral",
+        "displayName": "Hairline Soft",
+        "canonical": "#E5E5E5",
+        "purpose": "Divisão de 1 px mais discreta, inclusive em barras fixas.",
+        "tonalRamp": [
+          "#262626",
+          "#434343",
+          "#616161",
+          "#7e7e7e",
+          "#9b9b9b",
+          "#b8b8b8",
+          "#d5d5d5",
+          "#f2f2f2"
+        ]
+      },
+      "charcoal": {
+        "role": "neutral",
+        "displayName": "Charcoal",
+        "canonical": "#39393B",
+        "purpose": "Leitura secundária com contraste AA sobre canvas.",
+        "tonalRamp": [
+          "#262627",
+          "#424245",
+          "#5f5f62",
+          "#7c7c80",
+          "#99999d",
+          "#b7b7b9",
+          "#d4d4d6",
+          "#f2f2f2"
+        ]
+      },
+      "text-secondary": {
+        "role": "neutral",
+        "displayName": "Text Secondary",
+        "canonical": "#707072",
+        "purpose": "Metadados e rótulos auxiliares de 12–14 px, AA sobre canvas e Soft Cloud.",
+        "tonalRamp": [
+          "#262627",
+          "#434344",
+          "#606061",
+          "#7d7d7f",
+          "#9a9a9c",
+          "#b7b7b9",
+          "#d5d5d5",
+          "#f2f2f2"
+        ]
+      },
+      "purple": {
+        "role": "accent",
+        "displayName": "FitBlock Purple",
+        "canonical": "#7132F5",
+        "purpose": "Seleção, progresso, foco e ação ativa. Raro em uma tela.",
+        "tonalRamp": [
+          "#1a0449",
+          "#2e0681",
+          "#4209b8",
+          "#550cf0",
+          "#7b40f6",
+          "#a178f8",
+          "#c8affb",
+          "#eee7fe"
+        ]
+      },
+      "purple-dark": {
+        "role": "accent",
+        "displayName": "FitBlock Purple Dark",
+        "canonical": "#5741D8",
+        "purpose": "Estado pressionado do roxo; não é um segundo acento.",
+        "tonalRamp": [
+          "#140d3f",
+          "#241770",
+          "#3321a0",
+          "#432bd1",
+          "#6c59dd",
+          "#9789e7",
+          "#c2b9f1",
+          "#eceafb"
+        ]
+      },
+      "purple-light": {
+        "role": "accent",
+        "displayName": "FitBlock Purple Light",
+        "canonical": "#C7B8FF",
+        "purpose": "Texto e sinal de estado sobre superfícies Ink ou Black.",
+        "tonalRamp": [
+          "#10004c",
+          "#1c0087",
+          "#2900c1",
+          "#3500fb",
+          "#6137ff",
+          "#8f71ff",
+          "#bdabff",
+          "#ebe5ff"
+        ]
       },
       "success": {
         "role": "semantic",
-        "displayName": "Success Green",
-        "canonical": "#10b981",
-        "tonalRamp": ["#065f46", "#047857", "#059669", "#10b981", "#34d399", "#6ee7b7", "#a7f3d0", "#d1fae5"]
+        "displayName": "Success",
+        "canonical": "#007D48",
+        "purpose": "Resultado concluído, sempre acompanhado de texto.",
+        "tonalRamp": [
+          "#004c2c",
+          "#00874e",
+          "#00c16f",
+          "#00fb91",
+          "#37ffaa",
+          "#71ffc3",
+          "#abffdb",
+          "#e5fff4"
+        ]
+      },
+      "warning": {
+        "role": "semantic",
+        "displayName": "Warning",
+        "canonical": "#D99000",
+        "purpose": "Atenção operacional, sempre acompanhada de texto.",
+        "tonalRamp": [
+          "#4c3300",
+          "#875900",
+          "#c18000",
+          "#fba700",
+          "#ffbc37",
+          "#ffcf71",
+          "#ffe3ab",
+          "#fff6e5"
+        ]
+      },
+      "danger": {
+        "role": "semantic",
+        "displayName": "Danger",
+        "canonical": "#D92D3A",
+        "purpose": "Erro ou ação destrutiva, sempre acompanhada de texto.",
+        "tonalRamp": [
+          "#410c10",
+          "#72151c",
+          "#a31e28",
+          "#d52734",
+          "#e05560",
+          "#e9878e",
+          "#f2b8bc",
+          "#fbe9eb"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display Hero",
+        "purpose": "Bebas Neue 56 px/0.9 para título de tela e nome da sessão na primeira dobra; caixa alta quando o conteúdo permitir. Nas telas de campanha a implementação escala até 108 px (78 px em mobile)."
+      },
+      "display-section": {
+        "displayName": "Display Section",
+        "purpose": "Bebas Neue 40 px/0.95 para seções operacionais importantes. Sem eyebrow decorativo antes dele."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "System 16 px/1.5 para instruções, descrição de exercício, dados e inputs."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "System 12–14 px/1.5, peso 700–800 e letter-spacing amplo para metadados e rótulos em caixa alta; mantém contraste AA."
+      },
+      "mono": {
+        "displayName": "Mono (colunas de dados)",
+        "purpose": "ui-monospace, SFMono-Regular, Menlo, Consolas — apenas em colunas ou dados que precisam alinhar. Não é um tier tipográfico da marca."
       }
     },
     "shadows": [
       {
-        "name": "subtle",
-        "value": "0 1px 2px 0 rgba(0,0,0,0.05)",
-        "purpose": "Very subtle dividers and borders"
+        "name": "hairline-inset",
+        "value": "inset 0 -1px 0 #E5E5E5",
+        "purpose": "Profundidade das superfícies operacionais: regra de 1 px em barras fixas e divisões. Blocos de treino, faixas de métrica e linhas de sessão não recebem sombra."
       },
       {
-        "name": "default",
-        "value": "0 4px 6px -1px rgba(0,0,0,0.1)",
-        "purpose": "Card and container elevation"
+        "name": "card",
+        "value": "0 0 8px rgba(0,0,0,0.25)",
+        "purpose": "Única elevação do sistema, exclusiva de cards (raio 10 px). Sem deslocamento: separa o card do fundo sem simular altura. Em Android é aproximada por elevation, que sempre projeta para baixo."
+      }
+    ],
+    "motion": [
+      {
+        "name": "duration-fast",
+        "value": "160ms",
+        "purpose": "Mudança de estado imediata: press, foco, toggle."
+      },
+      {
+        "name": "duration-standard",
+        "value": "240ms",
+        "purpose": "Teto de duração do sistema. Avanço de check-in e transição de estado; nada é mais lento que isto."
+      },
+      {
+        "name": "ease-standard",
+        "value": "ease-out",
+        "purpose": "Curva única do sistema; funcional, sem overshoot ou bounce."
+      },
+      {
+        "name": "reduced-motion",
+        "value": "0ms",
+        "purpose": "Quando a plataforma relata preferência reduzida a mudança é imediata, sem deslocamento ou fade dependente de animação."
       }
     ],
     "breakpoints": [
-      { "name": "mobile", "value": "320px" },
-      { "name": "tablet", "value": "640px" },
-      { "name": "desktop", "value": "1024px" }
+      {
+        "name": "mobile",
+        "value": "320px"
+      },
+      {
+        "name": "tablet",
+        "value": "640px"
+      },
+      {
+        "name": "desktop",
+        "value": "1024px"
+      }
     ]
   },
   "components": [
     {
-      "name": "Primary Button (Hero)",
+      "name": "Primary Button (Ink Pill)",
       "kind": "button",
       "refersTo": "button-primary",
-      "description": "Main call-to-action button in hero section with arrow icon",
-      "html": "<button class=\"ds-btn-primary\">Iniciar treino<svg class=\"ds-btn-icon\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\"><path d=\"M5 12h14M12 5l7 7-7 7\"/></svg></button>",
-      "css": ".ds-btn-primary { display: flex; align-items: center; justify-content: space-between; gap: 16px; background: #ffffff; color: #111827; font-weight: 800; font-size: 14px; padding: 12px 24px 12px 32px; border-radius: 24px; border: none; cursor: pointer; transition: all 0.2s ease; min-height: 52px; } .ds-btn-primary:hover { background: #f3f4f6; transform: translateY(-2px); } .ds-btn-primary:active { transform: translateY(0); opacity: 0.9; } .ds-btn-icon { width: 18px; height: 18px; background: #7132f5; border-radius: 50%; padding: 8px; display: flex; align-items: center; justify-content: center; }"
+      "description": "CTA principal do atleta sobre canvas: contraste mais alto disponível, altura mínima de 44 px.",
+      "html": "<button class=\"ds-btn-primary\" type=\"button\">Iniciar treino <svg width=\"16\" height=\"16\" viewBox=\"0 0 16 16\" fill=\"none\" aria-hidden=\"true\"><path d=\"M2 8h11M9 4l4 4-4 4\" stroke=\"currentColor\" stroke-width=\"1.6\" stroke-linecap=\"square\"/></svg></button>",
+      "css": ".ds-btn-primary { display: inline-flex; align-items: center; gap: 12px; background: #111111; color: #FFFFFF; font-family: system-ui, -apple-system, sans-serif; font-size: 14px; font-weight: 800; letter-spacing: 0.2px; min-height: 44px; padding: 12px 24px; border: none; border-radius: 999px; cursor: pointer; transition: background 160ms ease-out, opacity 160ms ease-out; } .ds-btn-primary:hover { background: #050506; } .ds-btn-primary:active { opacity: 0.75; } .ds-btn-primary:focus-visible { outline: 3px solid #FFFFFF; outline-offset: -6px; }"
     },
     {
-      "name": "Hero Section",
-      "kind": "custom",
-      "refersTo": "hero-section",
-      "description": "Full-width hero with workout info, call-to-action, and visual branding",
-      "html": "<section class=\"ds-hero\"><div class=\"ds-hero-copy\"><div class=\"ds-hero-topline\"><span class=\"ds-hero-week\">SEMANA 3</span><span class=\"ds-hero-focus\">FORÇA</span></div><h2 class=\"ds-hero-title\">Hoje, o trabalho é seu.</h2><p class=\"ds-hero-desc\">Um treino bem executado começa com uma intenção clara.</p><div class=\"ds-hero-meta\"><span class=\"ds-meta-item\"><svg width=\"17\" height=\"17\">⏱</svg> 45 min</span><span class=\"ds-meta-item\"><svg width=\"17\" height=\"17\">📚</svg> 3 blocos</span></div></div><div class=\"ds-hero-visual\"><div class=\"ds-hero-index\">01</div><div class=\"ds-hero-word\">FIT<br>BLOCK</div></div></section>",
-      "css": ".ds-hero { display: flex; background: linear-gradient(135deg, #1f2937 0%, #111827 100%); border-radius: 16px; min-height: 280px; overflow: hidden; margin-bottom: 32px; } .ds-hero-copy { flex: 1; padding: 32px; display: flex; flex-direction: column; justify-content: space-between; color: #ffffff; } .ds-hero-topline { display: flex; gap: 16px; align-items: center; margin-bottom: 16px; } .ds-hero-week { font-size: 12px; font-weight: 700; color: #c7b8ff; letter-spacing: 1px; } .ds-hero-focus { background: #7132f5; color: #ffffff; padding: 6px 16px; border-radius: 20px; font-size: 10px; font-weight: 800; letter-spacing: 1px; } .ds-hero-title { font-size: 32px; font-weight: 700; margin: 0 0 8px; line-height: 1.2; letter-spacing: 0.5px; } .ds-hero-desc { font-size: 15px; color: #d0d1db; margin: 8px 0 0; line-height: 1.5; max-width: 400px; } .ds-hero-meta { display: flex; gap: 24px; margin-top: 24px; font-size: 13px; font-weight: 700; color: #ffffff; } .ds-meta-item { display: flex; gap: 8px; align-items: center; } .ds-hero-visual { width: 28%; background: #5f42f8; padding: 32px; display: flex; flex-direction: column; align-items: flex-end; justify-content: space-between; } .ds-hero-index { font-size: 22px; font-weight: 700; color: #c7b8ff; } .ds-hero-word { font-size: 48px; font-weight: 700; color: #ffffff; line-height: 1; letter-spacing: -1px; text-align: right; }"
+      "name": "Secondary Button (Soft Cloud Pill)",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Ação de apoio; nunca compete em peso com a ação principal.",
+      "html": "<button class=\"ds-btn-secondary\" type=\"button\">Ver histórico</button>",
+      "css": ".ds-btn-secondary { display: inline-flex; align-items: center; justify-content: center; background: #F5F5F5; color: #111111; font-family: system-ui, -apple-system, sans-serif; font-size: 14px; font-weight: 800; min-height: 44px; padding: 12px 24px; border: none; border-radius: 999px; cursor: pointer; transition: background 160ms ease-out; } .ds-btn-secondary:hover { background: #ECECF1; } .ds-btn-secondary:active { opacity: 0.75; } .ds-btn-secondary:focus-visible { outline: 3px solid #7132F5; outline-offset: 2px; }"
     },
     {
-      "name": "Blocks List",
-      "kind": "custom",
-      "refersTo": "blocks-card",
-      "description": "Scrollable list of exercise blocks with completion state",
-      "html": "<div class=\"ds-blocks-card\"><div class=\"ds-block-row ds-block-pending\"><span class=\"ds-block-index\">01</span><div class=\"ds-block-info\"><h4 class=\"ds-block-name\">Aquecimento</h4><p class=\"ds-block-detail\">5 minutos · Mobilidade geral</p></div><svg class=\"ds-block-chevron\" width=\"17\" height=\"17\">›</svg></div><div class=\"ds-block-row ds-block-done\"><span class=\"ds-block-index\">✓</span><div class=\"ds-block-info\"><h4 class=\"ds-block-name\">Série A</h4><p class=\"ds-block-detail\">15 minutos · Força - Trem inferior</p></div><svg class=\"ds-block-chevron\" width=\"17\" height=\"17\">›</svg></div></div>",
-      "css": ".ds-blocks-card { background: #ffffff; border: 1px solid #e5e7eb; border-radius: 12px; overflow: hidden; margin-bottom: 32px; } .ds-block-row { display: flex; align-items: center; gap: 16px; padding: 16px 20px; border-top: 1px solid #e5e7eb; cursor: pointer; transition: all 0.2s ease; } .ds-block-row:first-child { border-top: none; } .ds-block-row:hover { background: #f9fafb; } .ds-block-pending .ds-block-index { width: 30px; height: 30px; border: 1px solid #d1d5db; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 800; color: #6b7280; } .ds-block-done { background: #f0fdf4; } .ds-block-done .ds-block-index { width: 30px; height: 30px; background: #10b981; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 700; color: #ffffff; } .ds-block-info { flex: 1; min-width: 0; } .ds-block-name { font-size: 15px; font-weight: 800; color: #111827; margin: 0; } .ds-block-detail { font-size: 13px; color: #6b7280; margin: 4px 0 0; } .ds-block-chevron { color: #9ca3af; opacity: 0.6; }"
+      "name": "Accent CTA (Purple Pill)",
+      "kind": "button",
+      "refersTo": "cta-accent",
+      "description": "CTA de estado — check-in de prontidão, retomar sessão. Roxo aqui significa progresso, não decoração.",
+      "html": "<button class=\"ds-btn-accent\" type=\"button\">Fazer check-in <svg width=\"16\" height=\"16\" viewBox=\"0 0 16 16\" fill=\"none\" aria-hidden=\"true\"><path d=\"M2 8h11M9 4l4 4-4 4\" stroke=\"currentColor\" stroke-width=\"1.6\" stroke-linecap=\"square\"/></svg></button>",
+      "css": ".ds-btn-accent { display: inline-flex; align-items: center; gap: 12px; justify-content: center; background: #7132F5; color: #FFFFFF; font-family: system-ui, -apple-system, sans-serif; font-size: 13px; font-weight: 800; min-height: 46px; padding: 12px 24px; border: none; border-radius: 999px; cursor: pointer; transition: background 160ms ease-out; } .ds-btn-accent:hover { background: #5741D8; } .ds-btn-accent:active { opacity: 0.75; } .ds-btn-accent:focus-visible { outline: 3px solid #FFFFFF; outline-offset: -6px; }"
     },
     {
-      "name": "Info Cards Grid",
-      "kind": "custom",
-      "refersTo": "context-grid",
-      "description": "Two-column grid of readiness and weekly progress cards",
-      "html": "<div class=\"ds-cards-grid\"><div class=\"ds-info-card\"><div class=\"ds-card-header\"><span class=\"ds-card-eyebrow\">PRONTIDÃO</span><span class=\"ds-card-icon\">💓</span></div><div class=\"ds-score-group\"><span class=\"ds-score\">4</span><span class=\"ds-score-max\">/ 5</span></div><h3 class=\"ds-card-title\">Bem descansado</h3><p class=\"ds-card-detail\">Você está preparado para uma sessão intensa hoje.</p></div><div class=\"ds-info-card\"><div class=\"ds-card-header\"><span class=\"ds-card-eyebrow\">ESTA SEMANA</span><span class=\"ds-card-icon\">🔥</span></div><div class=\"ds-score-group\"><span class=\"ds-score\">2</span><span class=\"ds-score-max\">/ 3</span></div><h3 class=\"ds-card-title\">2 de 3 sessões</h3><p class=\"ds-card-detail\">Você tem 5 treinos de consistência</p></div></div>",
-      "css": ".ds-cards-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 32px; } .ds-info-card { background: #ffffff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 20px; } .ds-card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; } .ds-card-eyebrow { font-size: 10px; font-weight: 800; color: #6b7280; letter-spacing: 1.2px; text-transform: uppercase; } .ds-card-icon { font-size: 20px; } .ds-score-group { display: flex; align-items: baseline; gap: 4px; margin-bottom: 8px; } .ds-score { font-size: 42px; font-weight: 700; color: #111827; } .ds-score-max { font-size: 14px; color: #6b7280; } .ds-card-title { font-size: 14px; font-weight: 800; color: #111827; margin: 0 0 4px; } .ds-card-detail { font-size: 12px; color: #6b7280; margin: 0; line-height: 1.5; }"
+      "name": "Text Field",
+      "kind": "input",
+      "refersTo": "input-field",
+      "description": "Campo de nota e entrada livre: Soft Cloud, cantos retos, hairline de 1 px, foco roxo de alto contraste.",
+      "html": "<label class=\"ds-field\"><span class=\"ds-field-label\">Como foi a sessão</span><textarea class=\"ds-field-input\" rows=\"3\" placeholder=\"Registre carga, dor ou contexto\"></textarea></label>",
+      "css": ".ds-field { display: flex; flex-direction: column; gap: 8px; font-family: system-ui, -apple-system, sans-serif; } .ds-field-label { color: #707072; font-size: 12px; font-weight: 800; letter-spacing: 0.9px; text-transform: uppercase; } .ds-field-input { background: #F5F5F5; color: #111111; font-family: inherit; font-size: 14px; line-height: 1.5; min-height: 80px; padding: 12px; border: 1px solid #CACACB; border-radius: 0; resize: vertical; } .ds-field-input::placeholder { color: #707072; } .ds-field-input:focus-visible { outline: none; border-color: #7132F5; box-shadow: 0 0 0 2px #7132F5; }"
     },
     {
-      "name": "Coach Note Card",
+      "name": "Scale Option",
+      "kind": "chip",
+      "refersTo": "scale-option",
+      "description": "Escolha numérica do check-in de prontidão. Reto, alvo mínimo de 44 px; o estado ativo é roxo com texto, não só cor.",
+      "html": "<div class=\"ds-scale\" role=\"group\" aria-label=\"Prontidão\"><button class=\"ds-scale-option\" type=\"button\">1</button><button class=\"ds-scale-option\" type=\"button\">2</button><button class=\"ds-scale-option ds-scale-option--active\" type=\"button\" aria-pressed=\"true\">3</button><button class=\"ds-scale-option\" type=\"button\">4</button><button class=\"ds-scale-option\" type=\"button\">5</button></div>",
+      "css": ".ds-scale { display: flex; gap: 8px; } .ds-scale-option { flex: 1 1 0; min-width: 44px; min-height: 44px; background: #FFFFFF; color: #707072; font-family: system-ui, -apple-system, sans-serif; font-size: 13px; font-weight: 800; border: 1px solid #CACACB; border-radius: 0; cursor: pointer; transition: border-color 160ms ease-out, background 160ms ease-out; } .ds-scale-option:hover { border-color: #39393B; } .ds-scale-option--active { background: #F3EFFF; border-color: #7132F5; color: #7132F5; } .ds-scale-option:focus-visible { outline: 3px solid #7132F5; outline-offset: 2px; }"
+    },
+    {
+      "name": "Card (Outline)",
+      "kind": "card",
+      "refersTo": "card-outline",
+      "description": "Agrupamento destacável padrão: painel de time, solicitação de entrada, formulário de grupo. Canvas com hairline de 1 px.",
+      "html": "<section class=\"ds-card-outline\"><h3 class=\"ds-card-title\">Atletas do grupo</h3><p class=\"ds-card-body\">14 atletas ativos · 3 aguardando aprovação</p></section>",
+      "css": ".ds-card-outline { background: #FFFFFF; border: 1px solid #CACACB; border-radius: 10px; padding: 24px; box-shadow: 0 0 8px rgba(0,0,0,0.25); } .ds-card-title { margin: 0; font-family: BebasNeue, Oswald, Impact, sans-serif; font-size: 25px; line-height: 23px; color: #111111; text-transform: uppercase; } .ds-card-body { margin: 8px 0 0; font-family: system-ui, -apple-system, sans-serif; font-size: 14px; line-height: 1.5; color: #39393B; }"
+    },
+    {
+      "name": "Card (Fill)",
+      "kind": "card",
+      "refersTo": "card-fill",
+      "description": "Card que sai do fluxo de leitura — em geral um destino, não um dado. Ink sem borda, mesmo raio e mesma sombra do outline.",
+      "html": "<a class=\"ds-card-fill\" href=\"#\"><span class=\"ds-card-fill-eyebrow\">Experiência</span><span class=\"ds-card-fill-title\">Training Camp 2026</span><span class=\"ds-card-fill-meta\">São Paulo · inscrições abertas</span></a>",
+      "css": ".ds-card-fill { display: flex; flex-direction: column; gap: 8px; background: #111111; border: 2px solid transparent; border-radius: 10px; padding: 24px; text-decoration: none; box-shadow: 0 0 8px rgba(0,0,0,0.25); } .ds-card-fill-eyebrow { font-family: system-ui, -apple-system, sans-serif; font-size: 10px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; color: #C7B8FF; } .ds-card-fill-title { font-family: BebasNeue, Oswald, Impact, sans-serif; font-size: 28px; line-height: 26px; color: #FFFFFF; text-transform: uppercase; } .ds-card-fill-meta { font-family: system-ui, -apple-system, sans-serif; font-size: 12px; color: #9E9EA0; } .ds-card-fill:focus-visible { outline: none; border-color: #C7B8FF; }"
+    },
+    {
+      "name": "Session Block Row",
       "kind": "custom",
-      "refersTo": "coach-card",
-      "description": "Message from coach with avatar and timestamp",
-      "html": "<div class=\"ds-coach-card\"><div class=\"ds-coach-avatar\">FB</div><div class=\"ds-coach-content\"><div class=\"ds-coach-header\"><div><p class=\"ds-coach-name\">Seu coach</p><p class=\"ds-coach-time\">Publicado hoje às 09:30</p></div><span class=\"ds-coach-icon\">💬</span></div><p class=\"ds-coach-text\">Foque em manter a postura na série A. Qualidade de movimento antes de carga!</p></div></div>",
-      "css": ".ds-coach-card { display: flex; gap: 16px; background: #111827; color: #ffffff; border-radius: 12px; padding: 20px; margin-bottom: 32px; } .ds-coach-avatar { width: 40px; height: 40px; border-radius: 50%; background: #7132f5; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 11px; flex-shrink: 0; } .ds-coach-content { flex: 1; min-width: 0; } .ds-coach-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; } .ds-coach-name { font-size: 14px; font-weight: 800; margin: 0; } .ds-coach-time { font-size: 11px; color: #9ca3af; margin: 3px 0 0; } .ds-coach-icon { font-size: 20px; } .ds-coach-text { font-size: 15px; line-height: 1.5; margin: 0; color: #e5e7eb; }"
+      "refersTo": "session-block-row",
+      "description": "Bloco de treino em linha escaneável: número editorial em Bebas, nome, metadados e hairline de 1 px. Substitui o card.",
+      "html": "<ol class=\"ds-blocks\"><li class=\"ds-block-row\"><span class=\"ds-block-number\">01</span><span class=\"ds-block-copy\"><span class=\"ds-block-name\">Aquecimento</span><span class=\"ds-block-detail\">8 min · mobilidade · sem equipamento</span></span></li><li class=\"ds-block-row ds-block-row--done\"><span class=\"ds-block-number\">02</span><span class=\"ds-block-copy\"><span class=\"ds-block-name\">Força inferior</span><span class=\"ds-block-detail\">4 × 6 · barra · concluído</span></span></li></ol>",
+      "css": ".ds-blocks { list-style: none; margin: 0; padding: 0; background: #FFFFFF; } .ds-block-row { display: flex; align-items: center; gap: 16px; min-height: 120px; padding: 16px 24px; border-bottom: 1px solid #CACACB; } .ds-block-row--done { background: #F3EFFF; } .ds-block-number { font-family: BebasNeue, Oswald, Impact, sans-serif; font-size: 66px; line-height: 58px; color: #111111; } .ds-block-copy { display: flex; flex-direction: column; min-width: 0; } .ds-block-name { font-family: BebasNeue, Oswald, Impact, sans-serif; font-size: 25px; line-height: 23px; color: #111111; text-transform: uppercase; } .ds-block-detail { margin-top: 8px; font-family: system-ui, -apple-system, sans-serif; font-size: 12px; line-height: 18px; color: #39393B; }"
+    },
+    {
+      "name": "Command Panel",
+      "kind": "card",
+      "refersTo": "command-panel",
+      "description": "Painel Black com as métricas da sessão na primeira dobra. Marcador roxo de 4 px é o único cromatismo.",
+      "html": "<aside class=\"ds-command\"><div class=\"ds-command-metric\"><span class=\"ds-command-label\">Volume</span><span class=\"ds-command-value\">12 400 kg</span><span class=\"ds-command-accent\"></span></div><div class=\"ds-command-metric\"><span class=\"ds-command-label\">Blocos</span><span class=\"ds-command-value\">4 de 6</span></div><span class=\"ds-command-status\">Sessão em andamento</span></aside>",
+      "css": ".ds-command { display: flex; flex-direction: column; justify-content: space-between; gap: 24px; min-width: 238px; padding: 24px; background: #050506; } .ds-command-metric { display: flex; flex-direction: column; gap: 8px; padding-bottom: 12px; border-bottom: 1px solid #39393B; } .ds-command-label { font-family: system-ui, -apple-system, sans-serif; font-size: 10px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; color: #9E9EA0; } .ds-command-value { font-family: BebasNeue, Oswald, Impact, sans-serif; font-size: 28px; line-height: 26px; color: #FFFFFF; text-transform: uppercase; } .ds-command-accent { width: 48px; height: 4px; margin-top: 4px; background: #7132F5; } .ds-command-status { font-family: system-ui, -apple-system, sans-serif; font-size: 10px; font-weight: 800; letter-spacing: 0.9px; text-transform: uppercase; color: #C7B8FF; }"
+    },
+    {
+      "name": "Bottom Navigation (mobile)",
+      "kind": "nav",
+      "refersTo": "bottom-navigation",
+      "description": "Navegação inferior do atleta em mobile: canvas com hairline superior, alvo de 52 px, item ativo em roxo com rótulo.",
+      "html": "<nav class=\"ds-bottom-nav\" aria-label=\"Navegação principal\"><a class=\"ds-bottom-nav-item ds-bottom-nav-item--active\" href=\"#\" aria-current=\"page\"><span class=\"ds-bottom-nav-dot\"></span>Hoje</a><a class=\"ds-bottom-nav-item\" href=\"#\"><span class=\"ds-bottom-nav-dot\"></span>Calendário</a><a class=\"ds-bottom-nav-item\" href=\"#\"><span class=\"ds-bottom-nav-dot\"></span>Progresso</a><a class=\"ds-bottom-nav-item\" href=\"#\"><span class=\"ds-bottom-nav-dot\"></span>Mais</a></nav>",
+      "css": ".ds-bottom-nav { display: flex; justify-content: space-around; align-items: stretch; background: #FFFFFF; border-top: 1px solid #CACACB; padding: 8px 0 18px; } .ds-bottom-nav-item { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; min-width: 58px; min-height: 52px; padding: 0 4px; border-radius: 10px; font-family: system-ui, -apple-system, sans-serif; font-size: 10px; font-weight: 700; color: #707072; text-decoration: none; } .ds-bottom-nav-dot { width: 18px; height: 18px; border: 2px solid currentColor; border-radius: 999px; } .ds-bottom-nav-item--active { background: #F0EBFF; color: #7132F5; } .ds-bottom-nav-item:focus-visible { outline: 2px solid #7132F5; outline-offset: -2px; }"
+    },
+    {
+      "name": "Editorial Rail (desktop)",
+      "kind": "nav",
+      "refersTo": "editorial-rail",
+      "description": "Rail preto permanente à esquerda do canvas no desktop. Marcador roxo de 3 px indica a seção ativa; é moldura local da shell, não tema escuro global.",
+      "html": "<nav class=\"ds-rail\" aria-label=\"Navegação do atleta\"><span class=\"ds-rail-eyebrow\">Atleta</span><a class=\"ds-rail-item ds-rail-item--active\" href=\"#\" aria-current=\"page\">Hoje</a><a class=\"ds-rail-item\" href=\"#\">Calendário</a><a class=\"ds-rail-item\" href=\"#\">Progresso</a><a class=\"ds-rail-item\" href=\"#\">Perfil</a></nav>",
+      "css": ".ds-rail { display: flex; flex-direction: column; gap: 4px; width: 176px; padding: 16px 12px 24px; background: #050506; } .ds-rail-eyebrow { margin-bottom: 12px; padding: 0 12px; font-family: system-ui, -apple-system, sans-serif; font-size: 10px; font-weight: 700; letter-spacing: 1.4px; text-transform: uppercase; color: #9E9EA0; } .ds-rail-item { display: flex; align-items: center; min-height: 52px; padding: 0 12px; border-radius: 0; font-family: system-ui, -apple-system, sans-serif; font-size: 14px; font-weight: 600; color: #9E9EA0; text-decoration: none; transition: color 160ms ease-out; } .ds-rail-item:hover { color: #FFFFFF; } .ds-rail-item--active { color: #FFFFFF; border-left: 3px solid #7132F5; } .ds-rail-item:focus-visible { outline: 2px solid #FFFFFF; outline-offset: -2px; }"
     }
   ],
   "narrative": {
-    "northStar": "Clear Clarity",
-    "overview": "Clean, purposeful fitness platform designed for clarity and progress tracking. The design prioritizes task focus—whether an athlete is checking today's workout or a coach is reviewing performance—with intuitive navigation and minimal cognitive load.",
+    "northStar": "Catálogo de Performance",
+    "overview": "FitBlock é uma interface operacional de treino: uma página deve parecer uma folha de programa de alto desempenho, não uma coleção de cartões genéricos. A hierarquia é construída por contraste extremo, títulos editoriais e dados alinhados em regras finas. O atleta vê o treino, inicia a sessão e registra contexto sem procurar por uma ação entre ornamentos.\n\nO ponto de partida foi a disciplina tipográfica e monocromática analisada em DESIGN-nike.md, mas o resultado é identidade própria de FitBlock: sem logotipos, slogans, fotografia, nomes de produtos, copy ou elementos proprietários da Nike. O roxo FitBlock identifica uma decisão, seleção ou progresso dentro desse sistema — nunca uma decoração espalhada pela tela.\n\nO sistema é entregue por um único codebase Expo em iOS, Android e web. A linguagem visual é compartilhada entre as três, com prioridade para operação móvel; convenções de plataforma (navegação, safe areas, alvos de toque, leitores de tela) são respeitadas sem quebrar a expectativa de uma app única.",
     "keyCharacteristics": [
-      "Clean, minimal aesthetic with breathing space",
-      "Task-focused navigation (athlete vs coach contexts)",
-      "Strategic color usage (blue for actions, neutrals for content)",
-      "Mobile-first, responsive layout",
-      "Clear typography hierarchy with smart use of weight and size"
+      "Títulos de sessão grandes e secos; interface e dados silenciosos.",
+      "Canvas branco, superfícies operacionais planas e hairlines de 1 px; sombra só em card.",
+      "Ação principal de alto contraste, visível já na primeira dobra.",
+      "Densidade controlada: conteúdo em linhas escaneáveis, não em painéis empilhados.",
+      "Uma experiência compartilhada entre web, iOS e Android, com prioridade para operação móvel."
     ],
     "rules": [
       {
-        "name": "The Clarity Rule",
-        "body": "Every element communicates status or action. No decorative elements; visual weight matches information hierarchy.",
+        "name": "The One Accent Rule",
+        "body": "Fora de estados semânticos, somente o roxo FitBlock pode ser cromático. Sua raridade torna seleção e progresso inequívocos.",
         "section": "colors"
       },
       {
-        "name": "The Breathing Space Rule",
-        "body": "Consistent spacing (8px unit) prevents cognitive overload. Cards and sections have generous padding.",
+        "name": "The Two Voices Rule",
+        "body": "Bebas Neue é reservado ao momento editorial — título de página, sessão ou seção. Rótulos, números de formulário e instruções permanecem em System para legibilidade e localização.",
+        "section": "typography"
+      },
+      {
+        "name": "The Flat-By-Default Rule",
+        "body": "Superfícies operacionais não têm sombra: a profundidade vem do contraste entre Canvas, Soft Cloud, Ink e hairlines de 1 px. A única exceção é o card (raio 10 px, sombra 0 0 8px rgba(0,0,0,0.25)), e virar card é uma decisão de agrupamento, nunca um atalho para dar ênfase.",
+        "section": "elevation"
+      },
+      {
+        "name": "The Editorial Rail Rule",
+        "body": "Em desktop, a shell do atleta pode manter um rail editorial preto permanente à esquerda do canvas branco, com wordmark FitBlock, navegação inversa e marcador roxo na seção ativa. É uma moldura local da shell, não um tema escuro global.",
         "section": "layout"
       }
     ],
     "dos": [
-      "Do use blue primary color sparingly for key actions and navigation",
-      "Do maintain ample whitespace for breathing room and clarity",
-      "Do ensure 44×44px minimum touch targets on mobile",
-      "Do use semantic colors (green for success, red for error, amber for caution)",
-      "Do respect prefers-reduced-motion for any transitions or animations"
+      "Do colocar a decisão principal do atleta na primeira dobra e dar a ela o contraste mais alto disponível.",
+      "Do usar Bebas Neue apenas para títulos editoriais e nomes de sessão; deixar a interface, números e formulários em System.",
+      "Do separar blocos com ritmo e hairlines de 1 px, mantendo containers planos e retos.",
+      "Do manter foco visível, suporte a teclado, labels acessíveis, reduced motion e alvos de toque de pelo menos 44 × 44 px.",
+      "Do usar roxo FitBlock para estado, foco, progresso ou seleção — com parcimônia.",
+      "Do preservar a verdade de FitBlock: atleta, coach, treino, feedback e progresso têm prioridade sobre qualquer referência estética."
     ],
     "donts": [
-      "Don't overuse accent color; keep it reserved for interactive elements",
-      "Don't place text on photographic backgrounds without contrast verification",
-      "Don't create horizontal scroll on mobile; keep single-column layout",
-      "Don't use color alone to communicate status; pair with icons and text"
+      "Don't copiar marcas, produtos, slogans, fotografia, layout proprietário ou qualquer conteúdo de Nike; DESIGN-nike.md é referência de princípios, não um kit de UI.",
+      "Don't transformar conteúdo operacional — blocos de treino, métricas, linhas de sessão — em bento cards; eles permanecem retos, planos e separados por hairline.",
+      "Don't usar gradientes, glassmorphism, sombra difusa com deslocamento ou um segundo raio de card; a única elevação do sistema é 0 0 8px rgba(0,0,0,0.25) em 10 px.",
+      "Don't adicionar eyebrows decorativos, cor de acento aleatória ou mais de um acento de marca em uma superfície.",
+      "Don't ocultar CTA, primeiro bloco do treino ou estado de foco ao reorganizar a tela em mobile.",
+      "Don't comunicar estado somente por cor, reduzir targets para caber conteúdo ou animar contra a preferência de movimento reduzido."
     ]
   }
 }

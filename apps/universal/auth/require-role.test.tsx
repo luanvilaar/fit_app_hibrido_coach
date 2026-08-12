@@ -28,6 +28,13 @@ const athleteRoles: UserRoles = {
   athleteTeamIds: ["team-01"]
 };
 
+const ownerRoles: UserRoles = {
+  userId: "owner-01",
+  roles: ["owner"],
+  coachTeamIds: [],
+  athleteTeamIds: []
+};
+
 function renderGate() {
   return render(
     <RequireRole role="coach">
@@ -44,6 +51,20 @@ describe("RequireRole", () => {
   it("renderiza a área restrita para quem tem o papel exigido", async () => {
     mockUseUserRoles.mockReturnValue({
       userRoles: coachRoles,
+      isLoading: false,
+      error: null,
+      refresh: jest.fn()
+    });
+
+    const screen = await renderGate();
+
+    expect(screen.getByText("Área do coach")).toBeTruthy();
+    expect(mockRouter.replace).not.toHaveBeenCalled();
+  });
+
+  it("renderiza a área restrita para proprietário da plataforma", async () => {
+    mockUseUserRoles.mockReturnValue({
+      userRoles: ownerRoles,
       isLoading: false,
       error: null,
       refresh: jest.fn()

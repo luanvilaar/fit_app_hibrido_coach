@@ -49,7 +49,7 @@ function RoleGateError({
   return (
     <View style={styles.page} testID="role-gate-error">
       <View style={styles.iconWrap}>
-        <Ionicons name="lock-closed-outline" size={26} color={colors.fitblockPurple} />
+        <Ionicons name="lock-closed-outline" size={26} color={colors.purple400} />
       </View>
       <Text style={styles.eyebrow}>ACESSO RESTRITO</Text>
       <Text style={styles.title}>Não conseguimos confirmar suas permissões.</Text>
@@ -81,32 +81,34 @@ function RoleGateError({
 const styles = StyleSheet.create({
   page: {
     alignItems: "flex-start",
-    backgroundColor: colors.canvas,
+    backgroundColor: colors.bg,
     flex: 1,
     justifyContent: "center",
     padding: spacing[8]
   },
   iconWrap: {
     alignItems: "center",
-    backgroundColor: "#F0EBFF",
-    borderRadius: radius.md,
+    backgroundColor: colors.surface04,
+    borderColor: colors.borderPurple,
+    borderRadius: radius.pill,
+    borderWidth: 1,
     height: 56,
     justifyContent: "center",
     marginBottom: spacing[5],
     width: 56
   },
   eyebrow: {
-    color: colors.fitblockPurple,
+    color: colors.purple400,
     fontFamily: fontFamilies.interface,
     fontSize: 11,
     fontWeight: "800",
     letterSpacing: 1.3
   },
   title: {
-    color: colors.ink,
-    fontFamily: fontFamilies.interface,
-    fontSize: 32,
-    fontWeight: "700",
+    color: colors.textPrimary,
+    fontFamily: fontFamilies.display,
+    fontSize: 40,
+    lineHeight: 40,
     marginTop: spacing[2],
     maxWidth: 560
   },
@@ -126,21 +128,21 @@ const styles = StyleSheet.create({
   },
   primaryButton: {
     alignItems: "center",
-    backgroundColor: colors.fitblockPurple,
+    backgroundColor: colors.purple500,
     borderRadius: radius.pill,
     justifyContent: "center",
     minHeight: 48,
     paddingHorizontal: spacing[6]
   },
   primaryButtonLabel: {
-    color: colors.canvas,
-    fontFamily: fontFamilies.interface,
-    fontSize: 14,
-    fontWeight: "800"
+    color: colors.white,
+    fontFamily: fontFamilies.interfaceBold,
+    fontSize: 14
   },
   secondaryButton: {
     alignItems: "center",
-    borderColor: colors.hairline,
+    backgroundColor: colors.surface03,
+    borderColor: colors.border,
     borderRadius: radius.pill,
     borderWidth: 1,
     justifyContent: "center",
@@ -148,10 +150,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing[6]
   },
   secondaryButtonLabel: {
-    color: colors.ink,
-    fontFamily: fontFamilies.interface,
-    fontSize: 14,
-    fontWeight: "700"
+    color: colors.textPrimary,
+    fontFamily: fontFamilies.interfaceBold,
+    fontSize: 14
   },
   pressed: {
     opacity: 0.72

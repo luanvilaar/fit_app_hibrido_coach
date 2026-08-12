@@ -24,6 +24,8 @@ export function AthleteProfileScreen() {
   const [cancelingRequestId, setCancelingRequestId] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [focusedControl, setFocusedControl] = useState<string | null>(null);
+  const [isNameInputFocused, setIsNameInputFocused] = useState(false);
 
   const loadTeams = useCallback(async () => {
     if (!supabase) return;
@@ -159,9 +161,11 @@ export function AthleteProfileScreen() {
               <TextInput
                 accessibilityLabel="Seu nome de exibição"
                 onChangeText={setDisplayName}
+                onFocus={() => setIsNameInputFocused(true)}
+                onBlur={() => setIsNameInputFocused(false)}
                 placeholder="Seu nome completo"
-                placeholderTextColor={colors.textMuted}
-                style={styles.input}
+                placeholderTextColor={colors.textMutedAccessible}
+                style={[styles.input, isNameInputFocused && styles.focusedControl]}
                 testID="display-name-input"
                 value={displayName}
               />
@@ -172,9 +176,12 @@ export function AthleteProfileScreen() {
                 disabled={isSavingName}
                 testID="save-display-name"
                 onPress={() => void handleSaveName()}
+                onFocus={() => setFocusedControl("save-name")}
+                onBlur={() => setFocusedControl(null)}
                 style={({ pressed }) => [
                   styles.submitButton,
                   isSavingName && styles.submitButtonDisabled,
+                  focusedControl === "save-name" && styles.focusedControlOnColor,
                   pressed && styles.pressed
                 ]}
               >
@@ -217,7 +224,13 @@ export function AthleteProfileScreen() {
                     disabled={cancelingRequestId === team.join_request_id}
                     testID={`cancel-request-${team.id}`}
                     onPress={() => team.join_request_id && void handleCancelRequest(team.join_request_id)}
-                    style={({ pressed }) => [styles.cancelLink, pressed && styles.pressed]}
+                    onFocus={() => setFocusedControl(`cancel-${team.id}`)}
+                    onBlur={() => setFocusedControl(null)}
+                    style={({ pressed }) => [
+                      styles.cancelLink,
+                      focusedControl === `cancel-${team.id}` && styles.focusedControl,
+                      pressed && styles.pressed
+                    ]}
                   >
                     <Text style={styles.cancelLinkText}>
                       {cancelingRequestId === team.join_request_id ? "Cancelando..." : "Cancelar"}
@@ -231,7 +244,13 @@ export function AthleteProfileScreen() {
                 accessibilityLabel="Selecionar grupo ou treinador"
                 testID="open-group-select"
                 onPress={() => setIsModalOpen(true)}
-                style={({ pressed }) => [styles.selectBox, pressed && styles.pressed]}
+                onFocus={() => setFocusedControl("open-group-select")}
+                onBlur={() => setFocusedControl(null)}
+                style={({ pressed }) => [
+                  styles.selectBox,
+                  focusedControl === "open-group-select" && styles.focusedControl,
+                  pressed && styles.pressed
+                ]}
               >
                 <Text style={styles.selectBoxText}>
                   {linkedTeams.length > 0 || pendingTeams.length > 0
@@ -282,44 +301,44 @@ function ProfileMessage({
 }
 
 const styles = StyleSheet.create({
-  page: { gap: spacing[4] },
-  pageTitle: { color: colors.ink, fontFamily: fontFamilies.interface, fontSize: typeScale.headingXl, fontWeight: "700" },
+  page: { gap: spacing[5] },
+  pageTitle: { color: colors.textPrimary, fontFamily: fontFamilies.displayBold, fontSize: typeScale.displayHero, letterSpacing: -0.8, lineHeight: typeScale.displayHero * 0.88, textTransform: "uppercase" },
   messageCard: {
     alignItems: "center",
-    backgroundColor: colors.canvas,
-    borderColor: colors.hairline,
+    backgroundColor: colors.surface02,
+    borderColor: colors.border,
     borderRadius: radius.md,
     borderWidth: 1,
     flexDirection: "row",
     gap: spacing[3],
     padding: spacing[4]
   },
-  messageCardError: { borderColor: "#F3C3C8" },
-  messageCardSuccess: { borderColor: "#B6E1CC" },
+  messageCardError: { borderColor: colors.error },
+  messageCardSuccess: { borderColor: colors.success },
   messageText: { color: colors.textSecondary, flex: 1, fontFamily: fontFamilies.interface, fontSize: 14 },
   card: {
-    backgroundColor: colors.canvas,
-    borderColor: colors.hairline,
-    borderRadius: radius.lg,
+    backgroundColor: colors.surface02,
+    borderColor: colors.border,
+    borderRadius: radius.card,
     borderWidth: 1,
     padding: spacing[5]
   },
-  eyebrow: { color: colors.textMuted, fontFamily: fontFamilies.interface, fontSize: 10, fontWeight: "800", letterSpacing: 1.3 },
+  eyebrow: { color: colors.purple400, fontFamily: fontFamilies.interfaceBold, fontSize: 10, letterSpacing: 1.3 },
   title: {
-    color: colors.ink,
-    fontFamily: fontFamilies.interface,
-    fontSize: typeScale.headingLg,
-    fontWeight: "700",
+    color: colors.textPrimary,
+    fontFamily: fontFamilies.display,
+    fontSize: typeScale.headingXl,
+    lineHeight: typeScale.headingXl,
     marginBottom: spacing[4],
     marginTop: spacing[2]
   },
   helperText: { color: colors.textSecondary, fontFamily: fontFamilies.interface, fontSize: 13 },
   input: {
-    backgroundColor: colors.softCloud,
-    borderColor: colors.hairline,
-    borderRadius: radius.sm,
+    backgroundColor: colors.surface04,
+    borderColor: colors.border,
+    borderRadius: radius.md,
     borderWidth: 1,
-    color: colors.ink,
+    color: colors.textPrimary,
     fontFamily: fontFamilies.interface,
     fontSize: 14,
     minHeight: 44,
@@ -329,17 +348,17 @@ const styles = StyleSheet.create({
   submitButton: {
     alignItems: "center",
     alignSelf: "flex-start",
-    backgroundColor: colors.fitblockPurple,
+    backgroundColor: colors.purple500,
     borderRadius: radius.pill,
     justifyContent: "center",
     minHeight: 44,
     paddingHorizontal: spacing[5]
   },
   submitButtonDisabled: { opacity: 0.45 },
-  submitButtonText: { color: colors.canvas, fontFamily: fontFamilies.interface, fontSize: 13, fontWeight: "700" },
+  submitButtonText: { color: colors.white, fontFamily: fontFamilies.interfaceBold, fontSize: 13 },
   linkedRow: {
     alignItems: "center",
-    borderTopColor: colors.hairline,
+    borderTopColor: colors.border,
     borderTopWidth: StyleSheet.hairlineWidth,
     flexDirection: "row",
     gap: spacing[3],
@@ -347,7 +366,7 @@ const styles = StyleSheet.create({
   },
   pendingRow: {
     alignItems: "center",
-    borderTopColor: colors.hairline,
+    borderTopColor: colors.border,
     borderTopWidth: StyleSheet.hairlineWidth,
     flexDirection: "row",
     gap: spacing[3],
@@ -355,16 +374,16 @@ const styles = StyleSheet.create({
     paddingVertical: spacing[3]
   },
   linkedCopy: { flex: 1, minWidth: 0 },
-  linkedName: { color: colors.ink, fontFamily: fontFamilies.interface, fontSize: 14, fontWeight: "700" },
-  linkedCoach: { color: colors.textMuted, fontFamily: fontFamilies.interface, fontSize: 12, marginTop: 2 },
+  linkedName: { color: colors.textPrimary, fontFamily: fontFamilies.interfaceBold, fontSize: 14 },
+  linkedCoach: { color: colors.textMutedAccessible, fontFamily: fontFamilies.interface, fontSize: 12, marginTop: 2 },
   pendingText: { color: colors.textSecondary, fontFamily: fontFamilies.interface, fontSize: 12, marginTop: 2 },
-  cancelLink: { minHeight: 32, justifyContent: "center", paddingHorizontal: spacing[2] },
+  cancelLink: { minHeight: 44, justifyContent: "center", paddingHorizontal: spacing[2] },
   cancelLinkText: { color: colors.danger, fontFamily: fontFamilies.interface, fontSize: 12, fontWeight: "700" },
   selectBox: {
     alignItems: "center",
-    backgroundColor: colors.softCloud,
-    borderColor: colors.hairline,
-    borderRadius: radius.sm,
+    backgroundColor: colors.surface04,
+    borderColor: colors.border,
+    borderRadius: radius.md,
     borderWidth: 1,
     flexDirection: "row",
     justifyContent: "space-between",
@@ -372,6 +391,8 @@ const styles = StyleSheet.create({
     minHeight: 52,
     paddingHorizontal: spacing[4]
   },
-  selectBoxText: { color: colors.ink, fontFamily: fontFamilies.interface, fontSize: 14, fontWeight: "700" },
+  selectBoxText: { color: colors.textPrimary, fontFamily: fontFamilies.interfaceBold, fontSize: 14 },
+  focusedControl: { borderColor: colors.purple400, borderWidth: 2 },
+  focusedControlOnColor: { borderColor: colors.white, borderWidth: 2 },
   pressed: { opacity: 0.72 }
 });

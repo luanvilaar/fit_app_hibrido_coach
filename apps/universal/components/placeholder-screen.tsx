@@ -16,7 +16,7 @@ export function PlaceholderScreen({ eyebrow, title, description, icon }: Placeho
   return (
     <View style={styles.page}>
       <View style={styles.iconWrap}>
-        <Ionicons name={icon} size={28} color={colors.fitblockPurple} />
+        <Ionicons name={icon} size={28} color={colors.purple400} />
       </View>
       <Text style={styles.eyebrow}>{eyebrow}</Text>
       <Text style={styles.title}>{title}</Text>
@@ -32,34 +32,37 @@ export function PlaceholderScreen({ eyebrow, title, description, icon }: Placeho
 const styles = StyleSheet.create({
   page: {
     alignItems: "flex-start",
-    backgroundColor: colors.canvas,
-    borderColor: colors.hairline,
-    borderRadius: radius.xl,
+    backgroundColor: colors.surface02,
+    borderColor: colors.border,
+    borderRadius: radius.card,
+    borderWidth: 1,
     justifyContent: "center",
     minHeight: 560,
     padding: spacing[9]
   },
   iconWrap: {
     alignItems: "center",
-    backgroundColor: "#F0EBFF",
-    borderRadius: radius.md,
+    backgroundColor: colors.surface04,
+    borderColor: colors.borderPurple,
+    borderRadius: radius.pill,
+    borderWidth: 1,
     height: 64,
     justifyContent: "center",
     marginBottom: spacing[6],
     width: 64
   },
   eyebrow: {
-    color: colors.fitblockPurple,
-    fontFamily: fontFamilies.interface,
+    color: colors.purple400,
+    fontFamily: fontFamilies.interfaceBold,
     fontSize: 11,
     fontWeight: "800",
     letterSpacing: 1.3
   },
   title: {
-    color: colors.ink,
-    fontFamily: fontFamilies.interface,
-    fontSize: 42,
-    fontWeight: "700",
+    color: colors.textPrimary,
+    fontFamily: fontFamilies.display,
+    fontSize: 54,
+    lineHeight: 47,
     marginTop: spacing[2],
     maxWidth: 620
   },
@@ -73,7 +76,7 @@ const styles = StyleSheet.create({
   },
   statusPill: {
     alignItems: "center",
-    backgroundColor: colors.softCloud,
+    backgroundColor: colors.surface03,
     borderRadius: radius.pill,
     flexDirection: "row",
     gap: spacing[2],
@@ -82,7 +85,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing[4]
   },
   statusDot: {
-    backgroundColor: colors.fitblockPurple,
+    backgroundColor: colors.purple500,
     borderRadius: radius.pill,
     height: 7,
     width: 7

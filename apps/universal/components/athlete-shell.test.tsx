@@ -1,4 +1,4 @@
-import { render } from "@testing-library/react-native";
+import { fireEvent, render } from "@testing-library/react-native";
 import { Text } from "react-native";
 import { AthleteShell, getVisibleNavigationItems } from "@/components/athlete-shell";
 import { emptyUserRoles, type UserRoles } from "@/auth/roles";
@@ -72,7 +72,7 @@ describe("navegação por papel", () => {
 
     expect(screen.getByTestId("nav-hoje")).toBeTruthy();
     expect(screen.queryByTestId("nav-coach")).toBeNull();
-    expect(screen.getByLabelText("Coach Híbrido by Fitblock Training")).toBeTruthy();
+    expect(screen.getByLabelText("Coach Híbrido by FitBlock")).toBeTruthy();
   });
 
   it("renderiza o atalho Prescrever para o coach", async () => {
@@ -83,6 +83,11 @@ describe("navegação por papel", () => {
         <Text>Conteúdo</Text>
       </AthleteShell>
     );
+
+    expect(screen.getByTestId("nav-more")).toBeTruthy();
+    expect(screen.queryByTestId("nav-coach")).toBeNull();
+
+    fireEvent.press(screen.getByTestId("nav-more"));
 
     expect(screen.getByTestId("nav-coach")).toBeTruthy();
     expect(screen.getByTestId("nav-coach-equipes")).toBeTruthy();
@@ -98,7 +103,7 @@ describe("navegação por papel", () => {
       </AthleteShell>
     );
 
-    expect(screen.getByLabelText("FitBlock Training")).toBeTruthy();
-    expect(screen.queryByLabelText("Coach Híbrido by Fitblock Training")).toBeNull();
+    expect(screen.getByLabelText("FitBlock")).toBeTruthy();
+    expect(screen.queryByLabelText("Coach Híbrido by FitBlock")).toBeNull();
   });
 });

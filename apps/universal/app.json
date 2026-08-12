@@ -4,7 +4,7 @@
     "slug": "fitblock-training",
     "version": "0.1.0",
     "orientation": "portrait",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "dark",
     "scheme": "fitblock",
     "plugins": ["expo-router"],
     "experiments": {

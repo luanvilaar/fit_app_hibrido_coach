@@ -77,7 +77,9 @@ export function ProgressScreen() {
     <View style={styles.page} testID="progress-screen">
       <View style={styles.pageIntro}>
         <Text style={styles.eyebrow}>SEU PROGRESSO</Text>
-        <Text style={styles.pageTitle}>Evolução que você consegue enxergar.</Text>
+        <Text style={styles.pageTitle}>
+          Evolução que você consegue <Text style={styles.pageTitleChip}>enxergar</Text>.
+        </Text>
         <Text style={styles.pageDescription}>
           Sessões concluídas, consistência e recordes pessoais no seu histórico.
         </Text>
@@ -137,7 +139,7 @@ function StateMessage({ icon, text, error = false }: { icon: IconName; text: str
       style={[styles.messageCard, error && styles.messageCardError]}
       testID={error ? "progress-error" : "progress-message"}
     >
-      <Ionicons name={icon} size={20} color={error ? colors.danger : colors.fitblockPurple} />
+      <Ionicons name={icon} size={20} color={error ? colors.danger : colors.purple500} />
       <Text style={styles.messageText}>{text}</Text>
     </View>
   );
@@ -146,7 +148,7 @@ function StateMessage({ icon, text, error = false }: { icon: IconName; text: str
 function EmptyState({ icon, text }: { icon: IconName; text: string }) {
   return (
     <View style={styles.emptyStateCard}>
-      <Ionicons name={icon} size={22} color={colors.textMuted} />
+      <Ionicons name={icon} size={22} color={colors.textSecondary} />
       <Text style={styles.emptyStateText}>{text}</Text>
     </View>
   );
@@ -166,7 +168,7 @@ function ConsistencyCard({
           <Text style={styles.streakValue}>{streakDays}</Text>
           <Text style={styles.streakLabel}>{describeStreak(streakDays)}</Text>
         </View>
-        <Ionicons name="flame-outline" size={28} color={colors.fitblockPurple} />
+        <Ionicons name="flame-outline" size={28} color={colors.purple400} />
       </View>
       <View style={styles.weeklyChart}>
         {weeklyHistory.map((entry) => {
@@ -211,7 +213,7 @@ function SessionHistoryRow({ entry, isFirst }: { entry: SessionHistoryEntry; isF
         <Ionicons
           name={isCompleted ? "checkmark" : "remove"}
           size={16}
-          color={isCompleted ? colors.canvas : colors.textSecondary}
+          color={isCompleted ? colors.white : colors.textSecondary}
         />
       </View>
       <View style={styles.historyContent}>
@@ -231,19 +233,24 @@ const styles = StyleSheet.create({
     minWidth: 0
   },
   eyebrow: {
-    color: colors.fitblockPurple,
-    fontFamily: fontFamilies.interface,
+    color: colors.purple400,
+    fontFamily: fontFamilies.interfaceBold,
     fontSize: 11,
-    fontWeight: "800",
     letterSpacing: 1.6,
     marginBottom: spacing[2]
   },
   pageTitle: {
-    color: colors.ink,
-    fontFamily: fontFamilies.interface,
-    fontSize: typeScale.headingXl,
-    fontWeight: "700",
-    letterSpacing: 0.2
+    color: colors.textPrimary,
+    fontFamily: fontFamilies.display,
+    fontSize: typeScale.displayHero,
+    letterSpacing: -0.8,
+    lineHeight: typeScale.displayHero * 0.92
+  },
+  pageTitleChip: {
+    backgroundColor: colors.purple500,
+    color: colors.white,
+    overflow: "hidden",
+    paddingHorizontal: spacing[1]
   },
   pageDescription: {
     color: colors.textSecondary,
@@ -253,16 +260,15 @@ const styles = StyleSheet.create({
   },
   messageCard: {
     alignItems: "center",
-    backgroundColor: colors.canvas,
-    borderColor: colors.hairline,
-    borderRadius: radius.md,
-    borderWidth: 1,
+    backgroundColor: colors.surface02,
+    borderRadius: radius.lg,
     flexDirection: "row",
     gap: spacing[3],
     padding: spacing[5]
   },
   messageCardError: {
-    borderColor: "#F3C3C8"
+    borderColor: colors.danger,
+    borderWidth: 1
   },
   messageText: {
     color: colors.textSecondary,
@@ -271,32 +277,35 @@ const styles = StyleSheet.create({
     fontSize: 14
   },
   sectionHeader: {
-    marginBottom: spacing[4]
+    borderTopColor: colors.border,
+    borderTopWidth: 1,
+    marginBottom: spacing[4],
+    paddingTop: spacing[3]
   },
   sectionEyebrow: {
-    color: colors.textMuted,
-    fontFamily: fontFamilies.interface,
+    color: colors.textSecondary,
+    fontFamily: fontFamilies.interfaceBold,
     fontSize: 10,
-    fontWeight: "800",
     letterSpacing: 1.4,
     marginBottom: 5,
     textTransform: "uppercase"
   },
   sectionTitle: {
-    color: colors.ink,
-    fontFamily: fontFamilies.interface,
-    fontSize: 28,
-    fontWeight: "700"
+    color: colors.textPrimary,
+    fontFamily: fontFamilies.display,
+    fontSize: 30,
+    lineHeight: 32
   },
   emptyStateCard: {
     alignItems: "center",
-    backgroundColor: colors.canvas,
-    borderColor: colors.hairline,
+    backgroundColor: colors.surface02,
     borderRadius: radius.lg,
-    borderWidth: 1,
     flexDirection: "row",
     gap: spacing[3],
-    padding: spacing[5]
+    overflow: "hidden",
+    padding: spacing[5],
+    paddingRight: spacing[8],
+    position: "relative"
   },
   emptyStateText: {
     color: colors.textSecondary,
@@ -305,10 +314,8 @@ const styles = StyleSheet.create({
     fontSize: 14
   },
   consistencyCard: {
-    backgroundColor: colors.canvas,
-    borderColor: colors.hairline,
-    borderRadius: radius.lg,
-    borderWidth: 1,
+    backgroundColor: colors.surface02,
+    borderRadius: radius.xl,
     padding: spacing[6]
   },
   consistencyTopline: {
@@ -317,16 +324,14 @@ const styles = StyleSheet.create({
     justifyContent: "space-between"
   },
   streakValue: {
-    color: colors.ink,
-    fontFamily: fontFamilies.interface,
-    fontSize: 36,
-    fontWeight: "700"
+    color: colors.textPrimary,
+    fontFamily: fontFamilies.display,
+    fontSize: 36
   },
   streakLabel: {
     color: colors.textSecondary,
-    fontFamily: fontFamilies.interface,
+    fontFamily: fontFamilies.interfaceBold,
     fontSize: 13,
-    fontWeight: "700",
     marginTop: 2
   },
   weeklyChart: {
@@ -340,7 +345,7 @@ const styles = StyleSheet.create({
     gap: spacing[2]
   },
   weeklyChartTrack: {
-    backgroundColor: colors.surfaceMuted,
+    backgroundColor: colors.surface04,
     borderRadius: radius.sm,
     height: WEEK_CHART_HEIGHT,
     justifyContent: "flex-end",
@@ -348,15 +353,14 @@ const styles = StyleSheet.create({
     width: "100%"
   },
   weeklyChartFill: {
-    backgroundColor: colors.fitblockPurple,
+    backgroundColor: colors.purple500,
     borderRadius: radius.sm,
     width: "100%"
   },
   weeklyChartLabel: {
-    color: colors.textMuted,
-    fontFamily: fontFamilies.interface,
-    fontSize: 10,
-    fontWeight: "700"
+    color: colors.textSecondary,
+    fontFamily: fontFamilies.interfaceBold,
+    fontSize: 10
   },
   recordsGrid: {
     flexDirection: "row",
@@ -364,10 +368,8 @@ const styles = StyleSheet.create({
     gap: spacing[4]
   },
   recordCard: {
-    backgroundColor: colors.canvas,
-    borderColor: colors.hairline,
+    backgroundColor: colors.surface02,
     borderRadius: radius.lg,
-    borderWidth: 1,
     flexBasis: "31%",
     flexGrow: 1,
     minWidth: 160,
@@ -375,35 +377,31 @@ const styles = StyleSheet.create({
   },
   recordExercise: {
     color: colors.textSecondary,
-    fontFamily: fontFamilies.interface,
+    fontFamily: fontFamilies.interfaceBold,
     fontSize: 12,
-    fontWeight: "800",
     letterSpacing: 0.4,
     textTransform: "uppercase"
   },
   recordLoad: {
-    color: colors.ink,
-    fontFamily: fontFamilies.interface,
-    fontSize: 28,
-    fontWeight: "700",
+    color: colors.textPrimary,
+    fontFamily: fontFamilies.display,
+    fontSize: 26,
     marginTop: spacing[2]
   },
   recordMeta: {
-    color: colors.textMuted,
+    color: colors.textSecondary,
     fontFamily: fontFamilies.interface,
     fontSize: 12,
     marginTop: spacing[2]
   },
   historyCard: {
-    backgroundColor: colors.canvas,
-    borderColor: colors.hairline,
-    borderRadius: radius.lg,
-    borderWidth: 1,
+    backgroundColor: colors.surface02,
+    borderRadius: radius.xl,
     overflow: "hidden"
   },
   historyRow: {
     alignItems: "center",
-    borderTopColor: colors.hairline,
+    borderTopColor: colors.border,
     borderTopWidth: 1,
     flexDirection: "row",
     gap: spacing[3],
@@ -416,7 +414,7 @@ const styles = StyleSheet.create({
   },
   historyBadge: {
     alignItems: "center",
-    backgroundColor: colors.softCloud,
+    backgroundColor: colors.surface04,
     borderRadius: radius.pill,
     height: 30,
     justifyContent: "center",
@@ -430,10 +428,9 @@ const styles = StyleSheet.create({
     minWidth: 0
   },
   historyTitle: {
-    color: colors.ink,
-    fontFamily: fontFamilies.interface,
-    fontSize: 15,
-    fontWeight: "800"
+    color: colors.textPrimary,
+    fontFamily: fontFamilies.interfaceBold,
+    fontSize: 15
   },
   historyMeta: {
     color: colors.textSecondary,
@@ -442,9 +439,8 @@ const styles = StyleSheet.create({
     marginTop: 4
   },
   historyStatus: {
-    color: colors.textMuted,
-    fontFamily: fontFamilies.interface,
-    fontSize: 12,
-    fontWeight: "700"
+    color: colors.textSecondary,
+    fontFamily: fontFamilies.interfaceBold,
+    fontSize: 12
   }
 });

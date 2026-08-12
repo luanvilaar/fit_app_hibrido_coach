@@ -1,23 +1,31 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ComponentProps } from "react";
 import {
+  AccessibilityInfo,
+  Animated,
+  Easing,
+  Image,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
   View,
   useWindowDimensions
 } from "react-native";
-import { colors, fontFamilies, radius, spacing, typeScale } from "@fitblock/design-tokens";
+import type { StyleProp, ViewStyle } from "react-native";
+import { colors, fontFamilies, radius, shadows, spacing } from "@fitblock/design-tokens";
 import {
+  createCalendarRepository,
   createTodayRepository,
   type AthleteSessionProgressRecord,
   type CalendarSessionRecord,
   type TodayDashboardRecord
 } from "@fitblock/backend";
 import { describeBackendError } from "@/data/backend-error";
-import { getSessionTitle, readSessionBlocks } from "@/data/calendar";
+import { createWeekGrid, formatWeekLabel, getWeekRange, shiftWeek, toCalendarDate } from "@/data/calendar";
+import { getSessionTitle, readSessionBlocks } from "@/data/coach-hibrido/session-snapshot";
 import {
   buildTodayBlocks,
   describeNextSession,
@@ -27,28 +35,84 @@ import {
   estimateSessionMinutes,
   formatCoachNoteTime,
   formatSessionDuration,
-  formatTodayEyebrow,
   formatWeekEyebrow,
   getWeeklyProgress,
   parseCalendarDate,
   type ReadinessTone,
-  type ReadinessView
+  type ReadinessView,
+  type SessionStatusView,
+  type TodayBlock
 } from "@/data/today";
 import { getSupabaseConfigurationError, supabase } from "@/lib/supabase";
-import { getSizeClass, isCompactSizeClass } from "@/lib/layout";
+import { WeekStrip } from "@/components/coach-hibrido/athlete/week-strip";
+
+const coverImage = require("@/assets/today-cover.png");
+
+const webCoverGradient = {
+  backgroundColor: "transparent",
+  backgroundImage:
+    "linear-gradient(180deg, rgba(8, 6, 16, 0) 0%, rgba(8, 6, 16, 0) 40%, rgba(8, 6, 16, 0.55) 70%, rgba(8, 6, 16, 0.92) 100%)",
+  bottom: 0,
+  left: 0,
+  right: 0,
+  top: 0
+} as unknown as ViewStyle;
+
+/** Honra a preferência de "reduzir movimento" do sistema: animações viram cortes instantâneos. */
+function useReduceMotion(): boolean {
+  const [reduceMotion, setReduceMotion] = useState(false);
+
+  useEffect(() => {
+    let mounted = true;
+    void AccessibilityInfo.isReduceMotionEnabled().then((value) => {
+      if (mounted) setReduceMotion(value);
+    });
+    const subscription = AccessibilityInfo.addEventListener("reduceMotionChanged", setReduceMotion);
+    return () => {
+      mounted = false;
+      subscription.remove();
+    };
+  }, []);
+
+  return reduceMotion;
+}
+
+function AnimatedProgressFill({ progress, style }: { progress: number; style?: StyleProp<ViewStyle> }) {
+  const reduceMotion = useReduceMotion();
+  const animatedProgress = useRef(new Animated.Value(progress)).current;
+
+  useEffect(() => {
+    Animated.timing(animatedProgress, {
+      toValue: progress,
+      duration: reduceMotion ? 0 : 220,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: false
+    }).start();
+  }, [progress, reduceMotion, animatedProgress]);
+
+  const width = animatedProgress.interpolate({
+    inputRange: [0, 1],
+    outputRange: ["0%", "100%"],
+    extrapolate: "clamp"
+  });
+
+  return <Animated.View style={[style, { width }]} />;
+}
 
 type IconName = ComponentProps<typeof Ionicons>["name"];
 
 export function TodayScreen() {
   const router = useRouter();
   const { width } = useWindowDimensions();
-  const sizeClass = getSizeClass(width);
-  const isCompact = isCompactSizeClass(sizeClass);
+  const isCompact = width < 420;
   const [dashboard, setDashboard] = useState<TodayDashboardRecord | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [isStarting, setIsStarting] = useState(false);
+  const [focusedBlockId, setFocusedBlockId] = useState<string | null>(null);
+  const [weekAnchor, setWeekAnchor] = useState(() => new Date());
+  const [weekSessions, setWeekSessions] = useState<CalendarSessionRecord[]>([]);
 
   useEffect(() => {
     let mounted = true;
@@ -84,14 +148,48 @@ export function TodayScreen() {
     };
   }, []);
 
+  // Decoração da faixa semanal: falha silenciosa não impede o atleta de ver o treino de hoje.
+  useEffect(() => {
+    let mounted = true;
+
+    if (!supabase) return () => {
+      mounted = false;
+    };
+
+    void createCalendarRepository(supabase)
+      .listPublishedSessions(getWeekRange(weekAnchor))
+      .then((sessions) => {
+        if (mounted) setWeekSessions(sessions);
+      })
+      .catch(() => {
+        if (mounted) setWeekSessions([]);
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, [weekAnchor]);
+
   const session = dashboard?.session ?? null;
   const progress = dashboard?.progress ?? null;
   const referenceDate = useMemo(
     () => (dashboard ? parseCalendarDate(dashboard.reference_date) : new Date()),
     [dashboard]
   );
+  const todayString = useMemo(() => toCalendarDate(new Date()), []);
+  const selectedDate = dashboard?.reference_date ?? todayString;
+  const weekDays = useMemo(() => createWeekGrid(weekAnchor, weekSessions), [weekAnchor, weekSessions]);
   const snapshotBlocks = useMemo(() => (session ? readSessionBlocks(session) : []), [session]);
   const todayBlocks = useMemo(() => (session ? buildTodayBlocks(session, progress) : []), [session, progress]);
+  const sessionDuration = useMemo(() => estimateSessionMinutes(snapshotBlocks), [snapshotBlocks]);
+  // Movimentos únicos vinculados ao catálogo na sessão inteira — o que o atleta pode abrir em vídeo.
+  const exerciseCount = useMemo(
+    () =>
+      new Set(
+        snapshotBlocks.flatMap((block) => block.movements.map((movement) => movement.slug))
+      ).size,
+    [snapshotBlocks]
+  );
   const status = describeSessionStatus(session, progress);
   const readiness = describeReadiness(dashboard?.checkin ?? null);
 
@@ -133,21 +231,20 @@ export function TodayScreen() {
     }
   }
 
+  function handleSelectDate(date: string) {
+    if (date === selectedDate) return;
+    router.push("/app/calendario");
+  }
+
   return (
     <View style={styles.page} testID="today-screen">
-      <View style={[styles.pageIntro, isCompact && styles.pageIntroCompact]}>
-        <View style={styles.pageIntroCopy}>
-          <Text style={styles.eyebrow}>{formatTodayEyebrow(referenceDate)}</Text>
-          <Text style={styles.pageTitle}>Hoje, o trabalho é seu.</Text>
-          <Text style={styles.pageDescription}>
-            Um treino bem executado começa com uma intenção clara.
-          </Text>
-        </View>
-        <View style={[styles.statusPill, statusPillStyles[status.tone]]}>
-          <View style={[styles.statusDot, statusDotStyles[status.tone]]} />
-          <Text style={[styles.statusText, statusTextStyles[status.tone]]}>{status.label}</Text>
-        </View>
-      </View>
+      <WeekStrip
+        days={weekDays}
+        label={formatWeekLabel(weekAnchor)}
+        onSelectDate={handleSelectDate}
+        onShiftWeek={(amount) => setWeekAnchor((current) => shiftWeek(current, amount))}
+        selectedDate={selectedDate}
+      />
 
       {isLoading && <StateMessage icon="sync-outline" text="Buscando o treino de hoje..." />}
       {!isLoading && errorMessage && <StateMessage icon="alert-circle-outline" text={errorMessage} error />}
@@ -161,184 +258,274 @@ export function TodayScreen() {
       )}
 
       {!isLoading && !errorMessage && session && dashboard && (
-        <View style={[
-          styles.hero,
-          isCompact && styles.heroCompact,
-          sizeClass === "tablet-landscape" && styles.heroTablet
-        ]}>
-          <View style={styles.heroCopy}>
-            <View style={styles.heroTopline}>
-              <Text style={styles.heroEyebrow}>{formatWeekEyebrow(dashboard.week)}</Text>
-              <View style={styles.focusPill}>
-                <Text style={styles.focusPillText}>
-                  {deriveSessionFocus(snapshotBlocks).toUpperCase()}
-                </Text>
-              </View>
+        <>
+          <CoverCard eyebrow={formatWeekEyebrow(dashboard.week)} title={getSessionTitle(session)} />
+
+          <SessionActionCard
+            duration={formatSessionDuration(sessionDuration)}
+            focus={deriveSessionFocus(snapshotBlocks)}
+            hasProgress={Boolean(progress)}
+            isStarting={isStarting}
+            onOpenCalendar={() => router.push("/app/calendario")}
+            onStart={() => void handleStartWorkout()}
+            status={status}
+          />
+
+          {session.coach_note.trim().length > 0 ? (
+            <CoachNoteCard note={session.coach_note} time={formatCoachNoteTime(session, referenceDate)} />
+          ) : dashboard.next_session ? (
+            <NextSessionCard session={dashboard.next_session} />
+          ) : (
+            <View style={styles.nextCard}>
+              <Text style={styles.nextCardEyebrow}>PRÓXIMA SESSÃO</Text>
+              <Text style={styles.nextCardTitle}>Nada agendado</Text>
+              <Text style={styles.nextCardMeta}>Seu coach ainda não publicou a próxima sessão.</Text>
             </View>
-            <Text style={styles.heroTitle}>{getSessionTitle(session)}</Text>
-            <Text style={styles.heroDescription}>
-              {snapshotBlocks.map((block) => block.name).join(" · ") || "Sessão sem blocos prescritos."}
-            </Text>
-            <View style={styles.heroMetaRow}>
-              <Meta icon="time-outline" label={formatSessionDuration(estimateSessionMinutes(snapshotBlocks))} />
-              <Meta
-                icon="layers-outline"
-                label={`${snapshotBlocks.length} ${snapshotBlocks.length === 1 ? "bloco" : "blocos"}`}
-              />
-              <Meta icon="barbell-outline" label={deriveSessionFocus(snapshotBlocks)} />
-            </View>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={progress ? "Continuar treino" : "Iniciar treino"}
-              accessibilityState={{ disabled: isStarting }}
-              disabled={isStarting}
-              testID="start-workout"
-              onPress={() => {
-                void handleStartWorkout();
-              }}
-              style={({ pressed }) => [styles.primaryButton, pressed && styles.buttonPressed]}
-            >
-              <Text style={styles.primaryButtonText}>
-                {isStarting ? "Abrindo..." : progress ? "Continuar treino" : "Iniciar treino"}
-              </Text>
-              <View style={styles.primaryButtonIcon}>
-                <Ionicons name="arrow-forward" size={18} color={colors.ink} />
-              </View>
-            </Pressable>
-          </View>
-          <View style={styles.heroVisual}>
-            <Text style={styles.heroVisualIndex}>
-              {String(Math.max(dashboard.week.position, 1)).padStart(2, "0")}
-            </Text>
-            <Text style={styles.heroVisualWord}>FIT{`\n`}BLOCK</Text>
-            <View style={styles.visualRule} />
-            <Text style={styles.heroVisualCaption}>TREINO COM INTENÇÃO</Text>
-          </View>
-        </View>
-      )}
+          )}
 
-      {!isLoading && !errorMessage && dashboard && (
-        <View style={[
-          styles.contentGrid,
-          isCompact && styles.contentGridCompact,
-          sizeClass === "tablet-portrait" && styles.contentGridTabletPortrait
-        ]}>
-          <View style={[
-            styles.primaryColumn,
-            sizeClass === "tablet-landscape" && styles.primaryColumnTablet
-          ]}>
-            {session && (
-              <>
-                <SectionHeader eyebrow="A sessão" title="O que vem hoje" />
-                <View style={styles.blocksCard}>
-                  {todayBlocks.map((block, index) => (
-                    <Pressable
-                      key={block.id}
-                      accessibilityRole="button"
-                      accessibilityLabel={
-                        block.status === "done"
-                          ? `Reabrir bloco ${block.name}`
-                          : `Concluir bloco ${block.name}`
-                      }
-                      accessibilityState={{ selected: block.status === "done" }}
-                      testID={`today-block-${index}`}
-                      onPress={() => {
-                        void handleToggleBlock(block.id);
-                      }}
-                      style={({ pressed }) => [
-                        styles.blockRow,
-                        index === 0 && styles.blockRowFirst,
-                        block.status === "done" && styles.blockRowDone,
-                        pressed && styles.rowPressed
-                      ]}
-                    >
-                      <View style={[styles.blockIndex, block.status === "done" && styles.blockIndexReady]}>
-                        {block.status === "done" ? (
-                          <Ionicons name="checkmark" size={18} color={colors.canvas} />
-                        ) : (
-                          <Text style={styles.blockIndexText}>{String(index + 1).padStart(2, "0")}</Text>
-                        )}
-                      </View>
-                      <View style={styles.blockContent}>
-                        <Text style={styles.blockName}>{block.name}</Text>
-                        <Text style={styles.blockDetail}>{block.detail}</Text>
-                      </View>
-                      <Ionicons name="chevron-forward" size={17} color={colors.textMuted} />
-                    </Pressable>
-                  ))}
-                </View>
-              </>
-            )}
+          <BlockChecklistCard
+            blocks={todayBlocks}
+            focusedBlockId={focusedBlockId}
+            onBlurBlock={() => setFocusedBlockId(null)}
+            onFocusBlock={setFocusedBlockId}
+            onToggleBlock={(id) => void handleToggleBlock(id)}
+          />
 
-            <SectionHeader eyebrow="Seu contexto" title="Como você chega" />
-            <View style={[
-              styles.contextGrid,
-              isCompact && styles.contextGridCompact,
-              sizeClass === "tablet-portrait" && styles.contextGridTabletPortrait
-            ]}>
-              <ReadinessCard readiness={readiness} onOpen={() => router.push("/app/prontidao")} />
-              <WeekCard week={dashboard.week} streakDays={dashboard.streak_days} />
-            </View>
+          <View style={styles.metricsStrip}>
+            <StripMetric accent label="SESSÃO ATIVA" value={deriveSessionFocus(snapshotBlocks)} />
+            <StripMetric label="EXERCÍCIOS" value={String(exerciseCount)} />
+            <StripMetric label="BLOCOS" value={String(todayBlocks.length)} />
+            <StripMetric label="TEMPO ESTIMADO" value={formatSessionDuration(sessionDuration)} />
           </View>
 
-          <View style={[
-            styles.secondaryColumn,
-            sizeClass === "tablet-landscape" && styles.secondaryColumnTablet
-          ]}>
-            {session && session.coach_note.trim().length > 0 && (
-              <>
-                <SectionHeader eyebrow="Do coach" title="Uma mensagem para você" />
-                <View style={styles.coachCard} testID="coach-note">
-                  <View style={styles.coachAvatar}>
-                    <Text style={styles.coachAvatarText}>FB</Text>
-                  </View>
-                  <View style={styles.coachCardCopy}>
-                    <View style={styles.coachCardHeader}>
-                      <View>
-                        <Text style={styles.coachName}>Seu coach</Text>
-                        <Text style={styles.coachDate}>{formatCoachNoteTime(session, referenceDate)}</Text>
-                      </View>
-                      <Ionicons name="chatbubble-ellipses-outline" size={20} color={colors.fitblockPurple} />
-                    </View>
-                    <Text style={styles.coachNote}>{session.coach_note}</Text>
-                  </View>
-                </View>
-              </>
-            )}
-
-            {dashboard.next_session ? (
-              <NextSessionCard session={dashboard.next_session} hasSpacing={Boolean(session?.coach_note.trim())} />
-            ) : (
-              <View style={styles.nextCard}>
-                <View style={styles.nextCardTopline}>
-                  <Text style={styles.nextCardEyebrow}>PRÓXIMA SESSÃO</Text>
-                  <Ionicons name="calendar-clear-outline" size={19} color={colors.textSecondary} />
-                </View>
-                <Text style={styles.nextCardTitle}>Nada agendado</Text>
-                <Text style={styles.nextCardMeta}>Seu coach ainda não publicou a próxima sessão.</Text>
-              </View>
-            )}
+          <View style={[styles.lowerGrid, isCompact && styles.lowerGridCompact]}>
+            <ReadinessCard readiness={readiness} onOpen={() => router.push("/app/prontidao")} />
+            <WeekCard streakDays={dashboard.streak_days} week={dashboard.week} />
           </View>
-        </View>
+        </>
       )}
     </View>
   );
 }
 
-function Meta({ icon, label }: { icon: IconName; label: string }) {
+function CoverCard({ eyebrow, title }: { eyebrow: string; title: string }) {
   return (
-    <View style={styles.metaItem}>
-      <Ionicons name={icon} size={17} color="rgba(255, 255, 255, 0.85)" />
-      <Text style={styles.metaLabel}>{label}</Text>
+    <View style={styles.cover} testID="today-cover">
+      <Image source={coverImage} resizeMode="contain" accessible={false} style={styles.coverImage} />
+      <View style={[styles.coverOverlay, Platform.OS === "web" && webCoverGradient]} />
+      <View style={styles.coverContent}>
+        <Text style={styles.coverEyebrow}>{eyebrow}</Text>
+        <Text numberOfLines={3} style={styles.coverTitle}>
+          {title}
+        </Text>
+      </View>
     </View>
   );
 }
 
-function SectionHeader({ eyebrow, title }: { eyebrow: string; title: string }) {
+function SessionActionCard({
+  status,
+  focus,
+  duration,
+  isStarting,
+  hasProgress,
+  onStart,
+  onOpenCalendar
+}: {
+  status: SessionStatusView;
+  focus: string;
+  duration: string;
+  isStarting: boolean;
+  hasProgress: boolean;
+  onStart: () => void;
+  onOpenCalendar: () => void;
+}) {
+  const [isStartFocused, setIsStartFocused] = useState(false);
+  const [isCalendarFocused, setIsCalendarFocused] = useState(false);
+
   return (
-    <View style={styles.sectionHeader}>
-      <Text style={styles.sectionEyebrow}>{eyebrow}</Text>
-      <Text style={styles.sectionTitle}>{title}</Text>
+    <View style={styles.actionCard}>
+      <View style={styles.actionCardHeader}>
+        <Text style={styles.actionStatus}>{status.label}</Text>
+        <Pressable
+          accessibilityLabel="Ver calendário completo"
+          accessibilityRole="button"
+          onBlur={() => setIsCalendarFocused(false)}
+          onFocus={() => setIsCalendarFocused(true)}
+          onPress={onOpenCalendar}
+          style={({ pressed }) => [
+            styles.actionCalendarLink,
+            isCalendarFocused && styles.focusedControl,
+            pressed && styles.buttonPressed
+          ]}
+          testID="today-open-calendar"
+        >
+          <Text style={styles.actionCalendarLinkText}>Calendário</Text>
+          <Ionicons color={colors.purple400} name="chevron-forward" size={14} />
+        </Pressable>
+      </View>
+
+      <View style={styles.actionMetrics}>
+        <View style={styles.actionMetric}>
+          <Text style={styles.actionMetricLabel}>FOCO</Text>
+          <Text style={styles.actionMetricValue}>{focus}</Text>
+        </View>
+        <View style={styles.actionMetricDivider} />
+        <View style={styles.actionMetric}>
+          <Text style={styles.actionMetricLabel}>DURAÇÃO ESTIMADA</Text>
+          <Text style={styles.actionMetricValue}>{duration}</Text>
+        </View>
+      </View>
+
+      <Pressable
+        accessibilityLabel={hasProgress ? "Continuar treino" : "Iniciar treino"}
+        accessibilityRole="button"
+        accessibilityState={{ disabled: isStarting }}
+        disabled={isStarting}
+        onBlur={() => setIsStartFocused(false)}
+        onFocus={() => setIsStartFocused(true)}
+        onPress={onStart}
+        style={({ pressed }) => [
+          styles.primaryButton,
+          isStartFocused && styles.focusedControl,
+          pressed && styles.buttonPressed
+        ]}
+        testID="start-workout"
+      >
+        <Text style={styles.primaryButtonText}>
+          {isStarting ? "Abrindo..." : hasProgress ? "Continuar treino" : "Iniciar treino"}
+        </Text>
+        <Ionicons color={colors.white} name="arrow-forward" size={18} />
+      </Pressable>
+    </View>
+  );
+}
+
+function CoachNoteCard({ note, time }: { note: string; time: string }) {
+  return (
+    <View style={styles.coachCard} testID="coach-note">
+      <View style={styles.coachCardHeader}>
+        <View>
+          <Text style={styles.coachName}>Uma mensagem para você</Text>
+          <Text style={styles.coachDate}>{time}</Text>
+        </View>
+        <Ionicons color={colors.purple400} name="chatbubble-ellipses-outline" size={20} />
+      </View>
+      <Text style={styles.coachNote}>{note}</Text>
+    </View>
+  );
+}
+
+function BlockChecklistCard({
+  blocks,
+  focusedBlockId,
+  onToggleBlock,
+  onFocusBlock,
+  onBlurBlock
+}: {
+  blocks: TodayBlock[];
+  focusedBlockId: string | null;
+  onToggleBlock: (blockId: string) => void;
+  onFocusBlock: (blockId: string) => void;
+  onBlurBlock: () => void;
+}) {
+  return (
+    <View style={styles.checklistCard} testID="today-block-list">
+      <Text style={styles.checklistTitle}>O QUE VEM HOJE</Text>
+      {blocks.map((block, index) => (
+        <ChecklistRow
+          block={block}
+          index={index}
+          isFocused={focusedBlockId === block.id}
+          isLast={index === blocks.length - 1}
+          key={block.id}
+          onBlurBlock={onBlurBlock}
+          onFocusBlock={onFocusBlock}
+          onToggleBlock={onToggleBlock}
+        />
+      ))}
+    </View>
+  );
+}
+
+function ChecklistRow({
+  block,
+  index,
+  isLast,
+  isFocused,
+  onToggleBlock,
+  onFocusBlock,
+  onBlurBlock
+}: {
+  block: TodayBlock;
+  index: number;
+  isLast: boolean;
+  isFocused: boolean;
+  onToggleBlock: (blockId: string) => void;
+  onFocusBlock: (blockId: string) => void;
+  onBlurBlock: () => void;
+}) {
+  const reduceMotion = useReduceMotion();
+  const iconScale = useRef(new Animated.Value(1)).current;
+  const hasMounted = useRef(false);
+
+  useEffect(() => {
+    if (!hasMounted.current) {
+      hasMounted.current = true;
+      return;
+    }
+    if (reduceMotion) return;
+    iconScale.setValue(0.6);
+    Animated.spring(iconScale, {
+      toValue: 1,
+      useNativeDriver: true,
+      speed: 20,
+      bounciness: 6
+    }).start();
+  }, [block.status, reduceMotion, iconScale]);
+
+  return (
+    <Pressable
+      accessibilityLabel={block.status === "done" ? `Reabrir bloco ${block.name}` : `Concluir bloco ${block.name}`}
+      accessibilityRole="button"
+      accessibilityState={{ selected: block.status === "done" }}
+      onBlur={onBlurBlock}
+      onFocus={() => onFocusBlock(block.id)}
+      onPress={() => onToggleBlock(block.id)}
+      style={({ pressed }) => [
+        styles.checklistRow,
+        isLast && styles.checklistRowLast,
+        block.status === "done" && styles.checklistRowDone,
+        isFocused && styles.focusedRow,
+        pressed && styles.rowPressed
+      ]}
+      testID={`today-block-${index}`}
+    >
+      <View style={[styles.checklistIndex, block.status === "done" && styles.checklistIndexDone]}>
+        <Text style={styles.checklistIndexText}>{String(index + 1).padStart(2, "0")}</Text>
+      </View>
+      <View style={styles.checklistCopy}>
+        <Text style={styles.checklistName}>{block.name}</Text>
+        <Text numberOfLines={2} style={styles.checklistDetail}>
+          {block.detail}
+        </Text>
+      </View>
+      <Animated.View style={{ transform: [{ scale: iconScale }] }}>
+        <Ionicons
+          color={block.status === "done" ? colors.purple500 : colors.textSecondary}
+          name={block.status === "done" ? "checkmark-circle" : "chevron-forward"}
+          size={22}
+        />
+      </Animated.View>
+    </Pressable>
+  );
+}
+
+function StripMetric({ label, value, accent = false }: { label: string; value: string; accent?: boolean }) {
+  return (
+    <View style={styles.stripMetric}>
+      <Text style={[styles.stripMetricLabel, accent && styles.stripMetricLabelAccent]}>{label}</Text>
+      <Text numberOfLines={1} style={styles.stripMetricValue}>{value}</Text>
     </View>
   );
 }
@@ -350,16 +537,18 @@ function StateMessage({ icon, text, error = false }: { icon: IconName; text: str
       style={[styles.messageCard, error && styles.messageCardError]}
       testID={error ? "today-error" : "today-message"}
     >
-      <Ionicons name={icon} size={20} color={error ? colors.danger : colors.fitblockPurple} />
+      <Ionicons name={icon} size={20} color={error ? colors.danger : colors.purple500} />
       <Text style={styles.messageText}>{text}</Text>
     </View>
   );
 }
 
 function EmptySessionCard({ hasNext, onOpenCalendar }: { hasNext: boolean; onOpenCalendar: () => void }) {
+  const [isFocused, setIsFocused] = useState(false);
+
   return (
     <View style={styles.emptyCard} testID="today-empty">
-      <Text style={styles.emptyEyebrow}>SEM TREINO PARA HOJE</Text>
+      <Text style={styles.emptyEyebrow}>SEM SESSÃO HOJE</Text>
       <Text style={styles.emptyTitle}>Dia sem sessão publicada.</Text>
       <Text style={styles.emptyDescription}>
         {hasNext
@@ -370,10 +559,12 @@ function EmptySessionCard({ hasNext, onOpenCalendar }: { hasNext: boolean; onOpe
         accessibilityRole="button"
         accessibilityLabel="Abrir calendário"
         onPress={onOpenCalendar}
-        style={({ pressed }) => [styles.secondaryButton, pressed && styles.buttonPressed]}
+        onFocus={() => setIsFocused(true)}
+        onBlur={() => setIsFocused(false)}
+        style={({ pressed }) => [styles.secondaryButton, isFocused && styles.focusedControlOnColor, pressed && styles.buttonPressed]}
       >
         <Text style={styles.secondaryButtonText}>Ver calendário</Text>
-        <Ionicons name="arrow-forward" size={16} color={colors.canvas} />
+        <Ionicons name="arrow-forward" size={16} color={colors.white} />
       </Pressable>
     </View>
   );
@@ -384,7 +575,8 @@ function EmptySessionCard({ hasNext, onOpenCalendar }: { hasNext: boolean; onOpe
  * sete perguntas e o seletor de dor não cabem neste card.
  */
 function ReadinessCard({ readiness, onOpen }: { readiness: ReadinessView | null; onOpen: () => void }) {
-  const tone = readiness ? readinessToneColors[readiness.tone] : colors.textMuted;
+  const tone = readiness ? readinessToneColors[readiness.tone] : colors.textSecondary;
+  const [isFocused, setIsFocused] = useState(false);
 
   return (
     <View style={styles.infoCard}>
@@ -406,8 +598,9 @@ function ReadinessCard({ readiness, onOpen }: { readiness: ReadinessView | null;
         </Text>
       )}
       <View style={styles.progressTrack}>
-        <View
-          style={[styles.progressFill, { backgroundColor: tone, width: `${(readiness?.progress ?? 0) * 100}%` }]}
+        <AnimatedProgressFill
+          progress={readiness?.progress ?? 0}
+          style={[styles.progressFill, { backgroundColor: tone }]}
         />
       </View>
       <Pressable
@@ -415,8 +608,11 @@ function ReadinessCard({ readiness, onOpen }: { readiness: ReadinessView | null;
         accessibilityLabel={readiness ? "Editar check-in" : "Fazer check-in"}
         testID={readiness ? "edit-checkin" : "open-checkin"}
         onPress={onOpen}
+        onFocus={() => setIsFocused(true)}
+        onBlur={() => setIsFocused(false)}
         style={({ pressed }) => [
           readiness ? styles.readinessLink : styles.readinessCta,
+          isFocused && (readiness ? styles.focusedControl : styles.focusedControlOnColor),
           pressed && styles.buttonPressed
         ]}
       >
@@ -435,7 +631,7 @@ function WeekCard({ week, streakDays }: { week: TodayDashboardRecord["week"]; st
     <View style={styles.infoCard}>
       <View style={styles.infoCardTopline}>
         <Text style={styles.infoCardEyebrow}>ESTA SEMANA</Text>
-        <Ionicons name="flame-outline" size={20} color={colors.fitblockPurple} />
+        <Ionicons name="flame-outline" size={20} color={colors.purple400} />
       </View>
       <View style={styles.readinessScoreRow}>
         <Text style={styles.readinessScore}>{week.completed}</Text>
@@ -452,15 +648,15 @@ function WeekCard({ week, streakDays }: { week: TodayDashboardRecord["week"]; st
           : "Conclua um treino para iniciar sua sequência"}
       </Text>
       <View style={styles.progressTrack}>
-        <View style={[styles.progressFillPurple, { width: `${progress * 100}%` }]} />
+        <AnimatedProgressFill progress={progress} style={styles.progressFillLime} />
       </View>
     </View>
   );
 }
 
-function NextSessionCard({ session, hasSpacing }: { session: CalendarSessionRecord; hasSpacing: boolean }) {
+function NextSessionCard({ session }: { session: CalendarSessionRecord }) {
   return (
-    <View style={[styles.nextCard, hasSpacing && styles.nextCardSpaced]} testID="next-session">
+    <View style={styles.nextCard} testID="next-session">
       <View style={styles.nextCardTopline}>
         <Text style={styles.nextCardEyebrow}>PRÓXIMA SESSÃO</Text>
         <Ionicons name="calendar-clear-outline" size={19} color={colors.textSecondary} />
@@ -475,191 +671,207 @@ function NextSessionCard({ session, hasSpacing }: { session: CalendarSessionReco
 
 const styles = StyleSheet.create({
   page: {
-    gap: spacing[8]
+    gap: spacing[4]
   },
-  pageIntro: {
-    alignItems: "flex-end",
+  cover: {
+    aspectRatio: 2.35,
+    backgroundColor: colors.surface02,
+    borderRadius: radius.xxl,
+    justifyContent: "flex-end",
+    maxHeight: 320,
+    minHeight: 176,
+    overflow: "hidden",
+    padding: spacing[5]
+  },
+  coverImage: {
+    bottom: 0,
+    height: "100%",
+    left: 0,
+    position: "absolute",
+    right: 0,
+    top: 0,
+    transform: [{ scale: 1.1 }],
+    width: "100%"
+  },
+  coverOverlay: {
+    backgroundColor: "rgba(8, 6, 16, 0.55)",
+    bottom: 0,
+    left: 0,
+    position: "absolute",
+    right: 0,
+    top: 0
+  },
+  coverContent: {
+    gap: spacing[1]
+  },
+  coverEyebrow: {
+    color: colors.purple400,
+    fontFamily: fontFamilies.interfaceBold,
+    fontSize: 11,
+    letterSpacing: 1.1,
+    textTransform: "uppercase"
+  },
+  coverTitle: {
+    color: colors.textPrimary,
+    fontFamily: fontFamilies.display,
+    fontSize: 34,
+    lineHeight: 35
+  },
+  actionCard: {
+    backgroundColor: colors.surface02,
+    borderRadius: radius.xl,
+    gap: spacing[4],
+    padding: spacing[5]
+  },
+  actionCardHeader: {
+    alignItems: "center",
     flexDirection: "row",
     justifyContent: "space-between"
   },
-  pageIntroCompact: {
-    alignItems: "flex-start",
-    flexDirection: "column",
-    gap: spacing[4]
+  actionStatus: {
+    color: colors.purple400,
+    fontFamily: fontFamilies.interfaceBold,
+    fontSize: 11,
+    letterSpacing: 0.9,
+    textTransform: "uppercase"
   },
-  pageIntroCopy: {
+  actionCalendarLink: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: spacing[1],
+    minHeight: 44,
+    paddingHorizontal: spacing[1]
+  },
+  actionCalendarLinkText: {
+    color: colors.purple400,
+    fontFamily: fontFamilies.interfaceBold,
+    fontSize: 12
+  },
+  actionMetrics: {
+    alignItems: "center",
+    flexDirection: "row"
+  },
+  actionMetric: {
+    flex: 1,
+    gap: spacing[1]
+  },
+  actionMetricDivider: {
+    backgroundColor: colors.border,
+    height: 32,
+    marginHorizontal: spacing[4],
+    width: 1
+  },
+  actionMetricLabel: {
+    color: colors.textSecondary,
+    fontFamily: fontFamilies.interfaceBold,
+    fontSize: 10,
+    letterSpacing: 1,
+    textTransform: "uppercase"
+  },
+  actionMetricValue: {
+    color: colors.textPrimary,
+    fontFamily: fontFamilies.display,
+    fontSize: 22,
+    lineHeight: 24,
+    marginTop: 2
+  },
+  checklistCard: {
+    backgroundColor: colors.surface02,
+    borderRadius: radius.xl,
+    overflow: "hidden",
+    paddingTop: spacing[4]
+  },
+  checklistTitle: {
+    color: colors.textSecondary,
+    fontFamily: fontFamilies.interfaceBold,
+    fontSize: 11,
+    letterSpacing: 1.1,
+    paddingHorizontal: spacing[5],
+    paddingBottom: spacing[3]
+  },
+  checklistRow: {
+    alignItems: "center",
+    borderTopColor: colors.border,
+    borderTopWidth: 1,
+    flexDirection: "row",
+    gap: spacing[3],
+    minHeight: 72,
+    paddingHorizontal: spacing[5],
+    paddingVertical: spacing[3]
+  },
+  checklistRowLast: {
+    paddingBottom: spacing[4]
+  },
+  checklistRowDone: {
+    backgroundColor: colors.surface04
+  },
+  checklistIndex: {
+    alignItems: "center",
+    backgroundColor: colors.surface04,
+    borderRadius: radius.sm,
+    height: 28,
+    justifyContent: "center",
+    width: 28
+  },
+  checklistIndexDone: {
+    backgroundColor: colors.purple500
+  },
+  checklistIndexText: {
+    color: colors.textPrimary,
+    fontFamily: fontFamilies.interfaceBold,
+    fontSize: 11
+  },
+  checklistCopy: {
     flex: 1,
     minWidth: 0
   },
-  eyebrow: {
-    color: colors.fitblockPurple,
-    fontFamily: fontFamilies.interface,
-    fontSize: 11,
-    fontWeight: "800",
-    letterSpacing: 1.6,
-    marginBottom: spacing[2]
+  checklistName: {
+    color: colors.textPrimary,
+    fontFamily: fontFamilies.interfaceBold,
+    fontSize: 15
   },
-  pageTitle: {
-    color: colors.ink,
-    fontFamily: fontFamilies.interface,
-    fontSize: typeScale.headingXl,
-    fontWeight: "700",
-    letterSpacing: 0.2
-  },
-  pageDescription: {
+  checklistDetail: {
     color: colors.textSecondary,
     fontFamily: fontFamilies.interface,
-    fontSize: 15,
-    marginTop: spacing[2]
+    fontSize: 12,
+    lineHeight: 17,
+    marginTop: 3
   },
-  statusPill: {
-    alignItems: "center",
-    backgroundColor: "#E7F5EE",
-    borderRadius: radius.pill,
-    flexDirection: "row",
-    gap: 7,
-    minHeight: 34,
-    paddingHorizontal: spacing[3]
-  },
-  statusPillRunning: {
-    backgroundColor: "#F3EFFF"
-  },
-  statusPillEmpty: {
-    backgroundColor: colors.softCloud
-  },
-  statusDot: {
-    backgroundColor: colors.success,
-    borderRadius: radius.pill,
-    height: 7,
-    width: 7
-  },
-  statusDotRunning: {
-    backgroundColor: colors.fitblockPurple
-  },
-  statusDotEmpty: {
-    backgroundColor: colors.textMuted
-  },
-  statusText: {
-    color: colors.success,
-    fontFamily: fontFamilies.interface,
-    fontSize: 10,
-    fontWeight: "800",
-    letterSpacing: 1
-  },
-  statusTextRunning: {
-    color: colors.fitblockPurple
-  },
-  statusTextEmpty: {
-    color: colors.textSecondary
-  },
-  hero: {
-    backgroundColor: colors.graphite,
+  metricsStrip: {
+    backgroundColor: colors.surface02,
     borderRadius: radius.xl,
     flexDirection: "row",
-    minHeight: 330,
-    overflow: "hidden"
+    flexWrap: "wrap"
   },
-  heroCompact: {
-    flexDirection: "column"
-  },
-  heroTablet: {
-    minHeight: 280
-  },
-  heroCopy: {
-    flex: 1,
-    padding: spacing[8],
-    paddingRight: spacing[6]
-  },
-  heroTopline: {
-    alignItems: "center",
+  lowerGrid: {
+    alignItems: "stretch",
     flexDirection: "row",
-    flexWrap: "wrap",
     gap: spacing[3]
   },
-  heroEyebrow: {
-    color: "#C7B8FF",
-    fontFamily: fontFamilies.interface,
-    fontSize: 12,
-    fontWeight: "700",
-    letterSpacing: 1
-  },
-  focusPill: {
-    backgroundColor: colors.fitblockPurple,
-    borderRadius: radius.pill,
-    paddingHorizontal: spacing[3],
-    paddingVertical: 6
-  },
-  focusPillText: {
-    color: colors.canvas,
-    fontFamily: fontFamilies.interface,
-    fontSize: 10,
-    fontWeight: "800",
-    letterSpacing: 1
-  },
-  heroTitle: {
-    color: colors.canvas,
-    fontFamily: fontFamilies.interface,
-    fontSize: typeScale.headingXl,
-    fontWeight: "700",
-    letterSpacing: 0.5,
-    marginTop: spacing[4]
-  },
-  heroDescription: {
-    color: "#D0D1DB",
-    fontFamily: fontFamilies.interface,
-    fontSize: 16,
-    lineHeight: 24,
-    maxWidth: 520,
-    marginTop: spacing[2]
-  },
-  heroMetaRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: spacing[5],
-    marginTop: spacing[6]
-  },
-  metaItem: {
-    alignItems: "center",
-    flexDirection: "row",
-    gap: 7
-  },
-  metaLabel: {
-    color: "rgba(255, 255, 255, 0.85)",
-    fontFamily: fontFamilies.interface,
-    fontSize: 13,
-    fontWeight: "700"
+  lowerGridCompact: {
+    flexDirection: "column"
   },
   primaryButton: {
     alignItems: "center",
-    backgroundColor: colors.canvas,
+    backgroundColor: colors.purple500,
     borderRadius: radius.pill,
     flexDirection: "row",
     gap: spacing[3],
     justifyContent: "space-between",
-    marginTop: spacing[6],
     minHeight: 52,
-    paddingLeft: spacing[5],
-    paddingRight: 6,
-    width: 214
+    paddingHorizontal: spacing[5],
+    width: "100%",
+    ...shadows.ctaGlow
   },
   primaryButtonText: {
-    color: colors.ink,
-    fontFamily: fontFamilies.interface,
-    fontSize: 14,
-    fontWeight: "800"
-  },
-  primaryButtonIcon: {
-    alignItems: "center",
-    backgroundColor: colors.fitblockPurple,
-    borderRadius: radius.pill,
-    height: 40,
-    justifyContent: "center",
-    width: 40
+    color: colors.white,
+    fontFamily: fontFamilies.interfaceBold,
+    fontSize: 14
   },
   secondaryButton: {
     alignItems: "center",
     alignSelf: "flex-start",
-    backgroundColor: colors.fitblockPurple,
+    backgroundColor: colors.purple500,
     borderRadius: radius.pill,
     flexDirection: "row",
     gap: spacing[3],
@@ -668,93 +880,61 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing[5]
   },
   secondaryButtonText: {
-    color: colors.canvas,
-    fontFamily: fontFamilies.interface,
-    fontSize: 13,
-    fontWeight: "800"
+    color: colors.white,
+    fontFamily: fontFamilies.interfaceBold,
+    fontSize: 13
   },
   buttonPressed: {
     opacity: 0.75
   },
   rowPressed: {
-    backgroundColor: colors.softCloud
+    backgroundColor: colors.surface03
   },
-  heroVisual: {
-    alignItems: "flex-end",
-    backgroundColor: colors.fitblockPurpleDeep,
-    justifyContent: "space-between",
-    minHeight: 330,
-    padding: spacing[8],
-    width: "32%"
-  },
-  heroVisualIndex: {
-    color: "#C7B8FF",
-    fontFamily: fontFamilies.interface,
-    fontSize: 22,
-    fontWeight: "700"
-  },
-  heroVisualWord: {
-    color: colors.canvas,
-    fontFamily: fontFamilies.interface,
-    fontSize: 56,
-    fontWeight: "700",
-    letterSpacing: -2,
-    lineHeight: 50,
-    textAlign: "right"
-  },
-  visualRule: {
-    backgroundColor: "#BDAEFF",
-    height: 2,
-    marginBottom: spacing[2],
-    width: "100%"
-  },
-  heroVisualCaption: {
-    color: colors.canvas,
-    fontFamily: fontFamilies.interface,
-    fontSize: 10,
-    fontWeight: "800",
-    letterSpacing: 1,
-    textAlign: "right"
+  focusedRow: {
+    backgroundColor: colors.surface03,
+    borderTopColor: colors.purple400,
+    borderTopWidth: 2
   },
   emptyCard: {
-    backgroundColor: colors.graphite,
-    borderRadius: radius.xl,
-    padding: spacing[8]
+    backgroundColor: colors.surface02,
+    borderRadius: radius.xxl,
+    overflow: "hidden",
+    padding: spacing[8],
+    position: "relative"
   },
   emptyEyebrow: {
-    color: "#C7B8FF",
-    fontFamily: fontFamilies.interface,
+    color: colors.purple400,
+    fontFamily: fontFamilies.interfaceBold,
     fontSize: 11,
-    fontWeight: "800",
     letterSpacing: 1.4
   },
   emptyTitle: {
-    color: colors.canvas,
-    fontFamily: fontFamilies.interface,
-    fontSize: typeScale.headingXl,
-    fontWeight: "700",
+    color: colors.textPrimary,
+    fontFamily: fontFamilies.display,
+    fontSize: 38,
+    lineHeight: 40,
     marginTop: spacing[3]
   },
   emptyDescription: {
-    color: "#D0D1DB",
+    color: colors.textSecondary,
     fontFamily: fontFamilies.interface,
     fontSize: 15,
     lineHeight: 23,
     marginTop: spacing[2],
-    maxWidth: 520
+    maxWidth: 480
   },
   messageCard: {
     alignItems: "center",
-    backgroundColor: colors.canvas,
-    borderColor: colors.hairline,
-    borderRadius: radius.md,
+    backgroundColor: colors.surface02,
+    borderColor: colors.border,
+    borderRadius: radius.lg,
     borderWidth: 1,
     flexDirection: "row",
     gap: spacing[3],
     padding: spacing[5]
   },
   messageCardError: {
-    borderColor: "#F3C3C8"
+    borderColor: colors.danger
   },
   messageText: {
     color: colors.textSecondary,
@@ -762,129 +942,12 @@ const styles = StyleSheet.create({
     fontFamily: fontFamilies.interface,
     fontSize: 14
   },
-  contentGrid: {
-    flexDirection: "row",
-    gap: spacing[8]
-  },
-  contentGridCompact: {
-    flexDirection: "column"
-  },
-  contentGridTabletPortrait: {
-    flexDirection: "column",
-    gap: spacing[8]
-  },
-  primaryColumn: {
-    flex: 1.25,
-    minWidth: 0
-  },
-  primaryColumnTablet: {
-    flex: 1.1,
-    minWidth: 0
-  },
-  secondaryColumn: {
-    flex: 0.75,
-    minWidth: 0
-  },
-  secondaryColumnTablet: {
-    flex: 0.9,
-    minWidth: 0
-  },
-  sectionHeader: {
-    marginBottom: spacing[4]
-  },
-  sectionEyebrow: {
-    color: colors.textMuted,
-    fontFamily: fontFamilies.interface,
-    fontSize: 10,
-    fontWeight: "800",
-    letterSpacing: 1.4,
-    marginBottom: 5,
-    textTransform: "uppercase"
-  },
-  sectionTitle: {
-    color: colors.ink,
-    fontFamily: fontFamilies.interface,
-    fontSize: 28,
-    fontWeight: "700"
-  },
-  blocksCard: {
-    backgroundColor: colors.canvas,
-    borderColor: colors.hairline,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    marginBottom: spacing[8],
-    overflow: "hidden"
-  },
-  blockRow: {
-    alignItems: "center",
-    borderTopColor: colors.hairline,
-    borderTopWidth: 1,
-    flexDirection: "row",
-    gap: spacing[3],
-    minHeight: 68,
-    paddingHorizontal: spacing[5],
-    paddingVertical: spacing[2]
-  },
-  blockRowFirst: {
-    borderTopWidth: 0
-  },
-  blockRowDone: {
-    backgroundColor: "#f0fdf4"
-  },
-  blockIndex: {
-    alignItems: "center",
-    borderColor: colors.hairline,
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    height: 30,
-    justifyContent: "center",
-    width: 30
-  },
-  blockIndexReady: {
-    backgroundColor: colors.success,
-    borderColor: colors.success
-  },
-  blockIndexText: {
-    color: colors.textSecondary,
-    fontFamily: fontFamilies.interface,
-    fontSize: 11,
-    fontWeight: "800"
-  },
-  blockContent: {
-    flex: 1,
-    minWidth: 0
-  },
-  blockName: {
-    color: colors.ink,
-    fontFamily: fontFamilies.interface,
-    fontSize: 15,
-    fontWeight: "800"
-  },
-  blockDetail: {
-    color: colors.textSecondary,
-    fontFamily: fontFamilies.interface,
-    fontSize: 13,
-    marginTop: 4
-  },
-  contextGrid: {
-    flexDirection: "row",
-    gap: spacing[5]
-  },
-  contextGridCompact: {
-    flexDirection: "column"
-  },
-  contextGridTabletPortrait: {
-    flexDirection: "row",
-    gap: spacing[5]
-  },
   infoCard: {
-    backgroundColor: colors.canvas,
-    borderColor: colors.hairline,
-    borderRadius: radius.lg,
-    borderWidth: 1,
+    backgroundColor: colors.surface02,
+    borderRadius: radius.xl,
     flex: 1,
     minHeight: 220,
-    padding: spacing[6]
+    padding: spacing[5]
   },
   infoCardTopline: {
     alignItems: "center",
@@ -892,10 +955,9 @@ const styles = StyleSheet.create({
     justifyContent: "space-between"
   },
   infoCardEyebrow: {
-    color: colors.fitblockPurple,
-    fontFamily: fontFamilies.interface,
+    color: colors.purple400,
+    fontFamily: fontFamilies.interfaceBold,
     fontSize: 10,
-    fontWeight: "800",
     letterSpacing: 1.2
   },
   readinessScoreRow: {
@@ -904,23 +966,21 @@ const styles = StyleSheet.create({
     marginTop: spacing[4]
   },
   readinessScore: {
-    color: colors.ink,
-    fontFamily: fontFamilies.interface,
-    fontSize: 36,
-    fontWeight: "700"
+    color: colors.textPrimary,
+    fontFamily: fontFamilies.display,
+    fontSize: 34
   },
   readinessOutOf: {
-    color: colors.textMuted,
+    color: colors.textSecondary,
     fontFamily: fontFamilies.interface,
     fontSize: 14,
     marginLeft: 4
   },
   infoCardTitle: {
-    color: colors.ink,
-    fontFamily: fontFamilies.interface,
+    color: colors.textPrimary,
+    fontFamily: fontFamilies.interfaceBold,
     fontSize: 14,
-    fontWeight: "800",
-    marginTop: -2
+    marginTop: spacing[1]
   },
   infoCardDetail: {
     color: colors.textSecondary,
@@ -929,7 +989,7 @@ const styles = StyleSheet.create({
     marginTop: 4
   },
   progressTrack: {
-    backgroundColor: colors.surfaceMuted,
+    backgroundColor: colors.surface04,
     borderRadius: radius.pill,
     height: 7,
     marginTop: spacing[4],
@@ -940,69 +1000,57 @@ const styles = StyleSheet.create({
     borderRadius: radius.pill,
     height: "100%"
   },
-  progressFillPurple: {
-    backgroundColor: colors.fitblockPurple,
+  progressFillLime: {
+    backgroundColor: colors.purple500,
     borderRadius: radius.pill,
     height: "100%"
   },
   readinessPain: {
     color: colors.danger,
-    fontFamily: fontFamilies.interface,
+    fontFamily: fontFamilies.interfaceBold,
     fontSize: 12,
-    fontWeight: "700",
     marginTop: 4
   },
   readinessCta: {
     alignItems: "center",
-    backgroundColor: colors.fitblockPurple,
+    backgroundColor: colors.purple500,
     borderRadius: radius.pill,
     justifyContent: "center",
     marginTop: spacing[4],
     minHeight: 46
   },
   readinessCtaText: {
-    color: colors.canvas,
-    fontFamily: fontFamilies.interface,
-    fontSize: 13,
-    fontWeight: "800"
+    color: colors.white,
+    fontFamily: fontFamilies.interfaceBold,
+    fontSize: 13
   },
   readinessLink: {
     alignSelf: "flex-start",
     justifyContent: "center",
     marginTop: spacing[3],
-    minHeight: 32
+    minHeight: 44
   },
   readinessLinkText: {
-    color: colors.fitblockPurple,
-    fontFamily: fontFamilies.interface,
-    fontSize: 12,
-    fontWeight: "800"
+    color: colors.purple400,
+    fontFamily: fontFamilies.interfaceBold,
+    fontSize: 12
+  },
+  focusedControl: {
+    borderColor: colors.purple400,
+    borderWidth: 3
+  },
+  focusedControlOnColor: {
+    borderColor: colors.white,
+    borderWidth: 3
   },
   coachCard: {
-    backgroundColor: colors.ink,
-    borderRadius: radius.lg,
-    flexDirection: "row",
-    gap: spacing[3],
-    minHeight: 200,
+    backgroundColor: colors.surface03,
+    borderColor: colors.borderPurple,
+    borderWidth: 1,
+    borderRadius: radius.xl,
+    gap: spacing[4],
+    overflow: "hidden",
     padding: spacing[5]
-  },
-  coachAvatar: {
-    alignItems: "center",
-    backgroundColor: colors.fitblockPurple,
-    borderRadius: radius.pill,
-    height: 38,
-    justifyContent: "center",
-    width: 38
-  },
-  coachAvatarText: {
-    color: colors.canvas,
-    fontFamily: fontFamilies.interface,
-    fontSize: 11,
-    fontWeight: "700"
-  },
-  coachCardCopy: {
-    flex: 1,
-    minWidth: 0
   },
   coachCardHeader: {
     alignItems: "flex-start",
@@ -1010,35 +1058,26 @@ const styles = StyleSheet.create({
     justifyContent: "space-between"
   },
   coachName: {
-    color: colors.canvas,
-    fontFamily: fontFamilies.interface,
-    fontSize: 14,
-    fontWeight: "800"
+    color: colors.textPrimary,
+    fontFamily: fontFamilies.interfaceBold,
+    fontSize: 14
   },
   coachDate: {
-    color: colors.textMuted,
+    color: colors.textSecondary,
     fontFamily: fontFamilies.interface,
     fontSize: 11,
     marginTop: 3
   },
   coachNote: {
-    color: "#E2E2E8",
+    color: colors.textPrimary,
     fontFamily: fontFamilies.interface,
     fontSize: 15,
-    lineHeight: 23,
-    marginTop: spacing[5]
+    lineHeight: 23
   },
   nextCard: {
-    backgroundColor: colors.canvas,
-    borderColor: colors.hairline,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    flex: 1,
-    minHeight: 220,
-    padding: spacing[6]
-  },
-  nextCardSpaced: {
-    marginTop: spacing[5]
+    backgroundColor: colors.surface02,
+    borderRadius: radius.xl,
+    padding: spacing[5]
   },
   nextCardTopline: {
     alignItems: "center",
@@ -1046,18 +1085,16 @@ const styles = StyleSheet.create({
     justifyContent: "space-between"
   },
   nextCardEyebrow: {
-    color: colors.textMuted,
-    fontFamily: fontFamilies.interface,
+    color: colors.textSecondary,
+    fontFamily: fontFamilies.interfaceBold,
     fontSize: 10,
-    fontWeight: "800",
     letterSpacing: 1.2
   },
   nextCardTitle: {
-    color: colors.ink,
-    fontFamily: fontFamilies.interface,
-    fontSize: 25,
-    fontWeight: "700",
-    marginTop: spacing[5]
+    color: colors.textPrimary,
+    fontFamily: fontFamilies.interfaceBold,
+    fontSize: 22,
+    marginTop: spacing[3]
   },
   nextCardMeta: {
     color: colors.textSecondary,
@@ -1066,7 +1103,7 @@ const styles = StyleSheet.create({
     marginTop: 4
   },
   nextCardRule: {
-    backgroundColor: colors.hairline,
+    backgroundColor: colors.border,
     height: 1,
     marginVertical: spacing[4]
   },
@@ -1075,29 +1112,31 @@ const styles = StyleSheet.create({
     fontFamily: fontFamilies.interface,
     fontSize: 12,
     lineHeight: 18
+  },
+  stripMetric: {
+    alignItems: "flex-start",
+    minWidth: "45%",
+    paddingHorizontal: spacing[4],
+    paddingVertical: spacing[4]
+  },
+  stripMetricLabel: {
+    color: colors.textSecondary,
+    fontFamily: fontFamilies.interfaceBold,
+    fontSize: 9,
+    letterSpacing: 0.9,
+    textTransform: "uppercase"
+  },
+  stripMetricLabelAccent: {
+    color: colors.purple400
+  },
+  stripMetricValue: {
+    color: colors.textPrimary,
+    fontFamily: fontFamilies.display,
+    fontSize: 22,
+    lineHeight: 24,
+    marginTop: spacing[2]
   }
 });
-
-const statusPillStyles = {
-  available: styles.statusPill,
-  running: styles.statusPillRunning,
-  done: styles.statusPill,
-  empty: styles.statusPillEmpty
-} as const;
-
-const statusDotStyles = {
-  available: styles.statusDot,
-  running: styles.statusDotRunning,
-  done: styles.statusDot,
-  empty: styles.statusDotEmpty
-} as const;
-
-const statusTextStyles = {
-  available: styles.statusText,
-  running: styles.statusTextRunning,
-  done: styles.statusText,
-  empty: styles.statusTextEmpty
-} as const;
 
 /** Semáforo da prontidão: verde >= 4,0 · amarelo 3,0-3,9 · vermelho < 3,0. */
 const readinessToneColors: Record<ReadinessTone, string> = {

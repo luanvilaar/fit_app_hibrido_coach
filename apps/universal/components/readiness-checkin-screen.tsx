@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { Animated, Easing, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { AccessibilityInfo, Animated, Easing, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { colors, fontFamilies, motion, radius, spacing, typeScale } from "@fitblock/design-tokens";
 import { createTodayRepository, type CheckinPainRegion } from "@fitblock/backend";
 import { describeBackendError } from "@/data/backend-error";
@@ -51,6 +51,7 @@ export function ReadinessCheckinScreen() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [step, setStep] = useState(0);
   const [direction, setDirection] = useState<"forward" | "back">("forward");
+  const [reduceMotion, setReduceMotion] = useState(false);
   const advanceTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Reaproveita a RPC agregadora da Hoje para pré-preencher o check-in já registrado.
@@ -91,6 +92,18 @@ export function ReadinessCheckinScreen() {
 
     return () => {
       mounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let mounted = true;
+    void AccessibilityInfo.isReduceMotionEnabled().then((enabled) => {
+      if (mounted) setReduceMotion(enabled);
+    });
+    const subscription = AccessibilityInfo.addEventListener("reduceMotionChanged", setReduceMotion);
+    return () => {
+      mounted = false;
+      subscription.remove();
     };
   }, []);
 
@@ -172,7 +185,9 @@ export function ReadinessCheckinScreen() {
     <View style={styles.page} testID="readiness-checkin-screen">
       <View style={styles.pageIntro}>
         <Text style={styles.eyebrow}>CHECK-IN DIÁRIO</Text>
-        <Text style={styles.pageTitle}>Como você chega hoje?</Text>
+        <Text style={styles.pageTitle}>
+          Como você chega <Text style={styles.pageTitleChip}>hoje</Text>?
+        </Text>
         <Text style={styles.pageDescription}>
           Sete respostas de 1 a 5, sempre na mesma direção: 5 é o melhor cenário. Leva menos de um minuto e
           ajuda seu coach a ajustar o treino.
@@ -188,14 +203,14 @@ export function ReadinessCheckinScreen() {
 
       {isLoading ? (
         <View style={styles.messageCard}>
-          <Ionicons name="sync-outline" size={20} color={colors.textMuted} />
+          <Ionicons name="sync-outline" size={20} color={colors.textSecondary} />
           <Text style={styles.messageText}>Carregando o check-in de hoje...</Text>
         </View>
       ) : (
         <View style={styles.formCard}>
           <StepHeader step={step} totalSteps={TOTAL_STEPS} onBack={goBack} />
 
-          <StepTransition step={step} direction={direction}>
+          <StepTransition step={step} direction={direction} reduceMotion={reduceMotion}>
             {currentQuestion ? (
               <CheckinQuestionRow
                 key={currentQuestion.key}
@@ -249,6 +264,7 @@ function StepHeader({
   totalSteps: number;
   onBack: () => void;
 }) {
+  const [isBackFocused, setIsBackFocused] = useState(false);
   const isFinalStep = step === totalSteps - 1;
   const stepLabel = isFinalStep ? "Só falta confirmar" : `Pergunta ${step + 1} de ${totalSteps - 1}`;
 
@@ -261,7 +277,9 @@ function StepHeader({
             accessibilityLabel="Voltar para a pergunta anterior"
             testID="checkin-step-back"
             onPress={onBack}
-            style={({ pressed }) => [styles.stepBackButton, pressed && styles.pressed]}
+            onFocus={() => setIsBackFocused(true)}
+            onBlur={() => setIsBackFocused(false)}
+            style={({ pressed }) => [styles.stepBackButton, isBackFocused && styles.focusedControl, pressed && styles.pressed]}
           >
             <Ionicons name="chevron-back" size={18} color={colors.textSecondary} />
           </Pressable>
@@ -287,10 +305,12 @@ function StepHeader({
 function StepTransition({
   step,
   direction,
+  reduceMotion,
   children
 }: {
   step: number;
   direction: "forward" | "back";
+  reduceMotion: boolean;
   children: React.ReactNode;
 }) {
   const opacity = useRef(new Animated.Value(0)).current;
@@ -299,6 +319,11 @@ function StepTransition({
   // useLayoutEffect evita o flash de um frame com o conteúdo novo em opacidade final
   // antes da animação de entrada começar.
   useLayoutEffect(() => {
+    if (reduceMotion) {
+      opacity.setValue(1);
+      translateX.setValue(0);
+      return;
+    }
     opacity.setValue(0);
     translateX.setValue(direction === "forward" ? 16 : -16);
     Animated.parallel([
@@ -315,7 +340,7 @@ function StepTransition({
         useNativeDriver: true
       })
     ]).start();
-  }, [step, direction, opacity, translateX]);
+  }, [step, direction, reduceMotion, opacity, translateX]);
 
   return <Animated.View style={{ opacity, transform: [{ translateX }] }}>{children}</Animated.View>;
 }
@@ -329,6 +354,8 @@ function CheckinQuestionRow({
   value: number | null;
   onChange: (value: number) => void;
 }) {
+  const [focusedScore, setFocusedScore] = useState<number | null>(null);
+
   return (
     <View style={styles.questionRow}>
       <Text style={styles.questionLabel}>{question.label}</Text>
@@ -341,9 +368,12 @@ function CheckinQuestionRow({
             accessibilityState={{ selected: value === score }}
             testID={`checkin-${question.slug}-${score}`}
             onPress={() => onChange(score)}
+            onFocus={() => setFocusedScore(score)}
+            onBlur={() => setFocusedScore(null)}
             style={({ pressed }) => [
               styles.scaleOption,
               value === score && styles.scaleOptionActive,
+              focusedScore === score && styles.focusedControl,
               pressed && styles.pressed
             ]}
           >
@@ -388,6 +418,9 @@ function FinalStep({
   onSave: () => void;
   hint: string;
 }) {
+  const [isSubmitFocused, setIsSubmitFocused] = useState(false);
+  const [isNoteFocused, setIsNoteFocused] = useState(false);
+
   return (
     <View style={styles.finalStep}>
       <PainPicker
@@ -409,9 +442,11 @@ function FinalStep({
           multiline
           numberOfLines={3}
           onChangeText={onChangeNote}
+          onFocus={() => setIsNoteFocused(true)}
+          onBlur={() => setIsNoteFocused(false)}
           placeholder="Opcional. Ex.: dormi mal por causa do trabalho."
-          placeholderTextColor={colors.textMuted}
-          style={styles.noteInput}
+          placeholderTextColor={colors.textMutedAccessible}
+          style={[styles.noteInput, isNoteFocused && styles.focusedControl]}
           testID="checkin-note"
           value={note}
         />
@@ -425,13 +460,18 @@ function FinalStep({
           disabled={!canSave}
           testID="save-checkin"
           onPress={onSave}
+          onFocus={() => setIsSubmitFocused(true)}
+          onBlur={() => setIsSubmitFocused(false)}
           style={({ pressed }) => [
             styles.submitButton,
             !canSave && styles.submitButtonDisabled,
+            isSubmitFocused && styles.focusedControlOnColor,
             pressed && styles.pressed
           ]}
         >
-          <Text style={styles.submitButtonText}>{isSaving ? "Salvando..." : "Salvar prontidão"}</Text>
+          <Text style={[styles.submitButtonText, !canSave && styles.submitButtonTextDisabled]}>
+            {isSaving ? "Salvando..." : "Salvar prontidão"}
+          </Text>
         </Pressable>
         <Text style={styles.submitHint} testID="checkin-progress">
           {hint}
@@ -456,6 +496,8 @@ function PainPicker({
   onSelectRegion: (region: CheckinPainRegion) => void;
   onSelectIntensity: (intensity: number) => void;
 }) {
+  const [focusedControl, setFocusedControl] = useState<string | null>(null);
+
   return (
     <View style={styles.questionRow}>
       <Pressable
@@ -464,12 +506,19 @@ function PainPicker({
         accessibilityState={{ checked: hasPain }}
         testID="pain-toggle"
         onPress={onToggle}
-        style={({ pressed }) => [styles.painToggle, hasPain && styles.painToggleActive, pressed && styles.pressed]}
+        onFocus={() => setFocusedControl("toggle")}
+        onBlur={() => setFocusedControl(null)}
+        style={({ pressed }) => [
+          styles.painToggle,
+          hasPain && styles.painToggleActive,
+          focusedControl === "toggle" && styles.focusedControl,
+          pressed && styles.pressed
+        ]}
       >
         <Ionicons
           name={hasPain ? "checkbox-outline" : "square-outline"}
           size={20}
-          color={hasPain ? colors.fitblockPurple : colors.textMuted}
+          color={hasPain ? colors.purple400 : colors.textSecondary}
         />
         <Text style={styles.painToggleText}>Sente dor em algum lugar específico?</Text>
       </Pressable>
@@ -488,9 +537,12 @@ function PainPicker({
                 accessibilityState={{ selected: region === option.value }}
                 testID={`pain-region-${option.value}`}
                 onPress={() => onSelectRegion(option.value)}
+                onFocus={() => setFocusedControl(`region-${option.value}`)}
+                onBlur={() => setFocusedControl(null)}
                 style={({ pressed }) => [
                   styles.chip,
                   region === option.value && styles.chipActive,
+                  focusedControl === `region-${option.value}` && styles.focusedControl,
                   pressed && styles.pressed
                 ]}
               >
@@ -511,9 +563,12 @@ function PainPicker({
                 accessibilityState={{ selected: intensity === score }}
                 testID={`pain-intensity-${score}`}
                 onPress={() => onSelectIntensity(score)}
+                onFocus={() => setFocusedControl(`intensity-${score}`)}
+                onBlur={() => setFocusedControl(null)}
                 style={({ pressed }) => [
                   styles.scaleOption,
                   intensity === score && styles.scaleOptionActive,
+                  focusedControl === `intensity-${score}` && styles.focusedControl,
                   pressed && styles.pressed
                 ]}
               >
@@ -537,14 +592,25 @@ const styles = StyleSheet.create({
   page: { gap: spacing[5] },
   pageIntro: { maxWidth: 620 },
   eyebrow: {
-    color: colors.fitblockPurple,
-    fontFamily: fontFamilies.interface,
+    color: colors.purple400,
+    fontFamily: fontFamilies.interfaceBold,
     fontSize: 11,
-    fontWeight: "800",
     letterSpacing: 1.6,
     marginBottom: spacing[2]
   },
-  pageTitle: { color: colors.ink, fontFamily: fontFamilies.interface, fontSize: typeScale.headingXl, fontWeight: "700" },
+  pageTitle: {
+    color: colors.textPrimary,
+    fontFamily: fontFamilies.display,
+    fontSize: typeScale.displayHero,
+    letterSpacing: -0.8,
+    lineHeight: typeScale.displayHero * 0.92
+  },
+  pageTitleChip: {
+    backgroundColor: colors.purple500,
+    color: colors.white,
+    overflow: "hidden",
+    paddingHorizontal: spacing[1]
+  },
   pageDescription: {
     color: colors.textSecondary,
     fontFamily: fontFamilies.interface,
@@ -554,20 +620,18 @@ const styles = StyleSheet.create({
   },
   messageCard: {
     alignItems: "center",
-    backgroundColor: colors.canvas,
-    borderColor: colors.hairline,
-    borderRadius: radius.md,
-    borderWidth: 1,
+    backgroundColor: colors.surface02,
+    borderRadius: radius.lg,
     flexDirection: "row",
     gap: spacing[3],
     padding: spacing[4]
   },
   messageText: { color: colors.textSecondary, flex: 1, fontFamily: fontFamilies.interface, fontSize: 14 },
   formCard: {
-    backgroundColor: colors.canvas,
-    borderColor: colors.hairline,
-    borderRadius: radius.lg,
+    backgroundColor: colors.surface02,
+    borderColor: colors.border,
     borderWidth: 1,
+    borderRadius: radius.xxl,
     gap: spacing[4],
     maxWidth: 640,
     padding: spacing[5]
@@ -576,48 +640,48 @@ const styles = StyleSheet.create({
   stepHeaderTopRow: { alignItems: "center", flexDirection: "row", gap: spacing[2] },
   stepBackButton: {
     alignItems: "center",
-    borderColor: colors.hairline,
+    backgroundColor: colors.surface03,
     borderRadius: radius.pill,
-    borderWidth: 1,
     justifyContent: "center",
-    minHeight: 32,
-    minWidth: 32
+    minHeight: 44,
+    minWidth: 44
   },
-  stepBackPlaceholder: { minHeight: 32, minWidth: 32 },
+  stepBackPlaceholder: { minHeight: 44, minWidth: 44 },
   stepProgressTrack: { flex: 1, flexDirection: "row", gap: spacing[1] },
-  stepProgressSegment: { backgroundColor: colors.hairline, borderRadius: radius.pill, flex: 1, height: 4 },
-  stepProgressSegmentActive: { backgroundColor: colors.fitblockPurple },
-  stepLabel: { color: colors.textMuted, fontFamily: fontFamilies.interface, fontSize: 12, fontWeight: "700" },
+  stepProgressSegment: { backgroundColor: colors.surface04, borderRadius: radius.pill, flex: 1, height: 4 },
+  stepProgressSegmentActive: { backgroundColor: colors.purple500 },
+  stepLabel: { color: colors.textSecondary, fontFamily: fontFamilies.interfaceBold, fontSize: 12 },
   finalStep: { gap: spacing[4] },
   questionRow: { gap: spacing[2] },
   questionLabel: {
-    color: colors.ink,
-    fontFamily: fontFamilies.interface,
-    fontSize: 13,
-    fontWeight: "800"
+    color: colors.textPrimary,
+    fontFamily: fontFamilies.interfaceBold,
+    fontSize: 13
   },
   scaleRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing[2] },
   scaleOption: {
     alignItems: "center",
-    borderColor: colors.hairline,
-    borderRadius: radius.sm,
+    backgroundColor: colors.bg,
+    borderColor: colors.border,
+    borderRadius: radius.md,
     borderWidth: 1,
     flexGrow: 1,
     justifyContent: "center",
     minHeight: 44,
     minWidth: 44
   },
-  scaleOptionActive: { backgroundColor: "#F3EFFF", borderColor: colors.fitblockPurple },
+  scaleOptionActive: { backgroundColor: colors.purple700, borderColor: colors.purple400 },
+  focusedControl: { borderColor: colors.purple400, borderWidth: 2 },
+  focusedControlOnColor: { borderColor: colors.white, borderWidth: 2 },
   scaleOptionText: {
     color: colors.textSecondary,
-    fontFamily: fontFamilies.interface,
-    fontSize: 13,
-    fontWeight: "800"
+    fontFamily: fontFamilies.interfaceBold,
+    fontSize: 13
   },
-  scaleOptionTextActive: { color: colors.fitblockPurple },
+  scaleOptionTextActive: { color: colors.white },
   anchorRow: { flexDirection: "row", justifyContent: "space-between" },
-  anchorText: { color: colors.textMuted, fontFamily: fontFamilies.interface, fontSize: 11 },
-  divider: { backgroundColor: colors.hairline, height: 1 },
+  anchorText: { color: colors.textSecondary, fontFamily: fontFamilies.interface, fontSize: 11 },
+  divider: { backgroundColor: colors.border, height: 1 },
   painToggle: {
     alignItems: "center",
     flexDirection: "row",
@@ -626,33 +690,33 @@ const styles = StyleSheet.create({
   },
   painToggleActive: {},
   painToggleText: {
-    color: colors.ink,
+    color: colors.textPrimary,
     flex: 1,
-    fontFamily: fontFamilies.interface,
-    fontSize: 13,
-    fontWeight: "800"
+    fontFamily: fontFamilies.interfaceBold,
+    fontSize: 13
   },
   painHint: { color: colors.textSecondary, fontFamily: fontFamilies.interface, fontSize: 12 },
   chipRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing[2] },
   chip: {
     alignItems: "center",
-    borderColor: colors.hairline,
+    backgroundColor: colors.bg,
+    borderColor: colors.border,
     borderRadius: radius.pill,
     borderWidth: 1,
     justifyContent: "center",
-    minHeight: 40,
+    minHeight: 44,
     paddingHorizontal: spacing[3]
   },
-  chipActive: { backgroundColor: "#F3EFFF", borderColor: colors.fitblockPurple },
-  chipText: { color: colors.textSecondary, fontFamily: fontFamilies.interface, fontSize: 12, fontWeight: "700" },
-  chipTextActive: { color: colors.fitblockPurple },
+  chipActive: { backgroundColor: colors.purple700, borderColor: colors.purple400 },
+  chipText: { color: colors.textSecondary, fontFamily: fontFamilies.interfaceSemiBold, fontSize: 12 },
+  chipTextActive: { color: colors.white },
   noteRow: { gap: spacing[2] },
   noteInput: {
-    backgroundColor: colors.softCloud,
-    borderColor: colors.hairline,
-    borderRadius: radius.sm,
+    backgroundColor: colors.bg,
+    borderColor: colors.border,
+    borderRadius: radius.lg,
     borderWidth: 1,
-    color: colors.ink,
+    color: colors.textPrimary,
     fontFamily: fontFamilies.interface,
     fontSize: 14,
     minHeight: 80,
@@ -662,19 +726,19 @@ const styles = StyleSheet.create({
   submitRow: { alignItems: "center", flexDirection: "row", flexWrap: "wrap", gap: spacing[3] },
   submitButton: {
     alignItems: "center",
-    backgroundColor: colors.fitblockPurple,
+    backgroundColor: colors.purple500,
     borderRadius: radius.pill,
     justifyContent: "center",
     minHeight: 46,
     paddingHorizontal: spacing[5]
   },
-  submitButtonDisabled: { backgroundColor: colors.textMuted },
+  submitButtonDisabled: { backgroundColor: colors.surface04 },
   submitButtonText: {
-    color: colors.canvas,
-    fontFamily: fontFamilies.interface,
-    fontSize: 13,
-    fontWeight: "800"
+    color: colors.white,
+    fontFamily: fontFamilies.interfaceBold,
+    fontSize: 13
   },
+  submitButtonTextDisabled: { color: colors.textSecondary },
   submitHint: { color: colors.textSecondary, fontFamily: fontFamilies.interface, fontSize: 13 },
   pressed: { opacity: 0.72 }
 });

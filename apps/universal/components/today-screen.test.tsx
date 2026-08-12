@@ -11,6 +11,10 @@ const mockRepository = {
   toggleBlock: jest.fn()
 };
 
+const mockCalendarRepository = {
+  listPublishedSessions: jest.fn()
+};
+
 jest.mock("expo-router", () => ({
   useRouter: () => ({ push: mockPush, replace: mockReplace })
 }));
@@ -21,7 +25,8 @@ jest.mock("@/lib/supabase", () => ({
 }));
 
 jest.mock("@fitblock/backend", () => ({
-  createTodayRepository: () => mockRepository
+  createTodayRepository: () => mockRepository,
+  createCalendarRepository: () => mockCalendarRepository
 }));
 
 const dashboard: TodayDashboardRecord = {
@@ -101,6 +106,7 @@ describe("TodayScreen", () => {
       ...progress,
       completed_block_ids: ["11111111-1111-1111-1111-111111111111"]
     });
+    mockCalendarRepository.listPublishedSessions.mockResolvedValue([]);
   });
 
   it("mostra a sessão publicada de hoje com dados do backend", async () => {

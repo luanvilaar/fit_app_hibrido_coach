@@ -4,18 +4,18 @@ import { useEffect, useState } from "react";
 import {
   Platform,
   Pressable,
-  StyleProp,
+  type StyleProp,
   StyleSheet,
   Text,
   View,
-  ViewStyle,
+  type ViewStyle,
   useWindowDimensions
 } from "react-native";
 import { colors, fontFamilies, radius, spacing } from "@fitblock/design-tokens";
 import {
   experienceStatusLabels,
-  type FitBlockExperience,
-  type ExperienceStatus
+  type ExperienceStatus,
+  type FitBlockExperience
 } from "@/data/home";
 import { track } from "@/lib/analytics";
 
@@ -27,9 +27,9 @@ type ExperienceCardProps = {
 const statusColors: Record<ExperienceStatus, string> = {
   open: colors.success,
   last_spots: colors.warning,
-  closed: colors.textMuted,
-  interest: colors.fitblockPurpleLight,
-  completed: colors.textMuted
+  closed: colors.textMutedAccessible,
+  interest: colors.purple400,
+  completed: colors.textMutedAccessible
 };
 
 function getAnalyticsPayload(experience: FitBlockExperience) {
@@ -91,26 +91,27 @@ export function ExperienceCard({ experience, style }: ExperienceCardProps) {
         pressed && styles.cardPressed
       ]}
     >
-      <View style={[styles.hero, isMobile && styles.heroMobile]}>
-        <Text style={[styles.order, isMobile && styles.orderMobile]}>{String(experience.order).padStart(2, "0")}</Text>
-        <Ionicons name="arrow-up" size={22} color={colors.canvas} style={[styles.arrow, isMobile && styles.arrowMobile]} />
+      <View style={[styles.visual, isMobile && styles.visualMobile]}>
+        <View style={styles.visualSignal} />
         <Text style={[styles.typeLabel, isMobile && styles.typeLabelMobile]}>{experience.typeLabel}</Text>
-        <View style={[styles.heroCross, isMobile && styles.heroCrossMobile]} />
+        <View style={styles.arrowFrame}>
+          <Ionicons name="arrow-forward" size={20} color={colors.white} />
+        </View>
       </View>
-      <View style={[styles.footer, isMobile && styles.footerMobile]}>
+      <View style={[styles.content, isMobile && styles.contentMobile]}>
         <View style={[styles.metaRow, isMobile && styles.metaRowMobile]}>
           <Text style={styles.date} accessibilityLabel={`Data: ${experience.date}`}>
             {experience.date}
           </Text>
-          <View style={[styles.statusRow, isMobile && styles.statusRowMobile]}>
+          <View style={styles.statusRow}>
             <View style={[styles.statusDot, { backgroundColor: statusColors[experience.status] }]} />
-            <Text style={[styles.status, isMobile && styles.statusMobile, { color: statusColors[experience.status] }]}>
-              {statusLabel}
-            </Text>
+            <Text style={[styles.status, { color: statusColors[experience.status] }]}>{statusLabel}</Text>
           </View>
         </View>
-        <Text style={[styles.title, isMobile && styles.titleMobile]}>{experience.title}</Text>
-        <Text style={[styles.location, isMobile && styles.locationMobile]}>{experience.location}</Text>
+        <Text accessibilityRole="header" style={[styles.title, isMobile && styles.titleMobile]}>
+          {experience.title}
+        </Text>
+        <Text style={styles.location}>{experience.location}</Text>
       </View>
     </Pressable>
   );
@@ -118,147 +119,123 @@ export function ExperienceCard({ experience, style }: ExperienceCardProps) {
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: colors.graphite,
-    borderColor: "transparent",
-    borderRadius: radius.lg,
-    borderWidth: 2,
+    backgroundColor: colors.surface02,
+    borderColor: colors.border,
+    borderRadius: radius.card,
+    borderWidth: 1,
     flex: 1,
     minWidth: 0,
     overflow: "hidden"
   },
   cardFocused: {
-    borderColor: colors.fitblockPurpleLight
+    borderColor: colors.purple400,
+    borderWidth: 2
   },
   cardPressed: {
-    opacity: 0.78
+    opacity: 0.82
   },
-  hero: {
-    backgroundColor: colors.fitblockPurpleDeep,
-    height: 240,
-    justifyContent: "space-between",
+  visual: {
+    backgroundColor: colors.surface03,
+    height: 210,
+    justifyContent: "center",
     overflow: "hidden",
-    padding: spacing[5]
+    padding: spacing[5],
+    position: "relative"
   },
-  heroMobile: {
-    height: 200,
+  visualMobile: {
+    height: 190,
     padding: spacing[4]
   },
-  order: {
-    color: colors.fitblockPurpleLight,
-    fontFamily: fontFamilies.interface,
-    fontSize: 20,
-    fontWeight: "700"
-  },
-  orderMobile: {
-    fontSize: 18
-  },
-  arrow: {
+  visualSignal: {
+    backgroundColor: colors.purple500,
+    height: 5,
+    left: 0,
     position: "absolute",
-    right: spacing[5],
-    top: spacing[5],
-    transform: [{ rotate: "45deg" }]
-  },
-  arrowMobile: {
-    right: spacing[4],
-    top: spacing[4]
+    top: 0,
+    width: "100%"
   },
   typeLabel: {
-    alignSelf: "center",
-    color: colors.canvas,
-    fontFamily: fontFamilies.interface,
-    fontSize: 92,
-    fontWeight: "700",
-    letterSpacing: -3,
-    lineHeight: 88,
-    opacity: 0.92
+    color: colors.textPrimary,
+    fontFamily: fontFamilies.displayBold,
+    fontSize: 88,
+    letterSpacing: -1.8,
+    lineHeight: 78,
+    textTransform: "uppercase"
   },
   typeLabelMobile: {
     fontSize: 72,
-    lineHeight: 68
+    lineHeight: 65
   },
-  heroCross: {
-    borderColor: colors.fitblockPurpleLight,
-    borderRightWidth: 2,
-    borderTopWidth: 2,
-    height: 80,
+  arrowFrame: {
+    alignItems: "center",
+    backgroundColor: colors.purple500,
+    borderRadius: radius.pill,
+    height: 42,
+    justifyContent: "center",
     position: "absolute",
-    pointerEvents: "none",
     right: spacing[5],
-    top: spacing[5] + 22,
-    transform: [{ rotate: "45deg" }],
-    width: 80
+    top: spacing[5],
+    width: 42
   },
-  heroCrossMobile: {
-    height: 64,
-    right: spacing[4],
-    top: spacing[4] + 22,
-    width: 64
-  },
-  footer: {
-    minHeight: 168,
+  content: {
+    flex: 1,
+    minHeight: 180,
     padding: spacing[5]
   },
-  footerMobile: {
-    minHeight: 156,
+  contentMobile: {
+    minHeight: 170,
     padding: spacing[4]
   },
   metaRow: {
     alignItems: "center",
     flexDirection: "row",
+    gap: spacing[2],
     justifyContent: "space-between"
   },
   metaRowMobile: {
-    gap: spacing[2]
+    alignItems: "flex-start",
+    flexDirection: "column"
   },
   date: {
-    color: colors.fitblockPurpleLight,
-    fontFamily: fontFamilies.interface,
-    fontSize: 10,
-    fontWeight: "800",
-    letterSpacing: 1
+    color: colors.purple400,
+    fontFamily: fontFamilies.interfaceBold,
+    fontSize: 11,
+    letterSpacing: 0.9
   },
   statusRow: {
     alignItems: "center",
     flexDirection: "row",
-    gap: spacing[2],
-    maxWidth: "50%"
-  },
-  statusRowMobile: {
-    maxWidth: "100%"
+    gap: spacing[2]
   },
   statusDot: {
     borderRadius: radius.pill,
-    height: 6,
-    width: 6
+    height: 7,
+    width: 7
   },
   status: {
-    fontFamily: fontFamilies.interface,
-    fontSize: 10,
-    fontWeight: "800",
+    fontFamily: fontFamilies.interfaceSemiBold,
+    fontSize: 11,
     textAlign: "right"
   },
-  statusMobile: {
-    textAlign: "left"
-  },
   title: {
-    color: colors.canvas,
-    fontFamily: fontFamilies.interface,
-    fontSize: 27,
-    fontWeight: "700",
-    marginTop: spacing[4]
+    color: colors.textPrimary,
+    fontFamily: fontFamilies.displayBold,
+    fontSize: 34,
+    letterSpacing: -0.35,
+    lineHeight: 33,
+    marginTop: spacing[5],
+    textTransform: "uppercase"
   },
   titleMobile: {
-    fontSize: 23,
-    lineHeight: 26,
-    marginTop: spacing[3]
+    fontSize: 30,
+    lineHeight: 29,
+    marginTop: spacing[4]
   },
   location: {
-    color: "#B5B6C2",
+    color: colors.textSecondary,
     fontFamily: fontFamilies.interface,
     fontSize: 13,
+    lineHeight: 20,
     marginTop: spacing[2]
-  },
-  locationMobile: {
-    fontSize: 12
   }
 });

@@ -48,8 +48,17 @@ export type ApplySessionToTeamRequest = {
   coachNote?: string;
 };
 
-/** Categorias oferecidas no editor, por modalidade de treino. */
-export type SessionBlockKind = "strength" | "conditioning" | "lpo" | "endurance" | "gymnastics-skill";
+/** As nove categorias de bloco oferecidas no compositor Coach Híbrido. */
+export type SessionBlockKind =
+  | "warm-up"
+  | "strength"
+  | "lpo"
+  | "conditioning"
+  | "metcon"
+  | "endurance"
+  | "gymnastics-skill"
+  | "gymnastics-conditioning"
+  | "cooldown";
 
 /**
  * Categoria do movimento no catálogo: decide o formato de prescrição do exercício
@@ -58,10 +67,10 @@ export type SessionBlockKind = "strength" | "conditioning" | "lpo" | "endurance"
 export type ExerciseCategory = "forca-acessorios" | "forca-lpo" | "ginastica";
 
 /**
- * Categorias criadas antes das modalidades. Continuam aceitas pelo banco porque os snapshots
- * congelados em `session_instances.snapshot` mantêm esses valores para sempre.
+ * Categoria criada antes das modalidades. Continua aceita pelo banco porque os snapshots
+ * congelados em `session_instances.snapshot` mantêm esse valor para sempre.
  */
-export type LegacySessionBlockKind = "warm-up" | "cooldown" | "custom";
+export type LegacySessionBlockKind = "custom";
 
 export type CreateSessionTemplateRequest = {
   title: string;
@@ -70,11 +79,11 @@ export type CreateSessionTemplateRequest = {
     name: string;
     kind: SessionBlockKind;
     /**
-     * Conteúdo específico da categoria: texto livre, config de ranking, séries de LPO e volumes
-     * de endurance. Vazio nas categorias baseadas em lista de exercícios.
+     * Conteúdo do bloco: o texto do treino em `body`, mais o que a categoria cobra —
+     * protocolo, ranking, volume de força e volumes de endurance.
      */
     details?: Record<string, unknown>;
-    /** Vazio nas categorias de texto livre (Condicionamento, LPO, Endurance). */
+    /** Movimentos do catálogo mencionados no texto; dão nome e vídeo ao atleta. */
     items: Array<{
       exerciseSlug: string;
       exerciseName: string;
@@ -145,6 +154,36 @@ export type UpdateSessionRequest = {
   blocks: CreateSessionTemplateRequest["blocks"];
   status?: "draft" | "published";
   coachNote?: string;
+};
+
+export type BlockScoreType = "time" | "rounds-reps" | "reps" | "load";
+
+export type SubmitBlockScoreRequest = {
+  sessionId: string;
+  blockId: string;
+  scoreType: BlockScoreType;
+  timeSeconds?: number | null;
+  rounds?: number | null;
+  reps?: number | null;
+  loadKg?: number | null;
+};
+
+export type BlockScoreRecord = {
+  id: string;
+  session_id: string;
+  block_id: string;
+  athlete_id: string;
+  score_type: BlockScoreType;
+  time_seconds: number | null;
+  rounds: number | null;
+  reps: number | null;
+  load_kg: number | null;
+  submitted_at: string;
+};
+
+export type LeaderboardEntry = BlockScoreRecord & {
+  rank: number;
+  display_name: string;
 };
 
 /** Movimento do catálogo; `created_by` nulo identifica catálogo oficial FitBlock. */

@@ -3,7 +3,7 @@ import { useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import type { ComponentProps } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import { colors, fontFamilies, radius, spacing, typeScale } from "@fitblock/design-tokens";
+import { colors, fontFamilies, radius, spacing } from "@fitblock/design-tokens";
 import {
   createCoachFlowRepository,
   createTeamDiscoveryRepository,
@@ -49,6 +49,7 @@ export function CoachTeamDetailScreen({ teamId }: CoachTeamDetailScreenProps) {
   const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [focusedControl, setFocusedControl] = useState<string | null>(null);
 
   const loadMembers = useCallback(async () => {
     if (!supabase) return;
@@ -237,7 +238,9 @@ export function CoachTeamDetailScreen({ teamId }: CoachTeamDetailScreenProps) {
         accessibilityLabel="Voltar para a lista de equipes"
         testID="back-to-teams"
         onPress={() => router.push("/app/coach/equipes")}
-        style={({ pressed }) => [styles.backLink, pressed && styles.pressed]}
+        onFocus={() => setFocusedControl("back")}
+        onBlur={() => setFocusedControl(null)}
+        style={({ pressed }) => [styles.backLink, focusedControl === "back" && styles.focusedControl, pressed && styles.pressed]}
       >
         <Ionicons name="chevron-back" size={16} color={colors.textSecondary} />
         <Text style={styles.backLinkText}>Equipes</Text>
@@ -288,7 +291,13 @@ export function CoachTeamDetailScreen({ teamId }: CoachTeamDetailScreenProps) {
                     disabled={isDeleting}
                     testID="confirm-delete-team"
                     onPress={() => void handleDeleteTeam()}
-                    style={({ pressed }) => [styles.confirmDangerButton, pressed && styles.pressed]}
+                    onFocus={() => setFocusedControl("confirm-delete")}
+                    onBlur={() => setFocusedControl(null)}
+                    style={({ pressed }) => [
+                      styles.confirmDangerButton,
+                      focusedControl === "confirm-delete" && styles.focusedControlOnColor,
+                      pressed && styles.pressed
+                    ]}
                   >
                     <Text style={styles.confirmDangerText}>{isDeleting ? "Excluindo..." : "Sim, excluir"}</Text>
                   </Pressable>
@@ -297,7 +306,13 @@ export function CoachTeamDetailScreen({ teamId }: CoachTeamDetailScreenProps) {
                     accessibilityLabel="Manter a equipe"
                     testID="dismiss-delete-team"
                     onPress={() => setIsConfirmingDelete(false)}
-                    style={({ pressed }) => [styles.ghostButton, pressed && styles.pressed]}
+                    onFocus={() => setFocusedControl("dismiss-delete")}
+                    onBlur={() => setFocusedControl(null)}
+                    style={({ pressed }) => [
+                      styles.ghostButton,
+                      focusedControl === "dismiss-delete" && styles.focusedControl,
+                      pressed && styles.pressed
+                    ]}
                   >
                     <Text style={styles.ghostButtonText}>Manter</Text>
                   </Pressable>
@@ -308,7 +323,13 @@ export function CoachTeamDetailScreen({ teamId }: CoachTeamDetailScreenProps) {
                   accessibilityLabel="Excluir equipe"
                   testID="request-delete-team"
                   onPress={() => setIsConfirmingDelete(true)}
-                  style={({ pressed }) => [styles.dangerButton, pressed && styles.pressed]}
+                  onFocus={() => setFocusedControl("request-delete")}
+                  onBlur={() => setFocusedControl(null)}
+                  style={({ pressed }) => [
+                    styles.dangerButton,
+                    focusedControl === "request-delete" && styles.focusedControl,
+                    pressed && styles.pressed
+                  ]}
                 >
                   <Ionicons name="trash-outline" size={16} color={colors.danger} />
                   <Text style={styles.dangerButtonText}>Excluir equipe</Text>
@@ -347,32 +368,46 @@ function CoachMessage({
 
 const styles = StyleSheet.create({
   page: { gap: spacing[4] },
-  backLink: { alignItems: "center", alignSelf: "flex-start", flexDirection: "row", gap: spacing[1] },
-  backLinkText: { color: colors.textSecondary, fontFamily: fontFamilies.interface, fontSize: 13, fontWeight: "700" },
-  pageTitle: { color: colors.ink, fontFamily: fontFamilies.interface, fontSize: typeScale.headingXl, fontWeight: "700" },
+  backLink: {
+    alignItems: "center",
+    alignSelf: "flex-start",
+    borderRadius: radius.md,
+    flexDirection: "row",
+    gap: spacing[1],
+    minHeight: 44,
+    paddingHorizontal: spacing[2]
+  },
+  backLinkText: { color: colors.textSecondary, fontFamily: fontFamilies.interfaceBold, fontSize: 13 },
+  pageTitle: {
+    color: colors.textPrimary,
+    fontFamily: fontFamilies.display,
+    fontSize: 40,
+    letterSpacing: -0.4,
+    lineHeight: 42
+  },
   helperText: { color: colors.textSecondary, fontFamily: fontFamilies.interface, fontSize: 14 },
   messageCard: {
     alignItems: "center",
-    backgroundColor: colors.canvas,
-    borderColor: colors.hairline,
-    borderRadius: radius.md,
+    backgroundColor: colors.surface01,
+    borderColor: colors.border,
+    borderRadius: radius.lg,
     borderWidth: 1,
     flexDirection: "row",
     gap: spacing[3],
     padding: spacing[4]
   },
-  messageCardError: { borderColor: "#F3C3C8" },
-  messageCardSuccess: { borderColor: "#B6E1CC" },
+  messageCardError: { borderColor: colors.danger },
+  messageCardSuccess: { borderColor: colors.success },
   messageText: { color: colors.textSecondary, flex: 1, fontFamily: fontFamilies.interface, fontSize: 14 },
   dangerCard: {
-    backgroundColor: "#FDF2F3",
-    borderColor: "#F3C3C8",
-    borderRadius: radius.lg,
+    backgroundColor: colors.surface02,
+    borderColor: colors.danger,
+    borderRadius: radius.xl,
     borderWidth: 1,
     marginTop: spacing[5],
     padding: spacing[5]
   },
-  dangerTitle: { color: colors.ink, fontFamily: fontFamilies.interface, fontSize: 14, fontWeight: "700" },
+  dangerTitle: { color: colors.textPrimary, fontFamily: fontFamilies.interfaceBold, fontSize: 15 },
   dangerText: {
     color: colors.textSecondary,
     fontFamily: fontFamilies.interface,
@@ -383,7 +418,7 @@ const styles = StyleSheet.create({
   dangerButton: {
     alignItems: "center",
     alignSelf: "flex-start",
-    borderColor: "#F3C3C8",
+    borderColor: colors.danger,
     borderRadius: radius.pill,
     borderWidth: 1,
     flexDirection: "row",
@@ -392,7 +427,7 @@ const styles = StyleSheet.create({
     minHeight: 44,
     paddingHorizontal: spacing[4]
   },
-  dangerButtonText: { color: colors.danger, fontFamily: fontFamilies.interface, fontSize: 13, fontWeight: "800" },
+  dangerButtonText: { color: colors.danger, fontFamily: fontFamilies.interfaceBold, fontSize: 13 },
   confirmActions: { flexDirection: "row", gap: spacing[3], marginTop: spacing[4] },
   confirmDangerButton: {
     alignItems: "center",
@@ -402,16 +437,18 @@ const styles = StyleSheet.create({
     minHeight: 44,
     paddingHorizontal: spacing[5]
   },
-  confirmDangerText: { color: colors.canvas, fontFamily: fontFamilies.interface, fontSize: 13, fontWeight: "800" },
+  confirmDangerText: { color: colors.white, fontFamily: fontFamilies.interfaceBold, fontSize: 13 },
   ghostButton: {
     alignItems: "center",
-    borderColor: colors.hairline,
+    borderColor: colors.border,
     borderRadius: radius.pill,
     borderWidth: 1,
     justifyContent: "center",
     minHeight: 44,
     paddingHorizontal: spacing[4]
   },
-  ghostButtonText: { color: colors.textSecondary, fontFamily: fontFamilies.interface, fontSize: 12, fontWeight: "800" },
+  ghostButtonText: { color: colors.textSecondary, fontFamily: fontFamilies.interfaceBold, fontSize: 12 },
+  focusedControl: { borderColor: colors.purple400, borderWidth: 3 },
+  focusedControlOnColor: { borderColor: colors.white, borderWidth: 3 },
   pressed: { opacity: 0.72 }
 });

@@ -1,5 +1,5 @@
 import type { AthleteSessionProgressRecord, PersonalRecordEntry, SessionHistoryEntry, WeeklyHistoryEntry } from "@fitblock/backend";
-import { getSessionTitle, readSessionBlocks } from "@/data/calendar";
+import { getSessionTitle, readSessionBlocks } from "@/data/coach-hibrido/session-snapshot";
 import { deriveSessionFocus, estimateSessionMinutes, formatSessionDuration, parseCalendarDate } from "@/data/today";
 
 /** "12 dias de consistência" · "Comece sua sequência" quando ainda não há dias concluídos. */

@@ -1,6 +1,6 @@
 import type { AddTeamMemberByEmailRequest, TeamMemberRole, UpdateTrainingGroupRequest } from "@fitblock/backend";
 import { describeBackendError } from "@/data/backend-error";
-import { requiredText } from "@/data/coach-calendar";
+import { requiredText } from "@/data/coach-hibrido/text";
 
 export const trainingGroupLevels = ["iniciante", "intermediário", "avançado"] as const;
 

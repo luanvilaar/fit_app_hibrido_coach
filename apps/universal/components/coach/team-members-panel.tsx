@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useState } from "react";
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
-import { colors, fontFamilies, radius, spacing, typeScale } from "@fitblock/design-tokens";
+import { colors, fontFamilies, radius, shadows, spacing, typeScale } from "@fitblock/design-tokens";
 import type { TeamMemberRecord } from "@fitblock/backend";
 import {
   createInitialMemberInviteForm,
@@ -30,6 +30,8 @@ export function TeamMembersPanel({
 }: TeamMembersPanelProps) {
   const [form, setForm] = useState<MemberInviteForm>(() => createInitialMemberInviteForm());
   const [confirmingMemberId, setConfirmingMemberId] = useState<string | null>(null);
+  const [focusedField, setFocusedField] = useState<string | null>(null);
+  const [focusedControl, setFocusedControl] = useState<string | null>(null);
 
   function handleInvite() {
     onInvite(form);
@@ -63,7 +65,13 @@ export function TeamMembersPanel({
                   disabled={removingMemberId === member.id}
                   testID={`confirm-remove-member-${member.id}`}
                   onPress={() => onRemove(member.id)}
-                  style={({ pressed }) => [styles.confirmDangerButton, pressed && styles.pressed]}
+                  onFocus={() => setFocusedControl(`confirm-remove-${member.id}`)}
+                  onBlur={() => setFocusedControl(null)}
+                  style={({ pressed }) => [
+                    styles.confirmDangerButton,
+                    focusedControl === `confirm-remove-${member.id}` && styles.focusedControlOnColor,
+                    pressed && styles.pressed
+                  ]}
                 >
                   <Text style={styles.confirmDangerText}>
                     {removingMemberId === member.id ? "Removendo..." : "Remover"}
@@ -74,7 +82,13 @@ export function TeamMembersPanel({
                   accessibilityLabel="Manter membro na equipe"
                   testID={`dismiss-remove-member-${member.id}`}
                   onPress={() => setConfirmingMemberId(null)}
-                  style={({ pressed }) => [styles.ghostButton, pressed && styles.pressed]}
+                  onFocus={() => setFocusedControl(`dismiss-remove-${member.id}`)}
+                  onBlur={() => setFocusedControl(null)}
+                  style={({ pressed }) => [
+                    styles.ghostButton,
+                    focusedControl === `dismiss-remove-${member.id}` && styles.focusedControl,
+                    pressed && styles.pressed
+                  ]}
                 >
                   <Text style={styles.ghostButtonText}>Manter</Text>
                 </Pressable>
@@ -85,7 +99,13 @@ export function TeamMembersPanel({
                 accessibilityLabel={`Remover ${member.email} da equipe`}
                 testID={`request-remove-member-${member.id}`}
                 onPress={() => setConfirmingMemberId(member.id)}
-                style={({ pressed }) => [styles.iconAction, pressed && styles.pressed]}
+                onFocus={() => setFocusedControl(`request-remove-${member.id}`)}
+                onBlur={() => setFocusedControl(null)}
+                style={({ pressed }) => [
+                  styles.iconAction,
+                  focusedControl === `request-remove-${member.id}` && styles.focusedControl,
+                  pressed && styles.pressed
+                ]}
               >
                 <Ionicons name="trash-outline" size={16} color={colors.textSecondary} />
               </Pressable>
@@ -102,9 +122,11 @@ export function TeamMembersPanel({
           autoCapitalize="none"
           keyboardType="email-address"
           onChangeText={(value) => setForm(updateMemberInviteField(form, "email", value))}
+          onFocus={() => setFocusedField("email")}
+          onBlur={() => setFocusedField(null)}
           placeholder="atleta@exemplo.com"
-          placeholderTextColor={colors.textMuted}
-          style={[styles.input, styles.inviteInput]}
+          placeholderTextColor={colors.textSecondary}
+          style={[styles.input, styles.inviteInput, focusedField === "email" && styles.inputFocused]}
           testID="member-invite-email"
           value={form.email}
         />
@@ -117,9 +139,12 @@ export function TeamMembersPanel({
               accessibilityState={{ selected: form.role === role }}
               testID={`member-invite-role-${role}`}
               onPress={() => setForm(updateMemberInviteField(form, "role", role))}
+              onFocus={() => setFocusedControl(`role-${role}`)}
+              onBlur={() => setFocusedControl(null)}
               style={({ pressed }) => [
                 styles.roleChip,
                 form.role === role && styles.roleChipActive,
+                focusedControl === `role-${role}` && styles.focusedControl,
                 pressed && styles.pressed
               ]}
             >
@@ -138,9 +163,16 @@ export function TeamMembersPanel({
         disabled={isInviting}
         testID="submit-member-invite"
         onPress={handleInvite}
-        style={({ pressed }) => [styles.submitButton, isInviting && styles.submitButtonDisabled, pressed && styles.pressed]}
+        onFocus={() => setFocusedControl("submit-invite")}
+        onBlur={() => setFocusedControl(null)}
+        style={({ pressed }) => [
+          styles.submitButton,
+          isInviting && styles.submitButtonDisabled,
+          focusedControl === "submit-invite" && styles.focusedControl,
+          pressed && styles.pressed
+        ]}
       >
-        <Ionicons name="person-add-outline" size={15} color={colors.canvas} />
+        <Ionicons name="person-add-outline" size={15} color={colors.white} />
         <Text style={styles.submitButtonText}>{isInviting ? "Adicionando..." : "Adicionar"}</Text>
       </Pressable>
       <Text style={styles.helperText}>
@@ -152,32 +184,31 @@ export function TeamMembersPanel({
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: colors.canvas,
-    borderColor: colors.hairline,
-    borderRadius: radius.lg,
+    backgroundColor: colors.surface02,
+    borderColor: colors.border,
+    borderRadius: radius.xl,
     borderWidth: 1,
     marginTop: spacing[5],
-    padding: spacing[5]
+    padding: spacing[5],
+    ...shadows.card
   },
   eyebrow: {
-    color: colors.textMuted,
-    fontFamily: fontFamilies.interface,
+    color: colors.purple500,
+    fontFamily: fontFamilies.interfaceBold,
     fontSize: 10,
-    fontWeight: "800",
     letterSpacing: 1.3
   },
   title: {
-    color: colors.ink,
-    fontFamily: fontFamilies.interface,
-    fontSize: typeScale.headingLg,
-    fontWeight: "700",
+    color: colors.textPrimary,
+    fontFamily: fontFamilies.interfaceBold,
+    fontSize: typeScale.headingMd,
     marginBottom: spacing[4],
     marginTop: spacing[2]
   },
   helperText: { color: colors.textSecondary, fontFamily: fontFamilies.interface, fontSize: 13, marginTop: spacing[2] },
   memberRow: {
     alignItems: "center",
-    borderTopColor: colors.hairline,
+    borderTopColor: colors.border,
     borderTopWidth: StyleSheet.hairlineWidth,
     flexDirection: "row",
     justifyContent: "space-between",
@@ -185,70 +216,73 @@ const styles = StyleSheet.create({
     paddingVertical: spacing[2]
   },
   memberCopy: { flex: 1, minWidth: 0 },
-  memberEmail: { color: colors.ink, fontFamily: fontFamilies.interface, fontSize: 13, fontWeight: "700" },
-  memberRole: { color: colors.textMuted, fontFamily: fontFamilies.interface, fontSize: 11, marginTop: 2 },
-  iconAction: { alignItems: "center", borderRadius: radius.pill, height: 40, justifyContent: "center", width: 40 },
+  memberEmail: { color: colors.textPrimary, fontFamily: fontFamilies.interfaceBold, fontSize: 13 },
+  memberRole: { color: colors.textSecondary, fontFamily: fontFamilies.interface, fontSize: 11, marginTop: 2 },
+  iconAction: { alignItems: "center", borderRadius: radius.pill, height: 44, justifyContent: "center", width: 44 },
   confirmInline: { alignItems: "center", flexDirection: "row", gap: spacing[2] },
   confirmDangerButton: {
     alignItems: "center",
     backgroundColor: colors.danger,
     borderRadius: radius.pill,
     justifyContent: "center",
-    minHeight: 36,
-    paddingHorizontal: spacing[3]
-  },
-  confirmDangerText: { color: colors.canvas, fontFamily: fontFamilies.interface, fontSize: 11, fontWeight: "800" },
-  ghostButton: {
-    alignItems: "center",
-    borderColor: colors.hairline,
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    justifyContent: "center",
-    minHeight: 36,
-    paddingHorizontal: spacing[3]
-  },
-  ghostButtonText: { color: colors.textSecondary, fontFamily: fontFamilies.interface, fontSize: 11, fontWeight: "800" },
-  divider: { backgroundColor: colors.hairline, height: 1, marginVertical: spacing[5] },
-  inviteLabel: { color: colors.ink, fontFamily: fontFamilies.interface, fontSize: 12, fontWeight: "800" },
-  inviteRow: { flexDirection: "row", gap: spacing[3], marginTop: spacing[3] },
-  input: {
-    backgroundColor: colors.softCloud,
-    borderColor: colors.hairline,
-    borderRadius: radius.sm,
-    borderWidth: 1,
-    color: colors.ink,
-    fontFamily: fontFamilies.interface,
-    fontSize: 14,
     minHeight: 44,
     paddingHorizontal: spacing[3]
   },
+  confirmDangerText: { color: colors.white, fontFamily: fontFamilies.interfaceBold, fontSize: 11 },
+  ghostButton: {
+    alignItems: "center",
+    borderColor: colors.border,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    justifyContent: "center",
+    minHeight: 44,
+    paddingHorizontal: spacing[3]
+  },
+  ghostButtonText: { color: colors.textSecondary, fontFamily: fontFamilies.interfaceBold, fontSize: 11 },
+  divider: { backgroundColor: colors.border, height: 1, marginVertical: spacing[5] },
+  inviteLabel: { color: colors.textPrimary, fontFamily: fontFamilies.interfaceBold, fontSize: 12 },
+  inviteRow: { flexDirection: "row", gap: spacing[3], marginTop: spacing[3] },
+  input: {
+    backgroundColor: colors.surface01,
+    borderColor: colors.border,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    color: colors.textPrimary,
+    fontFamily: fontFamilies.interface,
+    fontSize: 14,
+    minHeight: 48,
+    paddingHorizontal: spacing[3]
+  },
+  inputFocused: { borderColor: colors.purple500, borderWidth: 2 },
   inviteInput: { flex: 2, minWidth: 0 },
   roleChipRow: { flex: 1, flexDirection: "row", gap: spacing[2] },
   roleChip: {
     alignItems: "center",
-    borderColor: colors.hairline,
-    borderRadius: radius.sm,
+    borderColor: colors.border,
+    borderRadius: radius.lg,
     borderWidth: 1,
     flex: 1,
     justifyContent: "center",
     minHeight: 44
   },
-  roleChipActive: { backgroundColor: "#F8F6FF", borderColor: colors.fitblockPurple },
-  roleChipText: { color: colors.textSecondary, fontFamily: fontFamilies.interface, fontSize: 12, fontWeight: "700" },
-  roleChipTextActive: { color: colors.fitblockPurple },
+  roleChipActive: { backgroundColor: colors.purple500, borderColor: colors.purple500 },
+  focusedControl: { borderColor: colors.purple400, borderWidth: 3 },
+  focusedControlOnColor: { borderColor: colors.white, borderWidth: 3 },
+  roleChipText: { color: colors.textSecondary, fontFamily: fontFamilies.interfaceSemiBold, fontSize: 12 },
+  roleChipTextActive: { color: colors.textPrimary },
   submitButton: {
     alignItems: "center",
     alignSelf: "flex-start",
-    backgroundColor: colors.fitblockPurple,
+    backgroundColor: colors.purple500,
     borderRadius: radius.pill,
     flexDirection: "row",
     gap: spacing[2],
     justifyContent: "center",
     marginTop: spacing[3],
-    minHeight: 44,
+    minHeight: 52,
     paddingHorizontal: spacing[4]
   },
   submitButtonDisabled: { opacity: 0.45 },
-  submitButtonText: { color: colors.canvas, fontFamily: fontFamilies.interface, fontSize: 12, fontWeight: "700" },
+  submitButtonText: { color: colors.white, fontFamily: fontFamilies.interfaceBold, fontSize: 12 },
   pressed: { opacity: 0.72 }
 });

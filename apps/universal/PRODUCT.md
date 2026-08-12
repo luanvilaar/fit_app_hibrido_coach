@@ -4,7 +4,7 @@
 
 ## Platform
 
-web, ios, android (via Expo universal)
+adaptive
 
 ## Users
 
@@ -42,7 +42,7 @@ Fitblock é uma **plataforma de fitness que conecta atletas com coaches** atrav�
 - Autenticação com papéis de atleta, coach, dono de plataforma
 
 ### Confirmed Constraints
-- **Plataforma:** Expo universal (React Native compartilhado entre iOS, Android e web) — sem UI nativa específica por agora
+- **Plataforma:** Expo universal (React Native compartilhado entre iOS, Android e web) — um único codebase entrega as três. A linguagem visual é própria do FitBlock e compartilhada; não há tema nativo por OS, mas convenções de cada plataforma (navegação, safe areas, alvos de toque, leitores de tela) são respeitadas
 - **Dados:** Dados de demonstração/mock inicialmente; integração com backend conforme progresso
 - **Acessibilidade:** WCAG AA obrigatória em todos os surfaces (labels semânticas, foco visível, alterar motion respeitada, touch targets 44×44 px mínimo, sem overflow horizontal)
 - **Responsividade:** Breakpoints conceituais: mobile 320–639 px, tablet 640–1023 px, desktop 1024 px+

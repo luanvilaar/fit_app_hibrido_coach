@@ -1,8 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Href, usePathname, useRouter } from "expo-router";
-import { useMemo, type PropsWithChildren, type ComponentProps } from "react";
+import { useMemo, useState, type PropsWithChildren, type ComponentProps } from "react";
 import {
-  Image,
   Platform,
   Pressable,
   ScrollView,
@@ -71,9 +70,11 @@ export function getVisibleNavigationItems(userRoles: UserRoles): NavigationItem[
 
 type AthleteShellProps = PropsWithChildren<{
   active: NavigationId;
+  /** A tela Hoje usa o chrome de painel editorial da composição C. */
+  editorial?: boolean;
 }>;
 
-export function AthleteShell({ children, active }: AthleteShellProps) {
+export function AthleteShell({ children, active, editorial = false }: AthleteShellProps) {
   const { width } = useWindowDimensions();
   const isMobile = width < 768;
   const router = useRouter();
@@ -90,18 +91,30 @@ export function AthleteShell({ children, active }: AthleteShellProps) {
   return (
     <View style={styles.appRoot}>
       {!isMobile && (
-        <Sidebar active={active} items={items} onNavigate={navigate} isTrainingContext={isTrainingContext} />
+        <Sidebar
+          active={active}
+          items={items}
+          onNavigate={navigate}
+          isTrainingContext={isTrainingContext}
+          editorial={editorial}
+          onSignOut={() => void signOut()}
+        />
       )}
-      <View style={styles.mainColumn}>
+      <View style={[styles.mainColumn, editorial && styles.editorialMainColumn]}>
         <TopBar
+          editorial={editorial}
           isMobile={isMobile}
           isTrainingContext={isTrainingContext}
           userEmail={user?.email}
           onSignOut={() => void signOut()}
         />
         <ScrollView
-          style={styles.scroll}
-          contentContainerStyle={[styles.scrollContent, isMobile && styles.mobileScrollContent]}
+          style={[styles.scroll, editorial && styles.editorialScroll]}
+          contentContainerStyle={[
+            styles.scrollContent,
+            editorial && styles.editorialScrollContent,
+            isMobile && styles.mobileScrollContent
+          ]}
           showsVerticalScrollIndicator={false}
         >
           {children}
@@ -118,10 +131,17 @@ type NavigationProps = {
   onNavigate: (href: Href) => void;
 };
 
-function Sidebar({ active, items, onNavigate, isTrainingContext }: NavigationProps & { isTrainingContext: boolean }) {
+function Sidebar({
+  active,
+  items,
+  onNavigate,
+  isTrainingContext,
+  editorial,
+  onSignOut
+}: NavigationProps & { isTrainingContext: boolean; editorial: boolean; onSignOut: () => void }) {
   return (
     <View style={styles.sidebar}>
-      {isTrainingContext ? <TrainingBrand /> : <FitblockTrainingBrand />}
+      {editorial || !isTrainingContext ? <FitblockTrainingBrand /> : <TrainingBrand />}
       <View style={styles.sidebarDivider} />
       <Text style={styles.sidebarEyebrow}>ÁREA DO ATLETA</Text>
       <View style={styles.sidebarNav}>
@@ -135,32 +155,61 @@ function Sidebar({ active, items, onNavigate, isTrainingContext }: NavigationPro
         ))}
       </View>
       <View style={styles.sidebarBottom}>
-        <View style={styles.sidebarSupportIcon}>
-          <Ionicons name="help-outline" size={17} color={colors.canvas} />
+        <View style={styles.sidebarHelp}>
+          <View style={styles.sidebarSupportIcon}>
+            <Ionicons name="help-outline" size={17} color={colors.white} />
+          </View>
+          <View>
+            <Text style={styles.sidebarBottomTitle}>Precisa de ajuda?</Text>
+            <Text style={styles.sidebarBottomText}>Fale com a FitBlock</Text>
+          </View>
         </View>
-        <View>
-          <Text style={styles.sidebarBottomTitle}>Precisa de ajuda?</Text>
-          <Text style={styles.sidebarBottomText}>Fale com a FitBlock</Text>
-        </View>
+        <SidebarSignOut onSignOut={onSignOut} />
       </View>
     </View>
   );
 }
 
+/** "atleta.silva@fitblock.com" → "Atleta". Sem sobrenome cadastrado, o primeiro nome basta. */
+function deriveDisplayName(email?: string): string {
+  const localPart = email?.split("@")[0] ?? "";
+  const firstToken = localPart.split(/[._-]/)[0] || "atleta";
+  return firstToken.charAt(0).toUpperCase() + firstToken.slice(1);
+}
+
+/** "atleta.silva@fitblock.com" → "AS". Iniciais reais no lugar de um placeholder fixo. */
+function deriveInitials(email?: string): string {
+  const localPart = email?.split("@")[0] ?? "";
+  const tokens = localPart.split(/[._-]/).filter(Boolean);
+
+  if (tokens.length === 0) return "AT";
+  if (tokens.length === 1) return tokens[0].slice(0, 2).toUpperCase();
+
+  return (tokens[0][0] + tokens[1][0]).toUpperCase();
+}
+
 function TopBar({
+  editorial,
   isMobile,
   isTrainingContext,
   userEmail,
   onSignOut
 }: {
+  editorial: boolean;
   isMobile: boolean;
   isTrainingContext: boolean;
   userEmail?: string;
   onSignOut: () => void;
 }) {
+  const initials = deriveInitials(userEmail);
+
   return (
     <View style={[styles.topBar, isMobile && styles.mobileTopBar]}>
-      {isMobile ? (
+      {editorial ? (
+        <Text style={styles.topBarGreeting} testID="topbar-greeting">
+          Olá, {deriveDisplayName(userEmail)}!
+        </Text>
+      ) : isMobile ? (
         isTrainingContext ? <TrainingBrand compact /> : <FitblockTrainingBrand compact />
       ) : (
         <View>
@@ -169,29 +218,71 @@ function TopBar({
         </View>
       )}
       <View style={styles.topBarActions}>
-        <Pressable
-          accessibilityRole="button"
+        <HeaderIconButton
           accessibilityLabel="Abrir notificações"
-          style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}
         >
-          <Ionicons name="notifications-outline" size={21} color={colors.ink} />
+          <Ionicons name="notifications-outline" size={21} color={colors.textPrimary} />
           <View style={styles.notificationDot} />
-        </Pressable>
+        </HeaderIconButton>
         <View style={styles.profileChip}>
-          <Text style={styles.profileInitials}>AT</Text>
+          <Text style={styles.profileInitials}>{initials}</Text>
         </View>
-        {!isMobile && <Text style={styles.profileName}>{userEmail?.split("@")[0] ?? "Atleta"}</Text>}
-        <Pressable
-          accessibilityRole="button"
+        {!isMobile && !editorial && <Text style={styles.profileName}>{userEmail?.split("@")[0] ?? "Atleta"}</Text>}
+        <HeaderIconButton
           accessibilityLabel="Sair da conta"
           testID="sign-out"
           onPress={onSignOut}
-          style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}
         >
           <Ionicons name="log-out-outline" size={18} color={colors.textSecondary} />
-        </Pressable>
+        </HeaderIconButton>
       </View>
     </View>
+  );
+}
+
+function HeaderIconButton({
+  accessibilityLabel,
+  children,
+  onPress,
+  testID
+}: PropsWithChildren<{
+  accessibilityLabel: string;
+  onPress?: () => void;
+  testID?: string;
+}>) {
+  const [isFocused, setIsFocused] = useState(false);
+
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel}
+      onBlur={() => setIsFocused(false)}
+      onFocus={() => setIsFocused(true)}
+      onPress={onPress}
+      style={({ pressed }) => [styles.iconButton, isFocused && styles.focusedIconButton, pressed && styles.pressed]}
+      testID={testID}
+    >
+      {children}
+    </Pressable>
+  );
+}
+
+function SidebarSignOut({ onSignOut }: { onSignOut: () => void }) {
+  const [isFocused, setIsFocused] = useState(false);
+
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel="Sair da conta"
+      onBlur={() => setIsFocused(false)}
+      onFocus={() => setIsFocused(true)}
+      onPress={onSignOut}
+      style={({ pressed }) => [styles.sidebarSignOut, isFocused && styles.focusedSidebarSignOut, pressed && styles.pressed]}
+      testID="sign-out"
+    >
+      <Ionicons name="log-out-outline" size={16} color={colors.textSecondary} />
+      <Text style={styles.sidebarSignOutText}>Sair</Text>
+    </Pressable>
   );
 }
 
@@ -199,65 +290,136 @@ function TrainingBrand({ compact = false }: { compact?: boolean }) {
   return (
     <View
       accessible
-      accessibilityLabel="Coach Híbrido by Fitblock Training"
+      accessibilityLabel="Coach Híbrido by FitBlock"
       accessibilityRole="image"
       style={compact ? styles.mobileBrand : styles.sidebarBrand}
       testID="training-brand"
     >
-      <Image
-        source={require("../assets/coach-hibrido-mark.webp")}
-        style={compact ? styles.mobileBrandMark : styles.sidebarBrandMark}
-        resizeMode="contain"
-      />
+      <View style={styles.brandDot} />
       <View style={compact ? styles.mobileBrandCopy : styles.sidebarBrandCopy}>
-        <Image
-          source={require("../assets/coach-hibrido-wordmark.webp")}
-          style={compact ? styles.mobileBrandWordmark : styles.sidebarBrandWordmark}
-          resizeMode="contain"
-        />
-        <Text style={compact ? styles.mobileBrandByline : styles.sidebarBrandByline}>by Fitblock Training</Text>
+        <Text style={compact ? styles.mobileWordmark : styles.sidebarWordmark}>FITBLOCK</Text>
+        <Text style={compact ? styles.mobileBrandByline : styles.sidebarBrandByline}>COACH HÍBRIDO</Text>
       </View>
     </View>
   );
 }
 
 function FitblockTrainingBrand({ compact = false }: { compact?: boolean }) {
-  if (compact) {
-    return (
-      <Image
-        source={require("../assets/fitblock-wordmark-black.png")}
-        style={styles.mobileFitblockLogo}
-        resizeMode="contain"
-        accessibilityLabel="FitBlock Training"
-      />
-    );
-  }
-
   return (
-    <View style={styles.sidebarFitblockBrand}>
-      <Image
-        source={require("../assets/fitblock-wordmark-white.png")}
-        style={styles.sidebarFitblockLogo}
-        resizeMode="contain"
-        accessibilityLabel="FitBlock Training"
-      />
+    <View
+      accessible
+      accessibilityLabel="FitBlock"
+      accessibilityRole="image"
+      style={compact ? styles.mobileBrand : styles.sidebarFitblockBrand}
+    >
+      <View style={styles.brandDot} />
+      <Text style={compact ? styles.mobileWordmark : styles.sidebarWordmark}>FITBLOCK</Text>
     </View>
   );
 }
 
 function BottomNavigation({ active, items, onNavigate }: NavigationProps) {
+  const [isOverflowOpen, setIsOverflowOpen] = useState(false);
+  const primaryItems = items.slice(0, 4);
+  const overflowItems = items.slice(4);
+  const isOverflowActive = overflowItems.some((item) => item.id === active);
+
   return (
-    <View style={styles.bottomNavigation}>
-      {items.map((item) => (
-        <NavItem
-          key={item.id}
-          item={item}
-          active={item.id === active}
-          onPress={() => onNavigate(item.href)}
-          compact
-        />
-      ))}
-    </View>
+    <>
+      {isOverflowOpen && overflowItems.length > 0 && (
+        <View style={styles.bottomOverflowPanel} testID="bottom-nav-overflow">
+          <Text style={styles.bottomOverflowTitle}>MAIS OPÇÕES</Text>
+          {overflowItems.map((item) => (
+            <OverflowNavItem
+              key={item.id}
+              item={item}
+              active={item.id === active}
+              onPress={() => {
+                setIsOverflowOpen(false);
+                onNavigate(item.href);
+              }}
+            />
+          ))}
+        </View>
+      )}
+      <View style={styles.bottomNavigation}>
+        {primaryItems.map((item) => (
+          <NavItem
+            key={item.id}
+            item={item}
+            active={item.id === active}
+            onPress={() => onNavigate(item.href)}
+            compact
+          />
+        ))}
+        {overflowItems.length > 0 && (
+          <OverflowButton
+            active={isOverflowActive || isOverflowOpen}
+            expanded={isOverflowOpen}
+            onPress={() => setIsOverflowOpen((open) => !open)}
+          />
+        )}
+      </View>
+    </>
+  );
+}
+
+function OverflowButton({ active, expanded, onPress }: { active: boolean; expanded: boolean; onPress: () => void }) {
+  const [isFocused, setIsFocused] = useState(false);
+
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel="Mais opções de navegação"
+      accessibilityState={{ expanded, selected: active }}
+      onBlur={() => setIsFocused(false)}
+      onFocus={() => setIsFocused(true)}
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.bottomNavItem,
+        active && styles.bottomNavItemActive,
+        isFocused && styles.focusedBottomNavItem,
+        pressed && styles.pressed
+      ]}
+      testID="nav-more"
+    >
+      <Ionicons name="ellipsis-horizontal" size={21} color={active ? colors.purple400 : colors.textSecondary} />
+      <Text style={[styles.bottomNavLabel, active && styles.bottomNavLabelActive]}>Mais</Text>
+    </Pressable>
+  );
+}
+
+function OverflowNavItem({
+  item,
+  active,
+  onPress
+}: {
+  item: NavigationItem;
+  active: boolean;
+  onPress: () => void;
+}) {
+  const [isFocused, setIsFocused] = useState(false);
+
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={item.label}
+      accessibilityState={{ selected: active }}
+      onBlur={() => setIsFocused(false)}
+      onFocus={() => setIsFocused(true)}
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.overflowNavItem,
+        active && styles.overflowNavItemActive,
+        isFocused && styles.focusedOverflowNavItem,
+        pressed && styles.pressed
+      ]}
+      testID={`nav-${item.id}`}
+    >
+      <Ionicons name={item.icon} size={20} color={active ? colors.purple400 : colors.textPrimary} />
+      <Text style={[styles.overflowNavLabel, active && styles.overflowNavLabelActive]}>{item.label}</Text>
+      <Ionicons name="chevron-forward" size={17} color={colors.textSecondary} />
+    </Pressable>
   );
 }
 
@@ -272,15 +434,20 @@ function NavItem({
   onPress: () => void;
   compact?: boolean;
 }) {
+  const [isFocused, setIsFocused] = useState(false);
+
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={item.label}
       accessibilityState={{ selected: active }}
       testID={`nav-${item.id}`}
+      onBlur={() => setIsFocused(false)}
+      onFocus={() => setIsFocused(true)}
       onPress={onPress}
       style={({ pressed }) => [
         compact ? styles.bottomNavItem : styles.sidebarNavItem,
+        isFocused && (compact ? styles.focusedBottomNavItem : styles.focusedSidebarNavItem),
         active && (compact ? styles.bottomNavItemActive : styles.sidebarNavItemActive),
         pressed && styles.pressed
       ]}
@@ -288,7 +455,7 @@ function NavItem({
       <Ionicons
         name={item.icon}
         size={compact ? 21 : 20}
-        color={active ? colors.fitblockPurple : compact ? colors.textMuted : colors.canvas}
+        color={active ? colors.purple400 : colors.textSecondary}
       />
       <Text
         style={[
@@ -304,7 +471,7 @@ function NavItem({
 
 const styles = StyleSheet.create({
   appRoot: {
-    backgroundColor: colors.softCloud,
+    backgroundColor: colors.bgDeep,
     flex: 1,
     flexDirection: "row",
     minHeight: "100%"
@@ -313,8 +480,15 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 0
   },
+  editorialMainColumn: {
+    backgroundColor: colors.bg
+  },
   scroll: {
-    flex: 1
+    flex: 1,
+    backgroundColor: colors.bg
+  },
+  editorialScroll: {
+    backgroundColor: colors.bg
   },
   scrollContent: {
     alignSelf: "center",
@@ -324,133 +498,165 @@ const styles = StyleSheet.create({
     paddingTop: spacing[8],
     width: "100%"
   },
+  editorialScrollContent: {
+    maxWidth: 760,
+    paddingBottom: spacing[6],
+    paddingHorizontal: spacing[5],
+    paddingTop: spacing[5]
+  },
   mobileScrollContent: {
     paddingBottom: 112,
     paddingHorizontal: spacing[4],
     paddingTop: spacing[5]
   },
   sidebar: {
-    backgroundColor: colors.black,
+    backgroundColor: colors.bgDeep,
     paddingBottom: spacing[5],
     paddingHorizontal: spacing[3],
     paddingTop: spacing[4],
-    width: 252
+    width: 200
   },
   sidebarBrand: {
     alignItems: "center",
-    backgroundColor: colors.canvas,
-    borderRadius: radius.sm,
     flexDirection: "row",
     gap: spacing[2],
-    minHeight: 56,
-    paddingHorizontal: spacing[2]
+    minHeight: 64,
+    paddingHorizontal: spacing[3]
   },
-  sidebarBrandMark: {
-    height: 36,
-    width: 36
+  brandDot: {
+    backgroundColor: colors.purple500,
+    borderRadius: radius.pill,
+    height: 10,
+    width: 10
   },
   sidebarBrandCopy: {
     flex: 1,
+    justifyContent: "center",
     minWidth: 0
   },
-  sidebarBrandWordmark: {
-    height: 24,
-    width: "100%"
+  sidebarWordmark: {
+    color: colors.textPrimary,
+    fontFamily: fontFamilies.display,
+    fontSize: 20,
+    letterSpacing: 0.3
+  },
+  mobileWordmark: {
+    color: colors.textPrimary,
+    fontFamily: fontFamilies.display,
+    fontSize: 17,
+    letterSpacing: 0.3
   },
   sidebarBrandByline: {
     color: colors.textSecondary,
-    fontFamily: fontFamilies.interface,
-    fontSize: 8,
-    fontWeight: "700",
-    letterSpacing: 0.3,
-    marginTop: -1
+    fontFamily: fontFamilies.interfaceSemiBold,
+    fontSize: 9,
+    letterSpacing: 1,
+    marginTop: 1
   },
   sidebarFitblockBrand: {
-    alignItems: "flex-start",
-    height: 42,
-    justifyContent: "center",
+    alignItems: "center",
+    flexDirection: "row",
+    gap: spacing[2],
+    height: 56,
     paddingHorizontal: spacing[3]
   },
-  sidebarFitblockLogo: {
-    height: 27,
-    width: 148
-  },
   sidebarDivider: {
-    backgroundColor: colors.graphite,
+    backgroundColor: colors.border,
     height: 1,
-    marginBottom: spacing[8],
+    marginBottom: spacing[6],
     marginTop: spacing[4]
   },
   sidebarEyebrow: {
-    color: colors.textMuted,
-    fontFamily: fontFamilies.interface,
+    color: colors.textSecondary,
+    fontFamily: fontFamilies.interfaceSemiBold,
     fontSize: 10,
-    fontWeight: "700",
     letterSpacing: 1.4,
     marginBottom: spacing[3],
-    paddingHorizontal: spacing[3]
+    paddingHorizontal: spacing[3],
+    textTransform: "uppercase"
   },
   sidebarNav: {
-    gap: spacing[2]
+    gap: spacing[1]
   },
   sidebarNavItem: {
     alignItems: "center",
-    borderRadius: radius.sm,
+    borderRadius: radius.md,
     flexDirection: "row",
     gap: spacing[3],
-    minHeight: 48,
+    minHeight: 52,
     paddingHorizontal: spacing[3]
   },
   sidebarNavItemActive: {
-    backgroundColor: colors.graphite,
-    borderLeftColor: colors.fitblockPurple,
-    borderLeftWidth: 3
+    backgroundColor: colors.surface03,
+    borderColor: colors.borderPurple,
+    borderWidth: 1
   },
   sidebarNavLabel: {
-    color: colors.textMuted,
-    fontFamily: fontFamilies.interface,
-    fontSize: 14,
-    fontWeight: "600"
+    color: colors.textSecondary,
+    fontFamily: fontFamilies.interfaceMedium,
+    fontSize: 14
   },
   sidebarNavLabelActive: {
-    color: colors.canvas
+    color: colors.textPrimary
   },
   sidebarBottom: {
-    alignItems: "center",
-    borderTopColor: colors.graphite,
+    borderTopColor: colors.border,
     borderTopWidth: 1,
     bottom: spacing[5],
-    flexDirection: "row",
     gap: spacing[3],
     left: spacing[3],
     paddingTop: spacing[4],
     position: "absolute",
     right: spacing[3]
   },
+  sidebarHelp: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: spacing[3]
+  },
   sidebarSupportIcon: {
     alignItems: "center",
-    backgroundColor: colors.fitblockPurple,
+    backgroundColor: colors.purple500,
     borderRadius: radius.pill,
     height: 32,
     justifyContent: "center",
     width: 32
   },
   sidebarBottomTitle: {
-    color: colors.canvas,
-    fontFamily: fontFamilies.interface,
-    fontSize: 12,
-    fontWeight: "700"
+    color: colors.textPrimary,
+    fontFamily: fontFamilies.interfaceBold,
+    fontSize: 12
   },
   sidebarBottomText: {
-    color: colors.textMuted,
+    color: colors.textSecondary,
     fontFamily: fontFamilies.interface,
     fontSize: 11,
     marginTop: 2
   },
+  sidebarSignOut: {
+    alignItems: "center",
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    flexDirection: "row",
+    gap: spacing[2],
+    justifyContent: "center",
+    minHeight: 44,
+    paddingHorizontal: spacing[3]
+  },
+  focusedSidebarSignOut: {
+    borderColor: colors.purple400,
+    borderWidth: 2
+  },
+  sidebarSignOutText: {
+    color: colors.textPrimary,
+    fontFamily: fontFamilies.interfaceBold,
+    fontSize: 12
+  },
   topBar: {
     alignItems: "center",
-    backgroundColor: colors.canvas,
-    borderBottomColor: colors.hairline,
+    backgroundColor: colors.bg,
+    borderBottomColor: colors.border,
     borderBottomWidth: 1,
     flexDirection: "row",
     justifyContent: "space-between",
@@ -458,51 +664,43 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing[8]
   },
   mobileTopBar: {
+    backgroundColor: colors.bgDeep,
     minHeight: 70,
     paddingHorizontal: spacing[4]
   },
   mobileBrand: {
     alignItems: "center",
     flexDirection: "row",
-    gap: spacing[1]
-  },
-  mobileBrandMark: {
-    height: 28,
-    width: 28
+    gap: spacing[2]
   },
   mobileBrandCopy: {
-    width: 82
-  },
-  mobileBrandWordmark: {
-    height: 17,
-    width: 82
+    justifyContent: "center"
   },
   mobileBrandByline: {
     color: colors.textSecondary,
-    fontFamily: fontFamilies.interface,
-    fontSize: 7,
-    fontWeight: "700",
-    letterSpacing: 0.1,
-    lineHeight: 9,
-    marginTop: -1
-  },
-  mobileFitblockLogo: {
-    height: 25,
-    width: 126
+    fontFamily: fontFamilies.interfaceSemiBold,
+    fontSize: 8,
+    letterSpacing: 0.6,
+    marginTop: 0
   },
   topBarEyebrow: {
-    color: colors.textMuted,
-    fontFamily: fontFamilies.interface,
+    color: colors.textSecondary,
+    fontFamily: fontFamilies.interfaceSemiBold,
     fontSize: 11,
-    fontWeight: "700",
     letterSpacing: 1.2,
-    marginBottom: 4
+    marginBottom: 4,
+    textTransform: "uppercase"
   },
   topBarTitle: {
-    color: colors.ink,
-    fontFamily: fontFamilies.interface,
-    fontSize: 23,
-    fontWeight: "700",
+    color: colors.textPrimary,
+    fontFamily: fontFamilies.display,
+    fontSize: 24,
+    letterSpacing: 0.2
+  },
+  topBarGreeting: {
+    color: colors.textPrimary,
+    fontFamily: fontFamilies.display,
+    fontSize: 26,
     letterSpacing: 0.2
   },
   topBarActions: {
@@ -518,9 +716,13 @@ const styles = StyleSheet.create({
     position: "relative",
     width: 44
   },
+  focusedIconButton: {
+    borderColor: colors.purple400,
+    borderWidth: 2
+  },
   notificationDot: {
-    backgroundColor: colors.fitblockPurple,
-    borderColor: colors.canvas,
+    backgroundColor: colors.purple500,
+    borderColor: colors.bg,
     borderRadius: radius.pill,
     borderWidth: 2,
     height: 9,
@@ -531,29 +733,27 @@ const styles = StyleSheet.create({
   },
   profileChip: {
     alignItems: "center",
-    backgroundColor: colors.ink,
+    backgroundColor: colors.purple700,
     borderRadius: radius.pill,
     height: 36,
     justifyContent: "center",
     width: 36
   },
   profileInitials: {
-    color: colors.canvas,
-    fontFamily: fontFamilies.interface,
-    fontSize: 11,
-    fontWeight: "800"
+    color: colors.textPrimary,
+    fontFamily: fontFamilies.interfaceBold,
+    fontSize: 11
   },
   profileName: {
-    color: colors.ink,
-    fontFamily: fontFamilies.interface,
+    color: colors.textPrimary,
+    fontFamily: fontFamilies.interfaceSemiBold,
     fontSize: 13,
-    fontWeight: "700",
     marginLeft: spacing[1]
   },
   bottomNavigation: {
     alignItems: "stretch",
-    backgroundColor: colors.canvas,
-    borderTopColor: colors.hairline,
+    backgroundColor: colors.bgDeep,
+    borderTopColor: colors.border,
     borderTopWidth: 1,
     bottom: 0,
     flexDirection: "row",
@@ -566,24 +766,75 @@ const styles = StyleSheet.create({
   },
   bottomNavItem: {
     alignItems: "center",
-    borderRadius: radius.sm,
+    borderRadius: radius.md,
     gap: 3,
     justifyContent: "center",
     minHeight: 52,
     minWidth: 58,
     paddingHorizontal: 4
   },
+  focusedBottomNavItem: {
+    borderColor: colors.purple400,
+    borderWidth: 2
+  },
   bottomNavItemActive: {
-    backgroundColor: "#F0EBFF"
+    backgroundColor: colors.bg
   },
   bottomNavLabel: {
-    color: colors.textMuted,
-    fontFamily: fontFamilies.interface,
-    fontSize: 10,
-    fontWeight: "700"
+    color: colors.textSecondary,
+    fontFamily: fontFamilies.interfaceBold,
+    fontSize: 10
   },
   bottomNavLabelActive: {
-    color: colors.fitblockPurple
+    color: colors.purple500
+  },
+  bottomOverflowPanel: {
+    backgroundColor: colors.bg,
+    borderColor: colors.border,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    bottom: Platform.OS === "ios" ? 88 : 76,
+    gap: spacing[1],
+    left: spacing[4],
+    padding: spacing[3],
+    position: "absolute",
+    right: spacing[4]
+  },
+  bottomOverflowTitle: {
+    color: colors.textSecondary,
+    fontFamily: fontFamilies.interfaceBold,
+    fontSize: 10,
+    letterSpacing: 1,
+    paddingHorizontal: spacing[2],
+    paddingVertical: spacing[1]
+  },
+  overflowNavItem: {
+    alignItems: "center",
+    borderRadius: radius.md,
+    flexDirection: "row",
+    gap: spacing[3],
+    minHeight: 48,
+    paddingHorizontal: spacing[2]
+  },
+  overflowNavItemActive: {
+    backgroundColor: colors.bgDeep
+  },
+  focusedOverflowNavItem: {
+    borderColor: colors.purple400,
+    borderWidth: 2
+  },
+  overflowNavLabel: {
+    color: colors.textPrimary,
+    flex: 1,
+    fontFamily: fontFamilies.interfaceSemiBold,
+    fontSize: 14
+  },
+  overflowNavLabelActive: {
+    color: colors.purple500
+  },
+  focusedSidebarNavItem: {
+    borderColor: colors.purple400,
+    borderWidth: 2
   },
   pressed: {
     opacity: 0.72

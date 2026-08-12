@@ -8,15 +8,20 @@ import { createCalendarRepository, createTodayRepository, type CalendarSessionRe
 import { describeBackendError } from "@/data/backend-error";
 import {
   createCalendarGrid,
-  formatBlockSets,
   formatMonthLabel,
-  formatVolumes,
   getMonthRange,
-  getSessionBlocks,
   getSessionStateLabel,
-  getSessionTitle,
   shiftMonth
 } from "@/data/calendar";
+import { blockDefinition } from "@/data/coach-hibrido/blocks";
+import {
+  formatBlockVolume,
+  formatEnduranceVolumes,
+  formatProtocol,
+  getSessionTitle,
+  readSessionBlocks
+} from "@/data/coach-hibrido/session-snapshot";
+import { BlockBodyText } from "@/components/coach-hibrido/block-body-text";
 import { getSupabaseConfigurationError, supabase } from "@/lib/supabase";
 
 type IconName = ComponentProps<typeof Ionicons>["name"];
@@ -31,6 +36,7 @@ export function CalendarScreen() {
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [focusedDay, setFocusedDay] = useState<string | null>(null);
   const range = useMemo(() => getMonthRange(month), [month]);
   const calendarDays = useMemo(() => createCalendarGrid(month, sessions), [month, sessions]);
   const selectedSession = sessions.find((session) => session.id === selectedSessionId) ?? sessions[0];
@@ -74,7 +80,9 @@ export function CalendarScreen() {
       <View style={[styles.pageIntro, isCompact && styles.pageIntroCompact]}>
         <View style={styles.pageIntroCopy}>
           <Text style={styles.eyebrow}>CALENDÁRIO DO ATLETA</Text>
-          <Text style={styles.pageTitle}>Seu ritmo, em visão clara.</Text>
+          <Text style={styles.pageTitle}>
+            Seu ritmo, em visão <Text style={styles.pageTitleChip}>clara</Text>.
+          </Text>
           <Text style={styles.pageDescription}>
             Sessões publicadas, prescrições e o próximo passo da sua jornada em um só lugar.
           </Text>
@@ -122,11 +130,14 @@ export function CalendarScreen() {
                 accessibilityLabel={session ? `${day.day}, ${getSessionTitle(session)}` : `${day.day}`}
                 disabled={!session}
                 onPress={() => session && setSelectedSessionId(session.id)}
+                onFocus={() => setFocusedDay(day.date)}
+                onBlur={() => setFocusedDay(null)}
                 style={({ pressed }) => [
                   styles.calendarDay,
                   !day.isCurrentMonth && styles.calendarDayOutside,
                   day.isToday && styles.calendarDayToday,
                   session && styles.calendarDayWithSession,
+                  focusedDay === day.date && styles.focusedControl,
                   pressed && styles.pressed
                 ]}
               >
@@ -152,14 +163,14 @@ export function CalendarScreen() {
         <View style={styles.calendarLegend}>
           <LegendItem icon="ellipse" color={colors.success} label="Disponível" />
           <LegendItem icon="play-circle-outline" color={colors.warning} label="Em andamento" />
-          <LegendItem icon="checkmark-circle-outline" color={colors.fitblockPurple} label="Concluída" />
+          <LegendItem icon="checkmark-circle-outline" color={colors.success} label="Concluída" />
         </View>
       </View>
 
       {isLoading && <CalendarMessage icon="sync-outline" text="Buscando suas sessões publicadas..." />}
       {!isLoading && errorMessage && <CalendarMessage icon="alert-circle-outline" text={errorMessage} error />}
       {!isLoading && !errorMessage && sessions.length === 0 && (
-        <CalendarMessage icon="calendar-outline" text="Nenhuma sessão publicada neste mês." />
+        <CalendarMessage icon="calendar-outline" text="Nenhuma sessão publicada neste mês." empty />
       )}
       {!isLoading && !errorMessage && selectedSession && (
         <SessionPrescriptionCard session={selectedSession} />
@@ -169,14 +180,18 @@ export function CalendarScreen() {
 }
 
 function MonthButton({ icon, label, onPress }: { icon: IconName; label: string; onPress: () => void }) {
+  const [isFocused, setIsFocused] = useState(false);
+
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={label}
       onPress={onPress}
-      style={({ pressed }) => [styles.monthButton, pressed && styles.pressed]}
+      onFocus={() => setIsFocused(true)}
+      onBlur={() => setIsFocused(false)}
+      style={({ pressed }) => [styles.monthButton, isFocused && styles.focusedControl, pressed && styles.pressed]}
     >
-      <Ionicons name={icon} size={18} color={colors.ink} />
+      <Ionicons name={icon} size={18} color={colors.textPrimary} />
     </Pressable>
   );
 }
@@ -190,10 +205,10 @@ function LegendItem({ icon, color, label }: { icon: IconName; color: string; lab
   );
 }
 
-function CalendarMessage({ icon, text, error = false }: { icon: IconName; text: string; error?: boolean }) {
+function CalendarMessage({ icon, text, error = false, empty = false }: { icon: IconName; text: string; error?: boolean; empty?: boolean }) {
   return (
-    <View style={[styles.messageCard, error && styles.messageCardError]}>
-      <Ionicons name={icon} size={20} color={error ? colors.danger : colors.fitblockPurple} />
+    <View style={[styles.messageCard, error && styles.messageCardError, empty && styles.messageCardEmpty]}>
+      <Ionicons name={icon} size={20} color={error ? colors.danger : colors.purple500} />
       <Text style={styles.messageText}>{text}</Text>
     </View>
   );
@@ -203,7 +218,8 @@ function SessionPrescriptionCard({ session }: { session: CalendarSessionRecord }
   const router = useRouter();
   const [isStarting, setIsStarting] = useState(false);
   const [startError, setStartError] = useState<string | null>(null);
-  const blocks = getSessionBlocks(session);
+  const [isStartFocused, setIsStartFocused] = useState(false);
+  const blocks = readSessionBlocks(session);
   const sessionDate = new Intl.DateTimeFormat("pt-BR", {
     weekday: "long",
     day: "numeric",
@@ -236,50 +252,49 @@ function SessionPrescriptionCard({ session }: { session: CalendarSessionRecord }
     <View style={styles.sessionCard} testID="calendar-session-prescription">
       <View style={styles.sessionCardHeader}>
         <View style={styles.sessionCardCopy}>
-          <Text style={styles.sessionEyebrow}>SESSÃO PRESCRITA</Text>
           <Text style={styles.sessionTitle}>{getSessionTitle(session)}</Text>
           <Text style={styles.sessionDate}>{sessionDate}</Text>
         </View>
         <View style={styles.sessionState}>
-          <Ionicons name={session.state === "completed" ? "checkmark-circle-outline" : "time-outline"} size={16} color={session.state === "completed" ? colors.success : colors.fitblockPurple} />
+          <Ionicons name={session.state === "completed" ? "checkmark-circle-outline" : "time-outline"} size={16} color={session.state === "completed" ? colors.success : colors.purple500} />
           <Text style={styles.sessionStateText}>{getSessionStateLabel(session.state)}</Text>
         </View>
       </View>
       <View style={styles.sessionBlocks}>
-        {blocks.map((block, blockIndex) => (
-          <View key={block.id} style={styles.sessionBlock}>
-            <View style={styles.sessionBlockIndex}>
-              <Text style={styles.sessionBlockIndexText}>{String(blockIndex + 1).padStart(2, "0")}</Text>
-            </View>
-            <View style={styles.sessionBlockCopy}>
-              <Text style={styles.sessionBlockName}>{block.name}</Text>
-              {/* Modalidades de texto livre não têm exercícios: o conteúdo é a descrição do coach. */}
-              {block.description !== "" && (
-                <Text style={styles.blockDescription} testID={`block-description-${blockIndex}`}>
-                  {block.description}
+        {blocks.map((block, blockIndex) => {
+          const meta = [
+            formatProtocol(block.protocol),
+            formatEnduranceVolumes(block.enduranceVolumes),
+            formatBlockVolume(block.volume)
+          ]
+            .filter(Boolean)
+            .join("  ·  ");
+
+          return (
+            <View key={block.id} style={styles.sessionBlock}>
+              <View style={styles.sessionBlockIndex}>
+                <Text style={styles.sessionBlockIndexText}>
+                  {String.fromCharCode(65 + (blockIndex % 26))}
                 </Text>
-              )}
-              {block.sets.length > 0 && (
-                <View style={styles.prescriptionRow}>
-                  <Text style={styles.prescriptionExercise}>Séries</Text>
-                  <Text style={styles.prescriptionValue}>{formatBlockSets(block.sets)}</Text>
-                </View>
-              )}
-              {block.volumes.length > 0 && (
-                <View style={styles.prescriptionRow}>
-                  <Text style={styles.prescriptionExercise}>Volume</Text>
-                  <Text style={styles.prescriptionValue}>{formatVolumes(block.volumes)}</Text>
-                </View>
-              )}
-              {block.items.map((item) => (
-                <View key={item.id} style={styles.prescriptionRow}>
-                  <Text style={styles.prescriptionExercise}>{item.name}</Text>
-                  <Text style={styles.prescriptionValue}>{item.prescription}</Text>
-                </View>
-              ))}
+              </View>
+              <View style={styles.sessionBlockCopy}>
+                <Text style={styles.sessionBlockName}>{block.name}</Text>
+                <Text style={styles.sessionBlockKind}>{blockDefinition(block.kind).label}</Text>
+                {meta.length > 0 && (
+                  <Text style={styles.sessionBlockMeta} testID={`block-meta-${blockIndex}`}>
+                    {meta}
+                  </Text>
+                )}
+                <BlockBodyText
+                  body={block.body}
+                  movements={block.movements}
+                  testID={`block-body-${blockIndex}`}
+                  tone="dark"
+                />
+              </View>
             </View>
-          </View>
-        ))}
+          );
+        })}
       </View>
       {startError && (
         <Text accessibilityRole="alert" style={styles.startErrorText} testID="calendar-start-error">
@@ -293,10 +308,17 @@ function SessionPrescriptionCard({ session }: { session: CalendarSessionRecord }
         disabled={isStarting}
         testID="calendar-start-session"
         onPress={() => void handleStart()}
-        style={({ pressed }) => [styles.startButton, isStarting && styles.startButtonDisabled, pressed && styles.pressed]}
+        onFocus={() => setIsStartFocused(true)}
+        onBlur={() => setIsStartFocused(false)}
+        style={({ pressed }) => [
+          styles.startButton,
+          isStarting && styles.startButtonDisabled,
+          isStartFocused && styles.focusedControl,
+          pressed && styles.pressed
+        ]}
       >
         <Text style={styles.startButtonText}>{isStarting ? "Abrindo..." : "Iniciar sessão"}</Text>
-        <Ionicons name="arrow-forward" size={17} color={colors.canvas} />
+        <Ionicons name="arrow-forward" size={17} color={colors.white} />
       </Pressable>
     </View>
   );
@@ -321,18 +343,24 @@ const styles = StyleSheet.create({
     minWidth: 0
   },
   eyebrow: {
-    color: colors.fitblockPurple,
-    fontFamily: fontFamilies.interface,
+    color: colors.purple400,
+    fontFamily: fontFamilies.interfaceBold,
     fontSize: 11,
-    fontWeight: "800",
     letterSpacing: 1.6,
     marginBottom: spacing[2]
   },
   pageTitle: {
-    color: colors.ink,
-    fontFamily: fontFamilies.interface,
-    fontSize: typeScale.headingXl,
-    fontWeight: "700"
+    color: colors.textPrimary,
+    fontFamily: fontFamilies.display,
+    fontSize: typeScale.displayHero,
+    letterSpacing: -0.8,
+    lineHeight: typeScale.displayHero * 0.92
+  },
+  pageTitleChip: {
+    backgroundColor: colors.purple500,
+    color: colors.white,
+    overflow: "hidden",
+    paddingHorizontal: spacing[1]
   },
   pageDescription: {
     color: colors.textSecondary,
@@ -344,8 +372,10 @@ const styles = StyleSheet.create({
   },
   sourceBadge: {
     alignItems: "center",
-    backgroundColor: "#E7F5EE",
+    backgroundColor: colors.bgDeep,
+    borderColor: colors.success,
     borderRadius: radius.pill,
+    borderWidth: 1,
     flexDirection: "row",
     gap: spacing[2],
     minHeight: 34,
@@ -359,38 +389,34 @@ const styles = StyleSheet.create({
   },
   sourceBadgeText: {
     color: colors.success,
-    fontFamily: fontFamilies.interface,
+    fontFamily: fontFamilies.interfaceBold,
     fontSize: 10,
-    fontWeight: "800",
     letterSpacing: 1
   },
   calendarCard: {
-    backgroundColor: colors.canvas,
-    borderColor: colors.hairline,
-    borderRadius: radius.lg,
-    borderWidth: 1,
+    backgroundColor: colors.surface02,
+    borderRadius: radius.xxl,
     overflow: "hidden"
   },
   calendarToolbar: {
     alignItems: "center",
-    borderBottomColor: colors.hairline,
+    borderBottomColor: colors.border,
     borderBottomWidth: 1,
     flexDirection: "row",
     justifyContent: "space-between",
     padding: spacing[5]
   },
   calendarEyebrow: {
-    color: colors.textMuted,
-    fontFamily: fontFamilies.interface,
+    color: colors.textSecondary,
+    fontFamily: fontFamilies.interfaceBold,
     fontSize: 10,
-    fontWeight: "800",
     letterSpacing: 1.3
   },
   monthTitle: {
-    color: colors.ink,
-    fontFamily: fontFamilies.interface,
-    fontSize: typeScale.headingLg,
-    fontWeight: "700",
+    color: colors.textPrimary,
+    fontFamily: fontFamilies.display,
+    fontSize: 32,
+    lineHeight: 33,
     marginTop: spacing[2],
     textTransform: "capitalize"
   },
@@ -400,26 +426,32 @@ const styles = StyleSheet.create({
   },
   monthButton: {
     alignItems: "center",
-    borderColor: colors.hairline,
-    borderRadius: radius.sm,
-    borderWidth: 1,
-    height: 38,
+    backgroundColor: colors.surface03,
+    borderRadius: radius.md,
+    height: 44,
     justifyContent: "center",
-    width: 38
+    width: 44
+  },
+  focusedControl: {
+    borderColor: colors.purple400,
+    borderWidth: 2
+  },
+  focusedControlOnColor: {
+    borderColor: colors.white,
+    borderWidth: 2
   },
   weekdayRow: {
-    borderBottomColor: colors.hairline,
+    borderBottomColor: colors.border,
     borderBottomWidth: 1,
     flexDirection: "row",
     paddingHorizontal: spacing[3],
     paddingVertical: spacing[3]
   },
   weekday: {
-    color: colors.textMuted,
+    color: colors.textSecondary,
     flex: 1,
-    fontFamily: fontFamilies.interface,
+    fontFamily: fontFamilies.interfaceBold,
     fontSize: 10,
-    fontWeight: "800",
     textAlign: "center"
   },
   calendarGrid: {
@@ -427,36 +459,34 @@ const styles = StyleSheet.create({
     flexWrap: "wrap"
   },
   calendarDay: {
-    borderBottomColor: colors.hairline,
+    borderBottomColor: colors.border,
     borderBottomWidth: 1,
-    borderRightColor: colors.hairline,
+    borderRightColor: colors.border,
     borderRightWidth: 1,
     height: 92,
     padding: spacing[3],
     width: "14.2857%"
   },
   calendarDayOutside: {
-    backgroundColor: colors.softCloud,
-    opacity: 0.6
+    backgroundColor: colors.surface01,
+    opacity: 0.5
   },
   calendarDayToday: {
-    backgroundColor: "#F3EFFF"
+    backgroundColor: colors.purple700
   },
   calendarDayWithSession: {
-    backgroundColor: "#F8F6FF"
+    backgroundColor: colors.surface03
   },
   dayNumber: {
-    color: colors.ink,
-    fontFamily: fontFamilies.interface,
-    fontSize: 12,
-    fontWeight: "700"
+    color: colors.textPrimary,
+    fontFamily: fontFamilies.interfaceBold,
+    fontSize: 12
   },
   dayNumberOutside: {
-    color: colors.textMuted
+    color: colors.textSecondary
   },
   dayNumberToday: {
-    color: colors.fitblockPurple,
-    fontWeight: "700"
+    color: colors.white
   },
   daySessionMark: {
     marginTop: spacing[2]
@@ -469,16 +499,14 @@ const styles = StyleSheet.create({
     width: 6
   },
   daySessionTitle: {
-    color: colors.ink,
-    fontFamily: fontFamilies.interface,
-    fontSize: 10,
-    fontWeight: "700"
+    color: colors.textPrimary,
+    fontFamily: fontFamilies.interfaceBold,
+    fontSize: 10
   },
   daySessionMore: {
-    color: colors.fitblockPurple,
-    fontFamily: fontFamilies.interface,
+    color: colors.textSecondary,
+    fontFamily: fontFamilies.interfaceBold,
     fontSize: 10,
-    fontWeight: "800",
     marginTop: 2
   },
   calendarLegend: {
@@ -500,16 +528,20 @@ const styles = StyleSheet.create({
   },
   messageCard: {
     alignItems: "center",
-    backgroundColor: colors.canvas,
-    borderColor: colors.hairline,
-    borderRadius: radius.md,
-    borderWidth: 1,
+    backgroundColor: colors.surface02,
+    borderRadius: radius.lg,
     flexDirection: "row",
     gap: spacing[3],
     padding: spacing[5]
   },
   messageCardError: {
-    borderColor: "#F3C3C8"
+    borderColor: colors.danger,
+    borderWidth: 1
+  },
+  messageCardEmpty: {
+    overflow: "hidden",
+    paddingRight: spacing[8],
+    position: "relative"
   },
   messageText: {
     color: colors.textSecondary,
@@ -518,8 +550,10 @@ const styles = StyleSheet.create({
     fontSize: 14
   },
   sessionCard: {
-    backgroundColor: colors.graphite,
-    borderRadius: radius.lg,
+    backgroundColor: colors.surface02,
+    borderColor: colors.borderPurple,
+    borderWidth: 1,
+    borderRadius: radius.xxl,
     overflow: "hidden",
     padding: spacing[5]
   },
@@ -532,22 +566,14 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 0
   },
-  sessionEyebrow: {
-    color: colors.fitblockPurpleLight,
-    fontFamily: fontFamilies.interface,
-    fontSize: 10,
-    fontWeight: "800",
-    letterSpacing: 1.3
-  },
   sessionTitle: {
-    color: colors.canvas,
-    fontFamily: fontFamilies.interface,
-    fontSize: typeScale.headingLg,
-    fontWeight: "700",
-    marginTop: spacing[2]
+    color: colors.textPrimary,
+    fontFamily: fontFamilies.display,
+    fontSize: 32,
+    lineHeight: 33
   },
   sessionDate: {
-    color: "#B7B8C5",
+    color: colors.textSecondary,
     fontFamily: fontFamilies.interface,
     fontSize: 13,
     marginTop: spacing[2],
@@ -560,17 +586,16 @@ const styles = StyleSheet.create({
     marginLeft: spacing[3]
   },
   sessionStateText: {
-    color: colors.canvas,
-    fontFamily: fontFamilies.interface,
-    fontSize: 11,
-    fontWeight: "700"
+    color: colors.textPrimary,
+    fontFamily: fontFamilies.interfaceBold,
+    fontSize: 11
   },
   sessionBlocks: {
     gap: spacing[3],
     marginTop: spacing[5]
   },
   sessionBlock: {
-    borderTopColor: "#34353D",
+    borderTopColor: colors.border,
     borderTopWidth: 1,
     flexDirection: "row",
     gap: spacing[3],
@@ -578,59 +603,41 @@ const styles = StyleSheet.create({
   },
   sessionBlockIndex: {
     alignItems: "center",
-    backgroundColor: colors.fitblockPurple,
-    borderRadius: radius.pill,
+    backgroundColor: colors.surface04,
+    borderRadius: radius.sm,
     height: 28,
     justifyContent: "center",
     width: 28
   },
   sessionBlockIndexText: {
-    color: colors.canvas,
-    fontFamily: fontFamilies.interface,
-    fontSize: 10,
-    fontWeight: "800"
+    color: colors.textPrimary,
+    fontFamily: fontFamilies.interfaceBold,
+    fontSize: 13
   },
   sessionBlockCopy: {
     flex: 1,
+    gap: spacing[1],
     minWidth: 0
   },
   sessionBlockName: {
-    color: colors.canvas,
-    fontFamily: fontFamilies.interface,
-    fontSize: 13,
-    fontWeight: "800"
+    color: colors.textPrimary,
+    fontFamily: fontFamilies.interfaceBold,
+    fontSize: 15
   },
-  blockDescription: {
-    color: "#D9DAE2",
+  sessionBlockKind: {
+    color: colors.textSecondary,
     fontFamily: fontFamilies.interface,
-    fontSize: 13,
-    lineHeight: 20,
-    marginTop: spacing[2]
+    fontSize: 12
   },
-  prescriptionRow: {
-    alignItems: "center",
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginTop: spacing[2]
-  },
-  prescriptionExercise: {
-    color: "#D9DAE2",
-    flex: 1,
-    fontFamily: fontFamilies.interface,
-    fontSize: 13
-  },
-  prescriptionValue: {
-    color: colors.fitblockPurpleLight,
-    fontFamily: fontFamilies.interface,
-    fontSize: 12,
-    fontWeight: "800",
-    marginLeft: spacing[3],
-    textAlign: "right"
+  sessionBlockMeta: {
+    color: colors.purple400,
+    fontFamily: fontFamilies.interfaceSemiBold,
+    fontSize: 12
   },
   startButton: {
     alignItems: "center",
     alignSelf: "flex-start",
-    backgroundColor: colors.fitblockPurple,
+    backgroundColor: colors.purple500,
     borderRadius: radius.pill,
     flexDirection: "row",
     gap: spacing[4],
@@ -643,10 +650,9 @@ const styles = StyleSheet.create({
     opacity: 0.6
   },
   startButtonText: {
-    color: colors.canvas,
-    fontFamily: fontFamilies.interface,
-    fontSize: 13,
-    fontWeight: "800"
+    color: colors.white,
+    fontFamily: fontFamilies.interfaceBold,
+    fontSize: 13
   },
   startErrorText: {
     color: colors.danger,

@@ -1,8 +1,24 @@
+/*
+ * FitBlock — Public Home / Dark Performance
+ *
+ * THESIS: performance becomes visible through real training media, decisive type and a
+ * graphite environment; the page refuses a generic grid of equal marketing cards.
+ * OWN-WORLD: #050507–#252530 graphite layers, Barlow Condensed display, Inter UI and a
+ * selective FitBlock-purple signal for actions, focus and editorial emphasis.
+ * STORY: a first-time visitor recognizes the FitBlock method, finds a fitting path and can
+ * enter the existing app without losing the current navigation or published content.
+ * FIRST VIEWPORT: training media owns the field; a protected left reading column carries the
+ * title and the two existing actions, while the compact header keeps entry always reachable.
+ */
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import { createElement, useRef, useState } from "react";
+import { createElement, useEffect, useRef, useState } from "react";
 import {
+  AccessibilityInfo,
+  Animated,
+  Easing,
   Image,
+  type ImageSourcePropType,
   Platform,
   Pressable,
   ScrollView,
@@ -10,9 +26,11 @@ import {
   Text,
   type TextStyle,
   View,
+  type ViewStyle,
   useWindowDimensions
 } from "react-native";
-import { colors, fontFamilies, radius, spacing, typeScale } from "@fitblock/design-tokens";
+import { colors, fontFamilies, layout, motion, radius, spacing, typeScale } from "@fitblock/design-tokens";
+import { ExperienceCard } from "@/components/experience-card";
 import {
   editorialPosts,
   featuredCamps,
@@ -21,33 +39,264 @@ import {
   type HomeSectionId
 } from "@/data/home";
 import { homePillars } from "@/data/homePillars";
-import { ExperienceCard } from "@/components/experience-card";
 
-const mariCardImage = require("@/assets/mari-card.png");
-const daliCardImage = require("@/assets/dali-card.png");
+const wordmarkWhite = require("@/assets/fitblock-wordmark-white.png");
+const fitblockMark = require("@/assets/fitblock-mark.png");
+const heroFallbackImage = require("@/assets/mari1.webp");
+const heroVideoAsset = require("@/assets/hero.mp4");
+const methodImages: ImageSourcePropType[] = [
+  require("@/assets/mari-card.png"),
+  require("@/assets/time-community.webp"),
+  require("@/assets/dali-card.png")
+];
 const finalCtaImage = require("@/assets/tt1.png");
 const finalCtaMobileImage = require("@/assets/tt2.png");
-const heroVideoAsset = require("@/assets/hero.mp4");
-const imageTextShadow = { textShadow: "0px 1px 6px rgba(0, 0, 0, 0.45)" } as unknown as TextStyle;
 
+const disciplines = ["FORÇA", "SKILL", "ENDURANCE", "MOBILIDADE", "COMUNIDADE"];
+const imageTextShadow = { textShadow: "0px 2px 10px rgba(0, 0, 0, 0.72)" } as unknown as TextStyle;
+
+type HeadingLine = { text: string; accent?: boolean };
+type SectionTone = "base" | "elevated" | "deep";
+type CtaVariant = "primary" | "secondary" | "light";
+
+function useReducedMotion() {
+  const [reducedMotion, setReducedMotion] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    AccessibilityInfo.isReduceMotionEnabled()
+      .then((value) => {
+        if (active) {
+          setReducedMotion(value);
+        }
+      })
+      .catch(() => undefined);
+
+    const subscription = AccessibilityInfo.addEventListener("reduceMotionChanged", setReducedMotion);
+    return () => {
+      active = false;
+      subscription?.remove?.();
+    };
+  }, []);
+
+  return reducedMotion;
+}
+
+function DisplayHeading({
+  lines,
+  size,
+  color = colors.textPrimary,
+  reveal,
+  style,
+  accessibilityRole = "header"
+}: {
+  lines: HeadingLine[];
+  size: number;
+  color?: string;
+  reveal?: Animated.Value;
+  style?: ViewStyle;
+  accessibilityRole?: "header" | "none";
+}) {
+  const lineHeight = Math.round(size * 0.9);
+  const horizontalPadding = Math.round(size * 0.12);
+
+  return (
+    <View style={[styles.headingStack, style]} accessibilityRole={accessibilityRole}>
+      {lines.map((line, index) =>
+        line.accent ? (
+          <View
+            key={`${line.text}-${index}`}
+            style={[
+              styles.headingAccent,
+              { paddingHorizontal: horizontalPadding, paddingTop: Math.round(size * 0.06) }
+            ]}
+          >
+            {reveal ? (
+              <Animated.View
+                pointerEvents="none"
+                style={[
+                  styles.headingAccentFill,
+                  { transform: [{ scaleX: reveal }] }
+                ]}
+              />
+            ) : (
+              <View pointerEvents="none" style={styles.headingAccentFill} />
+            )}
+            <Text
+              style={[
+                styles.displayText,
+                { fontSize: size, lineHeight, color: colors.white }
+              ]}
+            >
+              {line.text}
+            </Text>
+          </View>
+        ) : (
+          <Text
+            key={`${line.text}-${index}`}
+            style={[styles.displayText, { fontSize: size, lineHeight, color }]}
+          >
+            {line.text}
+          </Text>
+        )
+      )}
+    </View>
+  );
+}
+
+function SolidLabel({ label, style }: { label: string; style?: ViewStyle }) {
+  return (
+    <View style={[styles.solidLabel, style]}>
+      <Text style={styles.solidLabelText}>{label}</Text>
+    </View>
+  );
+}
+
+function ActionButton({
+  label,
+  onPress,
+  accessibilityLabel,
+  variant = "primary",
+  testID,
+  fullWidth = false,
+  style
+}: {
+  label: string;
+  onPress: () => void;
+  accessibilityLabel?: string;
+  variant?: CtaVariant;
+  testID?: string;
+  fullWidth?: boolean;
+  style?: ViewStyle;
+}) {
+  const [focused, setFocused] = useState(false);
+  const isLight = variant === "light";
+  const labelColor = isLight ? colors.bgDeep : colors.white;
+  const arrowColor = variant === "primary" ? colors.white : colors.purple400;
+
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel ?? label}
+      testID={testID}
+      onBlur={() => setFocused(false)}
+      onFocus={() => setFocused(true)}
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.actionButton,
+        variant === "primary" && styles.actionButtonPrimary,
+        variant === "secondary" && styles.actionButtonSecondary,
+        isLight && styles.actionButtonLight,
+        fullWidth && styles.actionButtonFullWidth,
+        focused && (isLight ? styles.focusOnLight : styles.focusOnDark),
+        pressed && styles.pressed,
+        style
+      ]}
+    >
+      <Text style={[styles.actionButtonText, { color: labelColor }]}>{label}</Text>
+      <View style={[styles.actionIcon, isLight && styles.actionIconLight]}>
+        <Ionicons name="arrow-forward" size={17} color={arrowColor} />
+      </View>
+    </Pressable>
+  );
+}
+
+function WatermarkField() {
+  return (
+    <View
+      accessibilityElementsHidden
+      importantForAccessibility="no"
+      pointerEvents="none"
+      style={styles.watermark}
+    >
+      {Array.from({ length: 6 }).map((_, index) => (
+        <Image
+          key={`fitblock-mark-${index}`}
+          source={fitblockMark}
+          resizeMode="contain"
+          style={[
+            styles.watermarkMark,
+            index % 2 === 1 && styles.watermarkMarkOffset,
+            { top: 52 + Math.floor(index / 2) * 176 }
+          ]}
+        />
+      ))}
+    </View>
+  );
+}
+
+function Section({
+  tone = "base",
+  children,
+  testID,
+  style
+}: {
+  tone?: SectionTone;
+  children: React.ReactNode;
+  testID?: string;
+  style?: ViewStyle;
+}) {
+  const { width } = useWindowDimensions();
+  const isMobile = width < layout.breakpoint.tabletLarge;
+
+  return (
+    <View
+      testID={testID}
+      style={[
+        styles.section,
+        tone === "elevated" && styles.sectionElevated,
+        tone === "deep" && styles.sectionDeep
+      ]}
+    >
+      <View style={[styles.sectionInner, isMobile && styles.sectionInnerMobile, style]}>{children}</View>
+    </View>
+  );
+}
+
+function SectionHead({
+  lines,
+  description,
+  tone = "dark"
+}: {
+  lines: HeadingLine[];
+  description: string;
+  tone?: "dark" | "light";
+}) {
+  const { width } = useWindowDimensions();
+  const isMobile = width < layout.breakpoint.tabletLarge;
+  const titleSize = isMobile ? (width < 360 ? 38 : 44) : 60;
+
+  return (
+    <View style={[styles.sectionHead, isMobile && styles.sectionHeadMobile]}>
+      <DisplayHeading
+        lines={lines}
+        size={titleSize}
+        color={tone === "dark" ? colors.textPrimary : colors.textPrimary}
+        style={styles.sectionHeading}
+      />
+      <Text style={[styles.sectionDescription, isMobile && styles.sectionDescriptionMobile]}>{description}</Text>
+    </View>
+  );
+}
 
 export function PublicHome() {
   const router = useRouter();
   const { width } = useWindowDimensions();
-  const isCompact = width < 1024;
+  const isCompact = width < layout.breakpoint.desktop;
   const [menuOpen, setMenuOpen] = useState(false);
   const sectionOffsets = useRef<Partial<Record<HomeSectionId, number>>>({});
   const scrollRef = useRef<ScrollView>(null);
 
-  function goToSection(id: HomeSectionId) {
+  function navigateToSection(id: HomeSectionId) {
     setMenuOpen(false);
     if (id === "inicio") {
       scrollRef.current?.scrollTo({ y: 0, animated: true });
       return;
     }
+
     const offset = sectionOffsets.current[id];
     if (typeof offset === "number") {
-      scrollRef.current?.scrollTo({ y: Math.max(0, offset - 24), animated: true });
+      scrollRef.current?.scrollTo({ y: Math.max(0, offset - spacing[4]), animated: true });
     }
   }
 
@@ -56,18 +305,22 @@ export function PublicHome() {
     router.push("/entrar");
   }
 
+  function saveSectionOffset(id: HomeSectionId) {
+    return (event: { nativeEvent: { layout: { y: number } } }) => {
+      sectionOffsets.current[id] = event.nativeEvent.layout.y;
+    };
+  }
+
   return (
-    <View style={styles.root}>
+    <View style={styles.root} testID="public-home-dark-performance">
       <PublicHeader
         isCompact={isCompact}
         menuOpen={menuOpen}
         onMenuToggle={() => setMenuOpen((current) => !current)}
-        onNavigate={goToSection}
+        onNavigate={navigateToSection}
         onOpenApp={openApp}
       />
-      {isCompact && menuOpen && (
-        <MobileMenu onNavigate={goToSection} onOpenApp={openApp} />
-      )}
+      {isCompact && menuOpen ? <MobileMenu onNavigate={navigateToSection} onOpenApp={openApp} /> : null}
       <ScrollView
         ref={scrollRef}
         style={styles.scroll}
@@ -75,43 +328,26 @@ export function PublicHome() {
         showsVerticalScrollIndicator={false}
         onScrollBeginDrag={() => setMenuOpen(false)}
       >
-        <Hero onExplore={() => goToSection("programas")} onOpenApp={openApp} />
-        <View
-          onLayout={(event) => {
-            sectionOffsets.current.acompanhamento = event.nativeEvent.layout.y;
-          }}
-        >
-          <PillarsSection />
+        <View onLayout={saveSectionOffset("inicio")}>
+          <Hero onExplore={() => navigateToSection("programas")} onOpenApp={openApp} />
         </View>
-        <View
-          onLayout={(event) => {
-            sectionOffsets.current.programas = event.nativeEvent.layout.y;
-          }}
-        >
+        <DisciplineBand />
+        <View onLayout={saveSectionOffset("acompanhamento")}>
+          <MethodSection onExplore={() => navigateToSection("programas")} />
+        </View>
+        <View onLayout={saveSectionOffset("programas")}>
           <ProgramsSection onOpenApp={openApp} />
         </View>
-        <View
-          onLayout={(event) => {
-            sectionOffsets.current.camps = event.nativeEvent.layout.y;
-          }}
-        >
-          <CampsSection />
+        <View onLayout={saveSectionOffset("camps")}>
+          <ExperiencesSection />
         </View>
-        <View
-          onLayout={(event) => {
-            sectionOffsets.current.conteudo = event.nativeEvent.layout.y;
-          }}
-        >
+        <View onLayout={saveSectionOffset("conteudo")}>
           <ContentSection />
         </View>
-        <View
-          onLayout={(event) => {
-            sectionOffsets.current.loja = event.nativeEvent.layout.y;
-          }}
-        >
+        <View onLayout={saveSectionOffset("loja")}>
           <FinalCta onOpenApp={openApp} />
         </View>
-        <PublicFooter onNavigate={goToSection} onOpenApp={openApp} />
+        <PublicFooter onNavigate={navigateToSection} onOpenApp={openApp} />
       </ScrollView>
     </View>
   );
@@ -130,64 +366,93 @@ function PublicHeader({
   onNavigate: (id: HomeSectionId) => void;
   onOpenApp: () => void;
 }) {
+  const [focusedControl, setFocusedControl] = useState<"login" | "menu" | "cta" | null>(null);
+
   return (
-    <View style={[styles.header, isCompact && styles.headerMobile]}>
+    <View style={[styles.header, isCompact && styles.headerCompact]}>
       <Image
-        source={require("../assets/fitblock-wordmark-black.png")}
-        style={[styles.headerLogo, isCompact && styles.headerLogoMobile]}
+        source={wordmarkWhite}
         resizeMode="contain"
         accessibilityLabel="FitBlock Training"
+        style={[styles.headerLogo, isCompact && styles.headerLogoCompact]}
       />
       {!isCompact ? (
         <View style={styles.desktopNav}>
           {homeNavigation.map((item) => (
-            <Pressable
-              key={item.id}
-              accessibilityRole="link"
-              accessibilityLabel={`Ir para ${item.label}`}
-              onPress={() => onNavigate(item.id)}
-              style={({ pressed }) => [styles.navLink, pressed && styles.pressed]}
-            >
-              <Text style={styles.navLinkText}>{item.label}</Text>
-            </Pressable>
+            <NavigationLink key={item.id} label={item.label} onPress={() => onNavigate(item.id)} />
           ))}
         </View>
       ) : (
-        <View style={styles.mobileHeaderActions}>
+        <View style={styles.compactActions}>
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Entrar no app FitBlock"
+            onBlur={() => setFocusedControl(null)}
+            onFocus={() => setFocusedControl("login")}
             onPress={onOpenApp}
-            style={({ pressed }) => [styles.mobileLogin, pressed && styles.pressed]}
+            style={({ pressed }) => [
+              styles.compactLogin,
+              focusedControl === "login" && styles.compactLoginFocused,
+              pressed && styles.pressed
+            ]}
           >
-            <Text style={styles.mobileLoginText}>Entrar</Text>
+            <Text style={styles.compactLoginText}>Entrar</Text>
           </Pressable>
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={menuOpen ? "Fechar menu" : "Abrir menu"}
             accessibilityState={{ expanded: menuOpen }}
             testID="public-menu-toggle"
+            onBlur={() => setFocusedControl(null)}
+            onFocus={() => setFocusedControl("menu")}
             onPress={onMenuToggle}
-            style={({ pressed }) => [styles.menuButton, pressed && styles.pressed]}
+            style={({ pressed }) => [
+              styles.menuButton,
+              focusedControl === "menu" && styles.menuButtonFocused,
+              pressed && styles.pressed
+            ]}
           >
-            <Ionicons name={menuOpen ? "close" : "menu"} size={23} color={colors.canvas} />
+            <Ionicons name={menuOpen ? "close" : "menu"} size={22} color={colors.white} />
           </Pressable>
         </View>
       )}
-      {!isCompact && (
-        <View style={styles.headerActions}>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Entrar no app FitBlock"
-            onPress={onOpenApp}
-            style={({ pressed }) => [styles.headerCta, pressed && styles.pressed]}
-          >
-            <Text style={styles.headerCtaText}>Entrar no app</Text>
-            <Ionicons name="arrow-forward" size={16} color={colors.canvas} />
-          </Pressable>
-        </View>
-      )}
+      {!isCompact ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Entrar no app FitBlock"
+          onBlur={() => setFocusedControl(null)}
+          onFocus={() => setFocusedControl("cta")}
+          onPress={onOpenApp}
+          style={({ pressed }) => [
+            styles.headerCta,
+            focusedControl === "cta" && styles.headerCtaFocused,
+            pressed && styles.pressed
+          ]}
+        >
+          <Text style={styles.headerCtaText}>Entrar no app</Text>
+          <Ionicons name="arrow-forward" size={16} color={colors.white} />
+        </Pressable>
+      ) : null}
     </View>
+  );
+}
+
+function NavigationLink({ label, onPress }: { label: string; onPress: () => void }) {
+  const [focused, setFocused] = useState(false);
+
+  return (
+    <Pressable
+      accessibilityRole="link"
+      accessibilityLabel={`Ir para ${label}`}
+      onBlur={() => setFocused(false)}
+      onFocus={() => setFocused(true)}
+      onHoverIn={() => setFocused(true)}
+      onHoverOut={() => setFocused(false)}
+      onPress={onPress}
+      style={({ pressed }) => [styles.navigationLink, focused && styles.navigationLinkFocused, pressed && styles.pressed]}
+    >
+      <Text style={styles.navigationLinkText}>{label}</Text>
+    </Pressable>
   );
 }
 
@@ -200,126 +465,101 @@ function MobileMenu({
 }) {
   return (
     <View style={styles.mobileMenu} accessibilityViewIsModal>
-      {homeNavigation.map((item, index) => (
-        <Pressable
-          key={item.id}
-          accessibilityRole="link"
-          accessibilityLabel={`Ir para ${item.label}`}
-          onPress={() => onNavigate(item.id)}
-          style={({ pressed }) => [styles.mobileMenuLink, pressed && styles.pressed]}
-        >
-          <Text style={styles.mobileMenuIndex}>{String(index + 1).padStart(2, "0")}</Text>
-          <Text style={styles.mobileMenuLabel}>{item.label}</Text>
-          <Ionicons name="arrow-forward" size={18} color={colors.fitblockPurple} />
-        </Pressable>
+      {homeNavigation.map((item) => (
+        <MobileNavigationLink key={item.id} label={item.label} onPress={() => onNavigate(item.id)} />
       ))}
-      <Pressable
-        accessibilityRole="button"
+      <ActionButton
+        label="Entrar no app"
         accessibilityLabel="Entrar no app FitBlock"
         onPress={onOpenApp}
-        style={({ pressed }) => [styles.mobileMenuCta, pressed && styles.pressed]}
-      >
-        <Text style={styles.mobileMenuCtaText}>Entrar no app</Text>
-        <Ionicons name="arrow-forward" size={18} color={colors.canvas} />
-      </Pressable>
+        fullWidth
+        style={styles.mobileMenuCta}
+      />
     </View>
+  );
+}
+
+function MobileNavigationLink({ label, onPress }: { label: string; onPress: () => void }) {
+  const [focused, setFocused] = useState(false);
+
+  return (
+    <Pressable
+      accessibilityRole="link"
+      accessibilityLabel={`Ir para ${label}`}
+      onBlur={() => setFocused(false)}
+      onFocus={() => setFocused(true)}
+      onPress={onPress}
+      style={({ pressed }) => [styles.mobileMenuLink, focused && styles.mobileMenuLinkFocused, pressed && styles.pressed]}
+    >
+      <Text style={styles.mobileMenuLinkText}>{label}</Text>
+      <Ionicons name="arrow-forward" size={18} color={colors.purple400} />
+    </Pressable>
   );
 }
 
 function Hero({ onExplore, onOpenApp }: { onExplore: () => void; onOpenApp: () => void }) {
   const { width } = useWindowDimensions();
-  const isMobile = width < 768;
+  const isMobile = width < layout.breakpoint.tabletLarge;
   const isNarrow = width < 360;
-  const mobileContentWidth = Math.max(0, width - spacing[5] * 2);
+  const reduceMotion = useReducedMotion();
+  const reveal = useRef(new Animated.Value(0)).current;
+  const titleSize = isNarrow ? 48 : isMobile ? 60 : 92;
+
+  useEffect(() => {
+    if (reduceMotion) {
+      reveal.setValue(1);
+      return;
+    }
+
+    const animation = Animated.timing(reveal, {
+      toValue: 1,
+      duration: motion.slow,
+      delay: 120,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true
+    });
+    animation.start();
+    return () => animation.stop();
+  }, [reduceMotion, reveal]);
 
   return (
     <View style={[styles.hero, isMobile && styles.heroMobile]} testID="public-home-hero">
-      <View style={[styles.heroMain, isMobile && styles.heroMainMobile]}>
-        <HeroVideo />
-        <View style={styles.heroTexture}>
-          <Text style={styles.heroTextureText}>FITBLOCK</Text>
-          <Text style={styles.heroTextureText}>FITBLOCK</Text>
-          <Text style={styles.heroTextureText}>FITBLOCK</Text>
-        </View>
-        <View
-          style={[
-            styles.heroContent,
-            isMobile && styles.heroContentMobile,
-            isMobile && { width: mobileContentWidth }
-          ]}
-        >
-          <View style={[styles.heroEyebrowRow, isMobile && styles.heroEyebrowRowMobile]}>
-            <View style={styles.heroEyebrowLine} />
-            <Text
-              style={[
-                styles.heroEyebrow,
-                isMobile && styles.heroEyebrowMobile,
-                isMobile && { maxWidth: Math.max(0, mobileContentWidth - 44 - spacing[2]) }
-              ]}
-            >
-              {isNarrow ? <>FITBLOCK TRAINING ·{`\n`}PERFORMANCE REAL</> : "FITBLOCK TRAINING · PERFORMANCE REAL"}
-            </Text>
-          </View>
-          <Text style={[styles.heroTitle, isMobile && styles.heroTitleMobile, isNarrow && styles.heroTitleNarrow]}>
-            TREINE{`\n`}
-            <Text style={styles.heroTitleAccent}>COM INTENÇÃO.</Text>
-          </Text>
-          <Text
-            style={[
-              styles.heroDescription,
-              isMobile && styles.heroDescriptionMobile,
-              isMobile && { maxWidth: mobileContentWidth }
-            ]}
-          >
-            {isNarrow ? (
-              <>A programação, o acompanhamento{`\n`}e a mentalidade FitBlock em um único lugar.</>
-            ) : (
-              "A programação, o acompanhamento e a mentalidade FitBlock em um único lugar."
-            )}
-          </Text>
-          <View style={[styles.heroActions, isMobile && styles.heroActionsMobile]}>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Conhecer programas FitBlock"
-              onPress={onExplore}
-              style={({ pressed }) => [styles.heroPrimaryCta, isMobile && styles.heroCtaMobile, pressed && styles.pressed]}
-            >
-              <Text style={styles.heroPrimaryCtaText}>Conheça os programas</Text>
-              <View style={styles.heroCtaIcon}>
-                <Ionicons name="arrow-forward" size={18} color={colors.ink} />
-              </View>
-            </Pressable>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Entrar no app FitBlock"
-              testID="public-home-app-cta"
-              onPress={onOpenApp}
-              style={({ pressed }) => [styles.heroSecondaryCta, isMobile && styles.heroCtaMobile, pressed && styles.pressed]}
-            >
-              <Text style={styles.heroSecondaryCtaText}>Entrar no app</Text>
-            </Pressable>
-          </View>
-        </View>
-      </View>
-      <View style={[styles.heroRail, isMobile && styles.heroRailMobile]}>
-        <View style={[styles.heroRailTop, isMobile && styles.heroRailTopMobile]}>
-          <Text style={styles.heroRailNumber}>01</Text>
-          <Text style={[styles.heroRailLabel, isMobile && styles.heroRailLabelMobile]}>MÉTODO{`\n`}FITBLOCK</Text>
-        </View>
-        <View style={[styles.heroRailBottom, isMobile && styles.heroRailBottomMobile]}>
-          <View style={styles.heroRailRule} />
-          <Text style={[styles.heroRailCaption, isMobile && styles.heroRailCaptionMobile]}>FORÇA · SKILL · ENDURANCE</Text>
+      <HeroMedia />
+      <View pointerEvents="none" style={styles.heroScrim} />
+      <View pointerEvents="none" style={[styles.heroReadingVeil, isMobile && styles.heroReadingVeilMobile]} />
+      <WatermarkField />
+      <View style={[styles.heroContent, isMobile && styles.heroContentMobile]}>
+        <DisplayHeading
+          lines={[{ text: "TREINE" }, { text: "COM INTENÇÃO.", accent: true }]}
+          size={titleSize}
+          reveal={reveal}
+          style={styles.heroHeading}
+        />
+        <Text style={[styles.heroDescription, isMobile && styles.heroDescriptionMobile]}>
+          A programação, o acompanhamento e a mentalidade FitBlock em um único lugar.
+        </Text>
+        <View style={[styles.heroActions, isMobile && styles.heroActionsMobile]}>
+          <ActionButton
+            label="Conheça os programas"
+            accessibilityLabel="Conhecer programas FitBlock"
+            onPress={onExplore}
+            fullWidth={isMobile}
+          />
+          <ActionButton
+            label="Entrar no app"
+            accessibilityLabel="Entrar no app FitBlock"
+            testID="public-home-app-cta"
+            onPress={onOpenApp}
+            variant="secondary"
+            fullWidth={isMobile}
+          />
         </View>
       </View>
     </View>
   );
 }
 
-function HeroVideo() {
-  if (Platform.OS !== "web") {
-    return null;
-  }
-
+function HeroMedia() {
   const videoSource = typeof heroVideoAsset === "string" ? heroVideoAsset : heroVideoAsset?.default;
 
   return (
@@ -327,94 +567,124 @@ function HeroVideo() {
       accessibilityElementsHidden
       importantForAccessibility="no"
       pointerEvents="none"
-      style={styles.heroVideoFrame}
-      testID="public-home-hero-video"
+      style={styles.heroMedia}
     >
-      {createElement("video", {
-        "aria-hidden": true,
-        autoPlay: true,
-        loop: true,
-        muted: true,
-        playsInline: true,
-        src: videoSource,
-        style: styles.heroVideo
-      })}
-      <View style={styles.heroVideoShade} />
+      <Image source={heroFallbackImage} resizeMode="cover" style={styles.heroFallbackImage} />
+      {Platform.OS === "web"
+        ? createElement("video", {
+            "aria-hidden": true,
+            autoPlay: true,
+            loop: true,
+            muted: true,
+            playsInline: true,
+            src: videoSource,
+            style: styles.heroVideo
+          })
+        : null}
     </View>
   );
 }
 
-function PillarsSection() {
+function DisciplineBand() {
   const { width } = useWindowDimensions();
-  const isMobile = width < 768;
+  const isMobile = width < layout.breakpoint.tabletLarge;
 
   return (
-    <View style={styles.section}>
-      <SectionIntro
-        eyebrow="O QUE FAZEMOS"
-        title={<>UM MÉTODO. {`\n`}MUITAS FORMAS DE EVOLUIR.</>}
-        description="Treino, acompanhamento e comunidade para quem quer construir performance sem deixar a vida de lado."
-      />
-      <View style={[styles.pillarGrid, isMobile && styles.pillarGridMobile]}>
-        {homePillars.map((pillar) => <PillarCard key={pillar.number} pillar={pillar} />)}
+    <View style={styles.disciplineBand}>
+      <View style={[styles.disciplineBandInner, isMobile && styles.disciplineBandInnerMobile]}>
+        {disciplines.map((discipline) => (
+          <View key={discipline} style={styles.disciplineItem}>
+            <View style={styles.disciplinePoint} />
+            <Text style={styles.disciplineText}>{discipline}</Text>
+          </View>
+        ))}
       </View>
     </View>
   );
 }
 
-function PillarCard({ pillar }: { pillar: (typeof homePillars)[number] }) {
-  const imageSource = pillar.number === "01" ? mariCardImage : pillar.number === "03" ? daliCardImage : null;
-  const hasPhoto = imageSource !== null;
-  const cardStyle = [
-    styles.pillarCard,
-    pillar.tone === "purple" && styles.pillarCardPurple,
-    pillar.tone === "ink" && styles.pillarCardInk,
-    hasPhoto && styles.pillarCardWithPhoto
-  ];
+function MethodSection({ onExplore }: { onExplore: () => void }) {
+  const { width } = useWindowDimensions();
+  const isMobile = width < layout.breakpoint.tabletLarge;
+  const [lead, ...supportingPillars] = homePillars;
 
   return (
-    <View style={cardStyle}>
-      {imageSource && (
-        <View style={styles.pillarCardImageFrame}>
-          <Image
-            source={imageSource}
-            resizeMode="cover"
-            accessibilityLabel=""
-            style={styles.pillarCardImage}
-          />
+    <Section>
+      <SectionHead
+        lines={[{ text: "UM MÉTODO." }, { text: "MUITAS FORMAS", accent: true }, { text: "DE EVOLUIR." }]}
+        description="Treino, acompanhamento e comunidade para quem quer construir performance sem deixar a vida de lado."
+      />
+      <View style={styles.methodStack}>
+        <MethodCard
+          pillar={lead}
+          image={methodImages[0]}
+          size="lead"
+          action={
+            <ActionButton
+              label="Conheça os programas"
+              accessibilityLabel="Conhecer programas FitBlock"
+              onPress={onExplore}
+              variant="light"
+              fullWidth={isMobile}
+            />
+          }
+        />
+        <View style={[styles.methodSupportingRow, isMobile && styles.methodSupportingRowMobile]}>
+          {supportingPillars.map((pillar, index) => (
+            <MethodCard
+              key={pillar.title}
+              pillar={pillar}
+              image={methodImages[index + 1]}
+              size={index === 0 ? "major" : "minor"}
+            />
+          ))}
         </View>
-      )}
-      {pillar.number === "03" && <View style={styles.pillarCardOverlayDark} />}
-      <View style={styles.pillarCardContent}>
-        <View style={styles.cardTopline}>
-          <Text style={[styles.cardNumber, pillar.tone === "ink" && styles.cardNumberLight, hasPhoto && styles.cardNumberOnImage]}>
-            {pillar.number}
-          </Text>
-          <View style={[styles.cardArrow, pillar.tone === "ink" && styles.cardArrowLight]}>
-            <Ionicons name="arrow-up" size={17} color={pillar.tone === "ink" ? colors.ink : colors.fitblockPurple} />
-          </View>
-        </View>
+      </View>
+    </Section>
+  );
+}
+
+function MethodCard({
+  pillar,
+  image,
+  size,
+  action
+}: {
+  pillar: (typeof homePillars)[number];
+  image: ImageSourcePropType;
+  size: "lead" | "major" | "minor";
+  action?: React.ReactNode;
+}) {
+  const { width } = useWindowDimensions();
+  const isMobile = width < layout.breakpoint.tabletLarge;
+  const titleSize = size === "lead" ? (isMobile ? 40 : 54) : isMobile ? 36 : 42;
+
+  return (
+    <View
+      style={[
+        styles.methodCard,
+        size === "lead" && styles.methodCardLead,
+        size === "major" && styles.methodCardMajor,
+        size === "minor" && styles.methodCardMinor,
+        isMobile && styles.methodCardMobile
+      ]}
+    >
+      <Image source={image} resizeMode="cover" accessible={false} style={styles.methodImage} />
+      <View pointerEvents="none" style={styles.methodScrim} />
+      <View style={[styles.methodContent, isMobile && styles.methodContentMobile]}>
         <View>
-          {hasPhoto ? (
-            <View style={styles.purpleBadge}>
-              <Text style={[styles.cardEyebrow, styles.cardEyebrowOnImage, styles.cardEyebrowBadgeText]}>{pillar.eyebrow}</Text>
-            </View>
-          ) : (
-            <Text style={[styles.cardEyebrow, pillar.tone === "ink" && styles.cardEyebrowLight]}>{pillar.eyebrow}</Text>
-          )}
-          <Text style={[styles.pillarTitle, pillar.tone === "ink" && styles.pillarTitleLight, hasPhoto && styles.pillarTitleOnImage]}>
+          <SolidLabel label={pillar.eyebrow} />
+          <Text
+            accessibilityRole="header"
+            style={[styles.methodTitle, { fontSize: titleSize, lineHeight: Math.round(titleSize * 0.94) }]}
+          >
             {pillar.title}
           </Text>
-          <Text
-            style={[
-              styles.pillarDescription,
-              pillar.tone === "ink" && styles.pillarDescriptionLight,
-              hasPhoto && styles.pillarDescriptionOnImage
-            ]}
-          >
+          <Text style={[styles.methodDescription, size !== "lead" && styles.methodDescriptionCompact]}>
             {pillar.description}
           </Text>
         </View>
+        {action ? <View style={styles.methodAction}>{action}</View> : null}
       </View>
     </View>
   );
@@ -422,244 +692,243 @@ function PillarCard({ pillar }: { pillar: (typeof homePillars)[number] }) {
 
 function ProgramsSection({ onOpenApp }: { onOpenApp: () => void }) {
   const { width } = useWindowDimensions();
-  const isMobile = width < 768;
+  const isMobile = width < layout.breakpoint.tabletLarge;
 
   return (
-    <View style={[styles.section, styles.programsSection]}>
-      <View style={[styles.sectionHeaderRow, isMobile && styles.sectionHeaderRowMobile]}>
-        <SectionIntro
-          eyebrow="PROGRAMAS"
-          title={<>COMECE ONDE{`\n`}VOCÊ ESTÁ.</>}
-          description="Caminhos estruturados para diferentes objetivos, níveis e momentos do treinamento."
-        />
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Ver todos os programas"
-          onPress={onOpenApp}
-          style={({ pressed }) => [styles.outlineCta, pressed && styles.pressed]}
-        >
-          <Text style={styles.outlineCtaText}>Ver programas</Text>
-          <Ionicons name="arrow-forward" size={17} color={colors.ink} />
-        </Pressable>
-      </View>
+    <Section tone="elevated">
+      <SectionHead
+        lines={[{ text: "COMECE ONDE" }, { text: "VOCÊ ESTÁ.", accent: true }]}
+        description="Caminhos estruturados para diferentes objetivos, níveis e momentos do treinamento."
+      />
       <View style={[styles.programGrid, isMobile && styles.programGridMobile]}>
-        {featuredPrograms.map((program) => (
-          <Pressable
-            key={program.number}
-            accessibilityRole="button"
-            accessibilityLabel={`Conhecer ${program.title}`}
-            onPress={onOpenApp}
-            style={({ pressed }) => [styles.programCard, pressed && styles.programCardPressed]}
-          >
-            <View style={[styles.programVisual, program.accent === "purple" && styles.programVisualPurple, program.accent === "graphite" && styles.programVisualGraphite]}>
-              <Text style={styles.programVisualNumber}>{program.number}</Text>
-              <Text style={styles.programVisualWord}>FB</Text>
-              <View style={styles.programVisualMarker} />
-              <Text style={styles.programVisualLabel}>PERFORMANCE{`\n`}REAL</Text>
-            </View>
-            <View style={styles.programCopy}>
-              <Text style={styles.programType}>{program.type}</Text>
-              <Text style={styles.programTitle}>{program.title}</Text>
-              <View style={styles.programMetaRow}>
-                <Text style={styles.programDetail}>{program.detail}</Text>
-                <Ionicons name="arrow-forward" size={16} color={colors.fitblockPurple} />
-              </View>
-            </View>
-          </Pressable>
+        {featuredPrograms.map((program, index) => (
+          <ProgramCard key={program.title} program={program} isFeatured={index === 0} onPress={onOpenApp} />
         ))}
       </View>
-    </View>
+    </Section>
   );
 }
 
-function CampsSection() {
-  const { width } = useWindowDimensions();
-  const isMobile = width < 768;
-  const mobileCardWidth = Math.max(280, Math.min(390, width - spacing[5] * 2));
+function ProgramCard({
+  program,
+  isFeatured,
+  onPress
+}: {
+  program: (typeof featuredPrograms)[number];
+  isFeatured: boolean;
+  onPress: () => void;
+}) {
+  const [focused, setFocused] = useState(false);
 
   return (
-    <View style={[styles.section, styles.campsSection, isMobile && styles.campsSectionMobile]} testID="experiences-fitblock-section">
-      <View style={[styles.darkSectionHeader, isMobile && styles.darkSectionHeaderMobile]}>
-        <View>
-          <Text style={styles.darkEyebrow}>EXPERIÊNCIAS FITBLOCK</Text>
-          <Text style={[styles.darkSectionTitle, isMobile && styles.darkSectionTitleMobile, width < 360 && styles.darkSectionTitleNarrow]}>
-            TREINE JUNTO.{`\n`}VÁ MAIS LONGE.
-          </Text>
-        </View>
-        <Text style={[styles.darkSectionDescription, isMobile && styles.darkSectionDescriptionMobile]}>
-          Camps e encontros para transformar a energia do treino em comunidade.
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`Conhecer ${program.title}. ${program.type}. ${program.detail}`}
+      onBlur={() => setFocused(false)}
+      onFocus={() => setFocused(true)}
+      onPress={onPress}
+      style={({ pressed }) => [styles.programCard, focused && styles.cardFocused, pressed && styles.pressed]}
+    >
+      <View style={[styles.programSignal, isFeatured && styles.programSignalFeatured]} />
+      <View style={styles.programCardContent}>
+        <Text style={styles.programType}>{program.type}</Text>
+        <Text accessibilityRole="header" style={styles.programTitle}>
+          {program.title}
         </Text>
+        <View style={styles.programFooter}>
+          <Text style={styles.programDetail}>{program.detail}</Text>
+          <Ionicons name="arrow-forward" size={18} color={colors.purple400} />
+        </View>
       </View>
+    </Pressable>
+  );
+}
+
+function ExperiencesSection() {
+  const { width } = useWindowDimensions();
+  const isMobile = width < layout.breakpoint.tabletLarge;
+  const mobileCardWidth = Math.max(280, Math.min(390, width - layout.gutter.mobile * 2));
+
+  return (
+    <Section tone="deep" testID="experiences-fitblock-section">
+      <SectionHead
+        lines={[{ text: "TREINE JUNTO." }, { text: "VÁ MAIS LONGE.", accent: true }]}
+        description="Camps e encontros para transformar a energia do treino em comunidade."
+      />
       {isMobile ? (
         <ScrollView
           horizontal
           decelerationRate="fast"
           showsHorizontalScrollIndicator={false}
           snapToAlignment="start"
-          snapToInterval={mobileCardWidth + spacing[4]}
-          contentContainerStyle={styles.campCarouselContent}
+          snapToInterval={mobileCardWidth + spacing[3]}
+          contentContainerStyle={styles.experienceCarousel}
           accessibilityLabel="Experiências FitBlock. Deslize para ver os eventos e a comunidade."
         >
           {featuredCamps.map((experience) => (
             <ExperienceCard
               key={experience.id}
               experience={experience}
-              style={[styles.campCardMobile, { width: mobileCardWidth }]}
+              style={[styles.carouselItem, { flexBasis: mobileCardWidth, width: mobileCardWidth }]}
             />
           ))}
-          <CampManifesto mobile style={{ width: mobileCardWidth }} />
+          <ExperienceManifesto width={mobileCardWidth} />
         </ScrollView>
       ) : (
-        <View style={styles.campGrid}>
+        <View style={styles.experienceGrid}>
           {featuredCamps.map((experience) => (
             <ExperienceCard key={experience.id} experience={experience} />
           ))}
-          <CampManifesto />
+          <ExperienceManifesto />
         </View>
       )}
-    </View>
+    </Section>
   );
 }
 
-function CampManifesto({ mobile = false, style }: { mobile?: boolean; style?: { width: number } }) {
+function ExperienceManifesto({ width }: { width?: number }) {
+  const { width: viewportWidth } = useWindowDimensions();
+  const isMobile = viewportWidth < layout.breakpoint.tabletLarge;
+
   return (
-    <View style={[styles.campManifesto, mobile && styles.campManifestoMobile, style]}>
-      <Text style={styles.campManifestoMark}>+</Text>
-      <Text style={[styles.campManifestoText, mobile && styles.campManifestoTextMobile]}>
-        O treino é individual.{`\n`}A jornada não precisa ser.
-      </Text>
-      <Text style={styles.campManifestoCaption}>FITBLOCK COMMUNITY</Text>
+    <View
+      style={[
+        styles.experienceManifesto,
+        width ? [styles.carouselItem, { flexBasis: width, width }] : null
+      ]}
+    >
+      <View style={styles.manifestoRule} />
+      <DisplayHeading
+        lines={[{ text: "O TREINO É" }, { text: "INDIVIDUAL." }, { text: "A JORNADA NÃO", accent: true }, { text: "PRECISA SER." }]}
+        size={isMobile ? 31 : 37}
+        style={styles.manifestoHeading}
+      />
+      <Text style={styles.manifestoCaption}>FITBLOCK COMMUNITY</Text>
     </View>
   );
 }
 
 function ContentSection() {
   const { width } = useWindowDimensions();
-  const isMobile = width < 768;
+  const isMobile = width < layout.breakpoint.tabletLarge;
 
   return (
-    <View style={styles.section}>
-      <SectionIntro
-        eyebrow="CONTEÚDO"
-        title={<>IDEIAS QUE{`\n`}MOVEM O TREINO.</>}
+    <Section>
+      <SectionHead
+        lines={[{ text: "IDEIAS QUE" }, { text: "MOVEM O TREINO.", accent: true }]}
         description="Conhecimento prático para treinar melhor, recuperar com inteligência e permanecer no processo."
       />
       <View style={styles.contentList}>
         {editorialPosts.map((post) => (
-          <View
-            key={post.number}
-            style={[styles.contentRow, isMobile && styles.contentRowMobile]}
-          >
-            <Text style={[styles.contentNumber, isMobile && styles.contentNumberMobile]}>{post.number}</Text>
-            <Text style={[styles.contentCategory, isMobile && styles.contentCategoryMobile]}>{post.category}</Text>
-            <Text style={[styles.contentTitle, isMobile && styles.contentTitleMobile]}>{post.title}</Text>
+          <View key={post.title} style={[styles.contentRow, isMobile && styles.contentRowMobile]}>
+            <SolidLabel label={post.category} style={styles.contentLabel} />
+            <Text accessibilityRole="header" style={[styles.contentTitle, isMobile && styles.contentTitleMobile]}>
+              {post.title}
+            </Text>
+            <Ionicons name="arrow-forward" size={20} color={colors.purple400} />
           </View>
         ))}
       </View>
-    </View>
+    </Section>
   );
 }
 
 function FinalCta({ onOpenApp }: { onOpenApp: () => void }) {
   const { width } = useWindowDimensions();
-  const isMobile = width < 768;
+  const isMobile = width < layout.breakpoint.tabletLarge;
 
   return (
     <View style={styles.finalCta}>
       <Image
         source={isMobile ? finalCtaMobileImage : finalCtaImage}
-        resizeMode="contain"
-        accessibilityLabel=""
+        resizeMode="cover"
+        accessible={false}
         style={styles.finalCtaImage}
       />
-      <View pointerEvents="none" style={styles.finalCtaOverlay} />
+      <View pointerEvents="none" style={styles.finalCtaScrim} />
+      <View pointerEvents="none" style={[styles.finalCtaReadingVeil, isMobile && styles.finalCtaReadingVeilMobile]} />
       <View style={[styles.finalCtaContent, isMobile && styles.finalCtaContentMobile]}>
-        <Text style={styles.finalCtaEyebrow}>SEU PRÓXIMO TREINO COMEÇA AQUI</Text>
-        <Text style={styles.finalCtaTitle}>PRONTO PARA{`\n`}ENTRAR NO BLOCO?</Text>
-        <Text style={styles.finalCtaDescription}>Conheça a programação FitBlock e encontre o caminho que faz sentido para você.</Text>
-        <Pressable
-          accessibilityRole="button"
+        <DisplayHeading
+          lines={[{ text: "PRONTO PARA" }, { text: "ENTRAR NO BLOCO?", accent: true }]}
+          size={isMobile ? (width < 360 ? 40 : 48) : 68}
+        />
+        <Text style={styles.finalCtaDescription}>
+          Conheça a programação FitBlock e encontre o caminho que faz sentido para você.
+        </Text>
+        <ActionButton
+          label="Começar agora"
           accessibilityLabel="Conhecer a programação FitBlock"
           onPress={onOpenApp}
-          style={({ pressed }) => [styles.finalCtaButton, pressed && styles.pressed]}
-        >
-          <Text style={styles.finalCtaButtonText}>Começar agora</Text>
-          <View style={styles.finalCtaButtonIcon}>
-            <Ionicons name="arrow-forward" size={18} color={colors.ink} />
-          </View>
-        </Pressable>
+          fullWidth={isMobile}
+          style={styles.finalCtaButton}
+        />
       </View>
     </View>
   );
 }
 
-function PublicFooter({ onNavigate, onOpenApp }: { onNavigate: (id: HomeSectionId) => void; onOpenApp: () => void }) {
+function PublicFooter({
+  onNavigate,
+  onOpenApp
+}: {
+  onNavigate: (id: HomeSectionId) => void;
+  onOpenApp: () => void;
+}) {
   const { width } = useWindowDimensions();
-  const isMobile = width < 768;
+  const isMobile = width < layout.breakpoint.tabletLarge;
 
   return (
     <View style={styles.footer}>
-      <View style={[styles.footerTop, isMobile && styles.footerTopMobile]}>
-        <Image
-          source={require("../assets/fitblock-wordmark-white.png")}
-          style={styles.footerLogo}
-          resizeMode="contain"
-          accessibilityLabel="FitBlock Training"
-        />
-        <Text style={styles.footerStatement}>Treine com intenção.{`\n`}Permaneça no processo.</Text>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Entrar no app FitBlock"
-          onPress={onOpenApp}
-          style={({ pressed }) => [styles.footerLink, pressed && styles.pressed]}
-        >
-          <Text style={styles.footerLinkText}>Entrar no app</Text>
-          <Ionicons name="arrow-forward" size={16} color={colors.fitblockPurpleLight} />
-        </Pressable>
-      </View>
-      <View style={[styles.footerBottom, isMobile && styles.footerBottomMobile]}>
-        <Text style={styles.footerCopyright}>© 2026 FITBLOCK TRAINING</Text>
-        <View style={styles.footerLinks}>
-          {homeNavigation.slice(1, 5).map((item) => (
-            <Pressable key={item.id} onPress={() => onNavigate(item.id)} accessibilityRole="link" accessibilityLabel={`Ir para ${item.label}`}>
-              <Text style={styles.footerNavText}>{item.label}</Text>
-            </Pressable>
-          ))}
+      <View style={[styles.footerInner, isMobile && styles.footerInnerMobile]}>
+        <View style={[styles.footerTop, isMobile && styles.footerTopMobile]}>
+          <View style={styles.footerBrand}>
+            <Image source={wordmarkWhite} style={styles.footerLogo} resizeMode="contain" accessibilityLabel="FitBlock Training" />
+            <Text style={styles.footerStatement}>TREINE COM INTENÇÃO. PERMANEÇA NO PROCESSO.</Text>
+          </View>
+          <ActionButton
+            label="Entrar no app"
+            accessibilityLabel="Entrar no app FitBlock"
+            onPress={onOpenApp}
+            variant="secondary"
+            fullWidth={isMobile}
+          />
+        </View>
+        <View style={[styles.footerBottom, isMobile && styles.footerBottomMobile]}>
+          <Text style={styles.footerCopyright}>© 2026 FITBLOCK TRAINING</Text>
+          <View style={styles.footerLinks}>
+            {homeNavigation.slice(1, 5).map((item) => (
+              <FooterNavigationLink key={item.id} label={item.label} onPress={() => onNavigate(item.id)} />
+            ))}
+          </View>
         </View>
       </View>
     </View>
   );
 }
 
-function SectionIntro({
-  eyebrow,
-  title,
-  description
-}: {
-  eyebrow: string;
-  title: React.ReactNode;
-  description: string;
-}) {
-  const { width } = useWindowDimensions();
-  const isMobile = width < 768;
+function FooterNavigationLink({ label, onPress }: { label: string; onPress: () => void }) {
+  const [focused, setFocused] = useState(false);
 
   return (
-    <View style={[styles.sectionIntro, isMobile && styles.sectionIntroMobile]}>
-      <View style={styles.sectionIntroTitleBlock}>
-        <View style={styles.sectionIntroAccent} />
-        <Text style={styles.sectionEyebrow}>{eyebrow}</Text>
-        <Text style={styles.sectionTitle}>{title}</Text>
-      </View>
-      <Text style={[styles.sectionDescription, isMobile && styles.sectionDescriptionMobile]}>{description}</Text>
-    </View>
+    <Pressable
+      accessibilityRole="link"
+      accessibilityLabel={`Ir para ${label}`}
+      onBlur={() => setFocused(false)}
+      onFocus={() => setFocused(true)}
+      onPress={onPress}
+      style={({ pressed }) => [styles.footerLink, focused && styles.footerLinkFocused, pressed && styles.pressed]}
+    >
+      <Text style={styles.footerLinkText}>{label}</Text>
+    </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
   root: {
-    backgroundColor: colors.canvas,
+    backgroundColor: colors.bg,
     flex: 1,
-    minHeight: "100%"
+    minHeight: "100%",
+    position: "relative"
   },
   scroll: {
     flex: 1
@@ -667,980 +936,759 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingBottom: 0
   },
+
   header: {
     alignItems: "center",
-    backgroundColor: colors.canvas,
-    borderBottomColor: colors.hairline,
+    backgroundColor: colors.bg,
+    borderBottomColor: "rgba(248,248,250,0.1)",
     borderBottomWidth: 1,
     flexDirection: "row",
-    height: 78,
+    height: 84,
     justifyContent: "space-between",
-    paddingHorizontal: "6%",
-    zIndex: 10
+    paddingHorizontal: layout.gutter.desktop,
+    zIndex: 20
   },
-  headerMobile: {
-    height: 70,
-    paddingHorizontal: spacing[4]
-  },
-  headerLogoMobile: {
-    flexShrink: 1,
-    width: 132
+  headerCompact: {
+    height: 64,
+    paddingHorizontal: layout.gutter.mobile
   },
   headerLogo: {
-    height: 29,
-    width: 150
+    height: 28,
+    width: 154
+  },
+  headerLogoCompact: {
+    height: 23,
+    width: 127
   },
   desktopNav: {
     alignItems: "center",
     flexDirection: "row",
     gap: spacing[5]
   },
-  navLink: {
+  navigationLink: {
     alignItems: "center",
-    minHeight: 44,
+    borderBottomColor: "transparent",
+    borderBottomWidth: 2,
     justifyContent: "center",
+    minHeight: 44,
     paddingHorizontal: spacing[1]
   },
-  navLinkText: {
-    color: colors.ink,
-    fontFamily: fontFamilies.interface,
-    fontSize: typeScale.bodySm,
-    fontWeight: "600"
+  navigationLinkFocused: {
+    borderBottomColor: colors.purple400
   },
-  headerActions: {
-    alignItems: "center",
-    flexDirection: "row",
-    gap: spacing[2]
+  navigationLinkText: {
+    color: colors.textSecondary,
+    fontFamily: fontFamilies.interfaceSemiBold,
+    fontSize: 12,
+    letterSpacing: 0.7,
+    textTransform: "uppercase"
   },
   headerCta: {
     alignItems: "center",
-    backgroundColor: colors.ink,
+    backgroundColor: colors.purple500,
     borderRadius: radius.pill,
     flexDirection: "row",
     gap: spacing[2],
+    justifyContent: "center",
     minHeight: 44,
     paddingHorizontal: spacing[4]
   },
-  headerCtaText: {
-    color: colors.canvas,
-    fontFamily: fontFamilies.interface,
-    fontSize: typeScale.bodySm,
-    fontWeight: "500"
+  headerCtaFocused: {
+    borderColor: colors.white,
+    borderWidth: 2
   },
-  mobileHeaderActions: {
+  headerCtaText: {
+    color: colors.white,
+    fontFamily: fontFamilies.interfaceBold,
+    fontSize: 12,
+    letterSpacing: 0.5,
+    textTransform: "uppercase"
+  },
+  compactActions: {
     alignItems: "center",
     flexDirection: "row",
-    flexShrink: 0,
-    gap: spacing[2],
-    justifyContent: "flex-end",
-    marginLeft: spacing[3],
-    minWidth: 104,
-    width: 104
+    gap: spacing[1]
   },
-  mobileLogin: {
+  compactLogin: {
     alignItems: "center",
-    flexShrink: 0,
+    borderColor: "transparent",
+    borderRadius: radius.pill,
+    borderWidth: 2,
+    justifyContent: "center",
     minHeight: 44,
-    paddingHorizontal: spacing[2],
-    width: 48
+    paddingHorizontal: spacing[2]
   },
-  mobileLoginText: {
-    color: colors.fitblockPurple,
-    fontFamily: fontFamilies.interface,
-    fontSize: typeScale.bodySm,
-    fontWeight: "500"
+  compactLoginFocused: {
+    borderColor: colors.purple400
+  },
+  compactLoginText: {
+    color: colors.textPrimary,
+    fontFamily: fontFamilies.interfaceSemiBold,
+    fontSize: 12,
+    letterSpacing: 0.5,
+    textTransform: "uppercase"
   },
   menuButton: {
     alignItems: "center",
-    backgroundColor: colors.ink,
+    backgroundColor: colors.surface03,
+    borderColor: colors.border,
     borderRadius: radius.pill,
-    flexShrink: 0,
+    borderWidth: 1,
     height: 44,
     justifyContent: "center",
     width: 44
   },
+  menuButtonFocused: {
+    borderColor: colors.purple400,
+    borderWidth: 2
+  },
   mobileMenu: {
-    backgroundColor: colors.canvas,
-    borderBottomColor: colors.hairline,
+    backgroundColor: colors.bgDeep,
+    borderBottomColor: colors.border,
     borderBottomWidth: 1,
-    paddingBottom: spacing[4],
-    paddingHorizontal: spacing[4],
+    left: 0,
+    paddingBottom: spacing[5],
+    paddingHorizontal: layout.gutter.mobile,
     paddingTop: spacing[2],
     position: "absolute",
-    top: 70,
-    width: "100%",
-    zIndex: 20
+    right: 0,
+    top: 64,
+    zIndex: 30
   },
   mobileMenuLink: {
     alignItems: "center",
-    borderBottomColor: colors.hairline,
+    borderBottomColor: colors.border,
     borderBottomWidth: 1,
     flexDirection: "row",
-    gap: spacing[3],
-    minHeight: 54
+    justifyContent: "space-between",
+    minHeight: 52
   },
-  mobileMenuIndex: {
-    color: colors.fitblockPurple,
-    fontFamily: fontFamilies.interface,
-    fontSize: typeScale.caption,
-    fontWeight: "500",
-    width: 22
+  mobileMenuLinkFocused: {
+    backgroundColor: colors.surface01,
+    borderBottomColor: colors.purple400
   },
-  mobileMenuLabel: {
-    color: colors.ink,
-    flex: 1,
+  mobileMenuLinkText: {
+    color: colors.textPrimary,
     fontFamily: fontFamilies.display,
-    fontSize: 23,
-    fontWeight: "400"
+    fontSize: 25,
+    lineHeight: 26,
+    textTransform: "uppercase"
   },
   mobileMenuCta: {
-    alignItems: "center",
-    backgroundColor: colors.ink,
-    borderRadius: radius.pill,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginTop: spacing[4],
-    minHeight: 50,
-    paddingHorizontal: spacing[5]
+    marginTop: spacing[4]
   },
-  mobileMenuCtaText: {
-    color: colors.canvas,
-    fontFamily: fontFamilies.interface,
-    fontSize: typeScale.bodySm,
-    fontWeight: "500"
+
+  headingStack: {
+    alignItems: "flex-start"
   },
-  hero: {
-    backgroundColor: colors.ink,
-    flexDirection: "row",
-    minHeight: 620,
-    overflow: "hidden"
+  displayText: {
+    fontFamily: fontFamilies.displayBold,
+    letterSpacing: -0.7,
+    textTransform: "uppercase"
   },
-  // Empilha content sobre rail: a divisão 72/28 em row só faz sentido com espaço horizontal de desktop.
-  heroMobile: {
-    flexDirection: "column",
-    minHeight: 0
-  },
-  heroMain: {
-    minHeight: 620,
-    position: "relative",
-    width: "72%"
-  },
-  heroMainMobile: {
-    minHeight: 0,
-    width: "100%"
-  },
-  heroContent: {
-    justifyContent: "center",
-    paddingHorizontal: "9%",
-    paddingVertical: spacing[10],
-    width: "100%",
-    zIndex: 2
-  },
-  heroContentMobile: {
-    paddingHorizontal: spacing[5],
-    paddingVertical: spacing[8],
-    width: "auto"
-  },
-  heroVideoFrame: {
-    bottom: 0,
-    left: 0,
+  headingAccent: {
+    alignSelf: "flex-start",
     overflow: "hidden",
-    position: "absolute",
-    top: 0,
-    width: "100%",
-    zIndex: 0
+    paddingBottom: 3,
+    position: "relative"
   },
-  heroVideo: {
-    height: "100%",
-    objectFit: "cover",
-    width: "100%"
-  } as unknown as TextStyle,
-  heroVideoShade: {
-    backgroundColor: "rgba(17, 17, 17, 0.46)",
+  headingAccentFill: {
+    backgroundColor: colors.purple500,
     bottom: 0,
     left: 0,
     position: "absolute",
     right: 0,
-    top: 0
+    top: 0,
+    transformOrigin: "left"
   },
-  heroTexture: {
-    bottom: -44,
-    left: "41%",
-    opacity: 0.035,
-    pointerEvents: "none",
-    position: "absolute",
-    transform: [{ rotate: "-18deg" }],
-    zIndex: 1
+  solidLabel: {
+    alignSelf: "flex-start",
+    backgroundColor: colors.purple500,
+    borderRadius: radius.xs,
+    paddingHorizontal: spacing[3],
+    paddingVertical: 6
   },
-  heroTextureText: {
-    color: colors.canvas,
-    fontFamily: fontFamilies.display,
-    fontSize: 154,
-    fontWeight: "400",
-    lineHeight: 130
-  },
-  heroEyebrowRow: {
-    alignItems: "center",
-    flexDirection: "row",
-    gap: spacing[3],
-    marginBottom: spacing[6]
-  },
-  heroEyebrowLine: {
-    backgroundColor: colors.fitblockPurple,
-    height: 2,
-    width: 44
-  },
-  heroEyebrow: {
-    color: colors.stone,
-    flexShrink: 1,
-    fontFamily: fontFamilies.interface,
-    fontSize: typeScale.caption,
-    fontWeight: "500",
-    letterSpacing: 1.4
-  },
-  heroEyebrowRowMobile: {
-    alignItems: "flex-start",
-    gap: spacing[2],
-    marginBottom: spacing[5]
-  },
-  heroEyebrowMobile: {
-    flex: 1,
+  solidLabelText: {
+    color: colors.white,
+    fontFamily: fontFamilies.interfaceBold,
     fontSize: 10,
-    letterSpacing: 1,
-    lineHeight: 16
+    letterSpacing: 1.05,
+    textTransform: "uppercase"
   },
-  // Tier de campanha: 96px, line-height 0.9, tracking 0 — Bebas já é condensada.
-  heroTitle: {
-    color: colors.canvas,
-    fontFamily: fontFamilies.display,
-    fontSize: typeScale.displayCampaign,
-    fontWeight: "400",
-    letterSpacing: 0,
-    lineHeight: typeScale.displayCampaign * 0.9
-  },
-  // 96px de display quebra em qualquer viewport de telefone: cai para o tier displayHero.
-  heroTitleMobile: {
-    fontSize: typeScale.displayHero,
-    lineHeight: typeScale.displayHero * 0.95
-  },
-  heroTitleNarrow: {
-    fontSize: 48,
-    lineHeight: 46
-  },
-  heroTitleAccent: {
-    color: colors.fitblockPurple,
-    fontFamily: fontFamilies.display,
-    fontWeight: "400"
-  },
-  heroDescription: {
-    color: colors.stone,
-    fontFamily: fontFamilies.interface,
-    fontSize: typeScale.bodyLg,
-    lineHeight: 28,
-    marginTop: spacing[6],
-    maxWidth: 520
-  },
-  heroDescriptionMobile: {
-    lineHeight: 24,
-    maxWidth: "100%",
-    width: "auto"
-  },
-  heroActions: {
+  actionButton: {
     alignItems: "center",
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: spacing[4],
-    marginTop: spacing[7]
-  },
-  heroActionsMobile: {
-    alignItems: "stretch",
-    flexDirection: "column",
-    gap: spacing[3]
-  },
-  heroPrimaryCta: {
-    alignItems: "center",
-    backgroundColor: colors.canvas,
+    alignSelf: "flex-start",
+    borderColor: "transparent",
     borderRadius: radius.pill,
+    borderWidth: 2,
     flexDirection: "row",
     gap: spacing[4],
     justifyContent: "space-between",
-    minHeight: 56,
+    minHeight: 52,
     paddingLeft: spacing[5],
-    paddingRight: 7,
-    width: 226
+    paddingRight: 6
   },
-  heroPrimaryCtaText: {
-    color: colors.ink,
-    fontFamily: fontFamilies.interface,
-    fontSize: typeScale.bodySm,
-    fontWeight: "500"
+  actionButtonPrimary: {
+    backgroundColor: colors.purple500
   },
-  heroCtaIcon: {
-    alignItems: "center",
-    backgroundColor: colors.fitblockPurple,
-    borderRadius: radius.pill,
-    height: 42,
-    justifyContent: "center",
-    width: 42
+  actionButtonSecondary: {
+    backgroundColor: "rgba(16,16,20,0.82)",
+    borderColor: colors.border
   },
-  heroSecondaryCta: {
-    alignItems: "center",
-    borderColor: colors.ash,
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    justifyContent: "center",
-    minHeight: 56,
-    paddingHorizontal: spacing[5]
+  actionButtonLight: {
+    backgroundColor: colors.white
   },
-  heroCtaMobile: {
+  actionButtonFullWidth: {
     alignSelf: "stretch",
     width: "auto"
   },
-  heroSecondaryCtaText: {
-    color: colors.canvas,
-    fontFamily: fontFamilies.interface,
-    fontSize: typeScale.bodySm,
-    fontWeight: "500"
+  actionButtonText: {
+    fontFamily: fontFamilies.interfaceBold,
+    fontSize: 12,
+    letterSpacing: 0.6,
+    textTransform: "uppercase"
   },
-  // Painel claro contra o preto do hero. Era roxo sólido: superfície cromática grande
-  // demais para um sistema onde o acento só marca seta, número e estado ativo.
-  heroRail: {
-    backgroundColor: colors.softCloud,
-    justifyContent: "space-between",
-    minHeight: 620,
-    padding: spacing[7],
-    width: "28%"
+  actionIcon: {
+    alignItems: "center",
+    backgroundColor: "rgba(255,255,255,0.16)",
+    borderRadius: radius.pill,
+    height: 40,
+    justifyContent: "center",
+    width: 40
   },
-  // Empilhado abaixo do content: largura total, sem altura mínima de hero de desktop, texto lido da esquerda.
-  heroRailMobile: {
-    minHeight: 0,
-    padding: spacing[6],
-    width: "100%"
+  actionIconLight: {
+    backgroundColor: colors.surface02
   },
-  heroRailTop: {
-    alignItems: "flex-end"
+  focusOnDark: {
+    borderColor: colors.white
   },
-  heroRailTopMobile: {
-    alignItems: "flex-start"
+  focusOnLight: {
+    borderColor: colors.purple500
   },
-  heroRailNumber: {
-    color: colors.fitblockPurple,
-    fontFamily: fontFamilies.display,
-    fontSize: typeScale.headingLg,
-    fontWeight: "400"
+  watermark: {
+    bottom: 0,
+    left: 0,
+    opacity: 0.035,
+    overflow: "hidden",
+    position: "absolute",
+    right: 0,
+    top: 0,
+    zIndex: 3
   },
-  heroRailLabel: {
-    color: colors.ink,
-    fontFamily: fontFamilies.display,
-    fontSize: 36,
-    fontWeight: "400",
-    lineHeight: 32,
-    marginTop: spacing[3],
-    textAlign: "right"
+  watermarkMark: {
+    height: 40,
+    left: "-14%",
+    position: "absolute",
+    transform: [{ rotate: "-17deg" }],
+    width: 200
   },
-  heroRailLabelMobile: {
-    fontSize: 24,
-    lineHeight: 24,
-    textAlign: "left"
+  watermarkMarkOffset: {
+    left: "42%"
   },
-  heroRailBottom: {
-    alignItems: "flex-end"
-  },
-  heroRailBottomMobile: {
-    alignItems: "flex-start",
-    marginTop: spacing[5]
-  },
-  heroRailRule: {
-    backgroundColor: colors.fitblockPurple,
-    height: 2,
-    marginBottom: spacing[3],
-    width: "100%"
-  },
-  heroRailCaption: {
-    color: colors.textSecondary,
-    fontFamily: fontFamilies.interface,
-    fontSize: typeScale.caption,
-    fontWeight: "500",
-    letterSpacing: 1.1,
-    textAlign: "right"
-  },
-  heroRailCaptionMobile: {
-    textAlign: "left"
-  },
-  // Ritmo vertical de 48px entre blocos: as seções encostam umas nas outras, sem
-  // divisor decorativo. A separação vem da troca de superfície, não de margem.
+
   section: {
-    alignSelf: "center",
-    maxWidth: 1440,
-    paddingHorizontal: "6%",
-    paddingVertical: spacing[8],
+    alignItems: "center",
+    backgroundColor: colors.bg,
     width: "100%"
   },
-  sectionIntro: {
+  sectionElevated: {
+    backgroundColor: colors.surface01
+  },
+  sectionDeep: {
+    backgroundColor: colors.bgDeep
+  },
+  sectionInner: {
+    maxWidth: layout.container,
+    paddingHorizontal: layout.gutter.desktop,
+    paddingVertical: layout.section.desktop,
+    width: "100%"
+  },
+  sectionInnerMobile: {
+    paddingHorizontal: layout.gutter.mobile,
+    paddingVertical: layout.section.mobile
+  },
+  sectionHead: {
     alignItems: "flex-end",
     flexDirection: "row",
+    gap: spacing[8],
     justifyContent: "space-between",
-    marginBottom: spacing[7]
+    marginBottom: spacing[8]
   },
-  // Compartilhado por Pilares, Programas e Conteúdo: em row a descrição de 34% vira uma
-  // coluna de ~110px em telefone. Empilha título e descrição em vez disso.
-  sectionIntroMobile: {
+  sectionHeadMobile: {
     alignItems: "flex-start",
     flexDirection: "column",
-    gap: spacing[4]
+    gap: spacing[4],
+    marginBottom: spacing[6]
   },
-  sectionIntroTitleBlock: {
-    flex: 1,
-    minWidth: 0
-  },
-  sectionIntroAccent: {
-    backgroundColor: colors.fitblockPurple,
-    height: 8,
-    marginBottom: spacing[3],
-    width: 68
-  },
-  sectionEyebrow: {
-    color: colors.fitblockPurple,
-    fontFamily: fontFamilies.interface,
-    fontSize: typeScale.caption,
-    fontWeight: "500",
-    letterSpacing: 1.5,
-    marginBottom: spacing[2]
-  },
-  sectionTitle: {
-    color: colors.ink,
-    fontFamily: fontFamilies.display,
-    fontSize: typeScale.displayHero,
-    fontWeight: "400",
-    letterSpacing: 0,
-    lineHeight: typeScale.displayHero * 0.9
+  sectionHeading: {
+    flexShrink: 1
   },
   sectionDescription: {
     color: colors.textSecondary,
     fontFamily: fontFamilies.interface,
     fontSize: typeScale.bodyMd,
     lineHeight: 25,
-    maxWidth: 370,
-    paddingBottom: 3,
+    maxWidth: 405,
+    paddingBottom: 4,
     width: "34%"
   },
   sectionDescriptionMobile: {
     maxWidth: "100%",
+    paddingBottom: 0,
     width: "100%"
   },
-  pillarGrid: {
-    flexDirection: "row",
-    gap: spacing[2]
-  },
-  pillarGridMobile: {
-    flexDirection: "column"
-  },
-  // Container = raio 0, sem sombra. O card não levanta da página.
-  pillarCard: {
-    backgroundColor: colors.softCloud,
-    borderRadius: radius.none,
-    flex: 1,
-    justifyContent: "space-between",
-    minHeight: 320,
-    padding: spacing[5]
-  },
-  pillarCardWithPhoto: {
+
+  hero: {
+    backgroundColor: colors.bgDeep,
+    minHeight: 660,
     overflow: "hidden",
     position: "relative"
   },
-  pillarCardImageFrame: {
-    alignItems: "center",
+  heroMobile: {
+    minHeight: 620
+  },
+  heroMedia: {
     bottom: 0,
-    justifyContent: "center",
+    left: 0,
+    overflow: "hidden",
+    position: "absolute",
+    right: 0,
+    top: 0
+  },
+  heroFallbackImage: {
+    bottom: 0,
+    height: "100%",
     left: 0,
     position: "absolute",
     right: 0,
     top: 0,
-    zIndex: 0
-  },
-  pillarCardImage: {
-    height: "100%",
     width: "100%"
   },
-  pillarCardContent: {
-    flex: 1,
-    justifyContent: "space-between",
-    zIndex: 2
-  },
-  pillarCardPurple: {
-    backgroundColor: colors.softCloud
-  },
-  pillarCardInk: {
-    backgroundColor: colors.ink
-  },
-  pillarCardOverlayDark: {
-    backgroundImage: "linear-gradient(180deg, rgba(17, 17, 17, 0) 0%, rgba(17, 17, 17, 0.15) 40%, rgba(17, 17, 17, 0.55) 65%, rgba(17, 17, 17, 0.9) 100%)",
+  heroVideo: {
+    height: "100%",
+    objectFit: "cover",
+    width: "100%"
+  } as unknown as TextStyle,
+  heroScrim: {
+    backgroundColor: "rgba(5,5,7,0.34)",
     bottom: 0,
     left: 0,
-    pointerEvents: "none",
     position: "absolute",
     right: 0,
     top: 0,
     zIndex: 1
   },
-  cardTopline: {
-    alignItems: "center",
-    flexDirection: "row",
-    justifyContent: "space-between"
+  heroReadingVeil: {
+    backgroundColor: "rgba(5,5,7,0.78)",
+    bottom: 0,
+    left: 0,
+    position: "absolute",
+    top: 0,
+    width: "58%",
+    zIndex: 2
   },
-  cardNumber: {
-    color: colors.fitblockPurple,
-    fontFamily: fontFamilies.display,
-    fontSize: 36,
-    fontWeight: "400"
+  heroReadingVeilMobile: {
+    backgroundColor: "rgba(5,5,7,0.57)",
+    top: "43%",
+    width: "100%"
   },
-  cardNumberLight: {
-    color: colors.fitblockPurpleLight
-  },
-  // O "01"/"03" fica na faixa quase transparente do degradê — sombra garante leitura mesmo ali.
-  cardNumberOnImage: {
-    color: colors.canvas,
-    ...imageTextShadow
-  },
-  // alignSelf: hug a largura do texto (sem isso, herda o stretch do container coluna e vira uma barra do tamanho do card).
-  purpleBadge: {
-    alignItems: "center",
-    alignSelf: "flex-start",
-    backgroundColor: colors.fitblockPurple,
+  heroContent: {
+    alignSelf: "center",
     justifyContent: "center",
-    marginBottom: spacing[2],
-    paddingHorizontal: spacing[3],
-    paddingVertical: spacing[1]
+    maxWidth: layout.container,
+    minHeight: 660,
+    paddingHorizontal: layout.gutter.desktop,
+    paddingVertical: layout.section.desktop,
+    width: "100%",
+    zIndex: 4
   },
-  cardArrow: {
-    alignItems: "center",
-    backgroundColor: colors.canvas,
-    borderRadius: radius.pill,
-    height: 38,
-    justifyContent: "center",
-    width: 38
+  heroContentMobile: {
+    justifyContent: "flex-end",
+    minHeight: 620,
+    paddingHorizontal: layout.gutter.mobile,
+    paddingVertical: spacing[7]
   },
-  cardArrowLight: {
-    backgroundColor: colors.fitblockPurpleLight
+  heroHeading: {
+    maxWidth: 650
   },
-  cardEyebrow: {
-    color: colors.textSecondary,
+  heroDescription: {
+    color: colors.textPrimary,
     fontFamily: fontFamilies.interface,
-    fontSize: typeScale.caption,
-    fontWeight: "500",
-    letterSpacing: 1.4,
-    marginBottom: spacing[2]
-  },
-  cardEyebrowLight: {
-    color: colors.fitblockPurpleLight
-  },
-  cardEyebrowOnImage: {
-    color: "rgba(255, 255, 255, 0.78)"
-  },
-  // Zera o marginBottom herdado de cardEyebrow: dentro do badge, o espaçamento vem do paddingVertical do próprio retângulo, senão o texto fica descentralizado para cima.
-  cardEyebrowBadgeText: {
-    marginBottom: 0
-  },
-  pillarTitle: {
-    color: colors.ink,
-    fontFamily: fontFamilies.display,
-    fontSize: 31,
-    fontWeight: "400",
-    lineHeight: 30
-  },
-  pillarTitleLight: {
-    color: colors.canvas
-  },
-  pillarTitleOnImage: {
-    color: colors.canvas,
+    fontSize: typeScale.bodyLg,
+    lineHeight: 28,
+    marginTop: spacing[5],
+    maxWidth: 500,
     ...imageTextShadow
   },
-  pillarDescription: {
-    color: colors.textSecondary,
-    fontFamily: fontFamilies.interface,
-    fontSize: typeScale.bodySm,
-    lineHeight: 21,
-    marginTop: spacing[4]
+  heroDescriptionMobile: {
+    fontSize: typeScale.bodyMd,
+    lineHeight: 24,
+    marginTop: spacing[4],
+    maxWidth: "100%"
   },
-  pillarDescriptionLight: {
-    color: colors.stone
-  },
-  pillarDescriptionOnImage: {
-    color: "rgba(255, 255, 255, 0.78)",
-    ...imageTextShadow
-  },
-  programsSection: {
-    backgroundColor: colors.softCloud,
-    maxWidth: 2000,
-    paddingLeft: "6%",
-    paddingRight: "6%"
-  },
-  sectionHeaderRow: {
-    alignItems: "flex-end",
-    flexDirection: "row",
-    justifyContent: "space-between"
-  },
-  sectionHeaderRowMobile: {
-    alignItems: "flex-start",
-    flexDirection: "column",
-    gap: spacing[5]
-  },
-  outlineCta: {
+  heroActions: {
     alignItems: "center",
-    borderColor: colors.ink,
-    borderRadius: radius.pill,
-    borderWidth: 1,
     flexDirection: "row",
+    flexWrap: "wrap",
     gap: spacing[3],
-    minHeight: 48,
-    paddingHorizontal: spacing[5]
+    marginTop: spacing[6]
   },
-  outlineCtaText: {
-    color: colors.ink,
-    fontFamily: fontFamilies.interface,
-    fontSize: typeScale.bodySm,
-    fontWeight: "500"
+  heroActionsMobile: {
+    alignItems: "stretch",
+    flexDirection: "column"
   },
-  programGrid: {
+
+  disciplineBand: {
+    alignItems: "center",
+    backgroundColor: colors.bgDeep,
+    borderBottomColor: colors.border,
+    borderBottomWidth: 1,
+    borderTopColor: colors.border,
+    borderTopWidth: 1,
+    width: "100%"
+  },
+  disciplineBandInner: {
+    alignItems: "center",
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: spacing[5],
+    maxWidth: layout.container,
+    paddingHorizontal: layout.gutter.desktop,
+    paddingVertical: spacing[4],
+    width: "100%"
+  },
+  disciplineBandInnerMobile: {
+    gap: spacing[3],
+    paddingHorizontal: layout.gutter.mobile
+  },
+  disciplineItem: {
+    alignItems: "center",
     flexDirection: "row",
     gap: spacing[2]
+  },
+  disciplinePoint: {
+    backgroundColor: colors.purple400,
+    borderRadius: radius.pill,
+    height: 5,
+    width: 5
+  },
+  disciplineText: {
+    color: colors.textSecondary,
+    fontFamily: fontFamilies.interfaceBold,
+    fontSize: 10,
+    letterSpacing: 1.25,
+    textTransform: "uppercase"
+  },
+
+  methodStack: {
+    gap: spacing[3]
+  },
+  methodSupportingRow: {
+    flexDirection: "row",
+    gap: spacing[3]
+  },
+  methodSupportingRowMobile: {
+    flexDirection: "column"
+  },
+  methodCard: {
+    backgroundColor: colors.surface02,
+    borderColor: colors.border,
+    borderRadius: radius.feature,
+    borderWidth: 1,
+    justifyContent: "flex-end",
+    minWidth: 0,
+    overflow: "hidden",
+    position: "relative"
+  },
+  methodCardLead: {
+    minHeight: 490
+  },
+  methodCardMajor: {
+    flex: 2,
+    minHeight: 400
+  },
+  methodCardMinor: {
+    flex: 1,
+    minHeight: 400
+  },
+  methodCardMobile: {
+    flex: 0,
+    minHeight: 360
+  },
+  methodImage: {
+    bottom: 0,
+    height: "100%",
+    left: 0,
+    position: "absolute",
+    right: 0,
+    top: 0,
+    width: "100%"
+  },
+  methodScrim: {
+    backgroundColor: "rgba(5,5,7,0.54)",
+    bottom: 0,
+    left: 0,
+    position: "absolute",
+    right: 0,
+    top: 0
+  },
+  methodContent: {
+    flex: 1,
+    justifyContent: "space-between",
+    padding: spacing[6]
+  },
+  methodContentMobile: {
+    padding: spacing[5]
+  },
+  methodTitle: {
+    color: colors.white,
+    fontFamily: fontFamilies.displayBold,
+    letterSpacing: -0.45,
+    marginTop: spacing[3],
+    textTransform: "uppercase",
+    ...imageTextShadow
+  },
+  methodDescription: {
+    color: colors.textPrimary,
+    fontFamily: fontFamilies.interface,
+    fontSize: typeScale.bodyMd,
+    lineHeight: 24,
+    marginTop: spacing[3],
+    maxWidth: 490,
+    ...imageTextShadow
+  },
+  methodDescriptionCompact: {
+    fontSize: typeScale.bodySm,
+    lineHeight: 21
+  },
+  methodAction: {
+    marginTop: spacing[5]
+  },
+
+  programGrid: {
+    flexDirection: "row",
+    gap: spacing[3]
   },
   programGridMobile: {
     flexDirection: "column"
   },
-  // A foto é o card: raio 0, sem padding interno, metadados logo abaixo.
   programCard: {
-    backgroundColor: colors.canvas,
-    borderRadius: radius.none,
+    backgroundColor: colors.surface02,
+    borderColor: colors.border,
+    borderRadius: radius.card,
+    borderWidth: 1,
     flex: 1,
+    minHeight: 270,
+    minWidth: 0,
     overflow: "hidden"
   },
-  programCardPressed: {
-    opacity: 0.78
+  programSignal: {
+    backgroundColor: colors.surface04,
+    height: 5,
+    width: "100%"
   },
-  // O cinza é o "estúdio" onde toda imagem de produto é montada.
-  programVisual: {
-    backgroundColor: colors.softCloud,
-    height: 260,
+  programSignalFeatured: {
+    backgroundColor: colors.purple500
+  },
+  programCardContent: {
+    flex: 1,
     justifyContent: "space-between",
-    overflow: "hidden",
-    padding: spacing[5]
-  },
-  programVisualPurple: {
-    backgroundColor: colors.softCloud
-  },
-  programVisualGraphite: {
-    backgroundColor: colors.graphite
-  },
-  programVisualNumber: {
-    color: colors.textSecondary,
-    fontFamily: fontFamilies.display,
-    fontSize: 20,
-    fontWeight: "400"
-  },
-  programVisualWord: {
-    alignSelf: "center",
-    color: colors.ink,
-    fontFamily: fontFamilies.display,
-    fontSize: 142,
-    fontWeight: "400",
-    letterSpacing: 0,
-    lineHeight: 128,
-    opacity: 0.12
-  },
-  programVisualMarker: {
-    backgroundColor: colors.fitblockPurple,
-    height: 8,
-    position: "absolute",
-    right: 0,
-    top: spacing[7],
-    width: "28%"
-  },
-  programVisualLabel: {
-    color: colors.ink,
-    fontFamily: fontFamilies.display,
-    fontSize: 24,
-    fontWeight: "400",
-    lineHeight: 22
-  },
-  programCopy: {
     padding: spacing[5]
   },
   programType: {
-    color: colors.fitblockPurple,
-    fontFamily: fontFamilies.interface,
-    fontSize: typeScale.caption,
-    fontWeight: "500",
-    letterSpacing: 1.2
+    color: colors.textSecondary,
+    fontFamily: fontFamilies.interfaceBold,
+    fontSize: 11,
+    letterSpacing: 1.15,
+    textTransform: "uppercase"
   },
   programTitle: {
-    color: colors.ink,
-    fontFamily: fontFamilies.display,
-    fontSize: 27,
-    fontWeight: "400",
-    marginTop: spacing[2]
+    color: colors.textPrimary,
+    fontFamily: fontFamilies.displayBold,
+    fontSize: 38,
+    letterSpacing: -0.45,
+    lineHeight: 36,
+    marginTop: spacing[5],
+    textTransform: "uppercase"
   },
-  programMetaRow: {
+  programFooter: {
     alignItems: "center",
+    borderTopColor: colors.border,
+    borderTopWidth: 1,
     flexDirection: "row",
+    gap: spacing[3],
     justifyContent: "space-between",
-    marginTop: spacing[5]
+    marginTop: spacing[5],
+    paddingTop: spacing[3]
   },
   programDetail: {
     color: colors.textSecondary,
+    flex: 1,
     fontFamily: fontFamilies.interface,
-    fontSize: typeScale.bodySm
+    fontSize: typeScale.bodySm,
+    lineHeight: 20
   },
-  campsSection: {
-    backgroundColor: colors.ink,
-    maxWidth: 2000
+  cardFocused: {
+    borderColor: colors.purple400,
+    borderWidth: 2
   },
-  campsSectionMobile: {
-    paddingHorizontal: spacing[5]
-  },
-  darkSectionHeader: {
-    alignItems: "flex-end",
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: spacing[7]
-  },
-  darkSectionHeaderMobile: {
-    alignItems: "flex-start",
-    flexDirection: "column",
-    gap: spacing[5]
-  },
-  darkSectionTitleMobile: {
-    fontSize: 48,
-    lineHeight: 44
-  },
-  darkSectionTitleNarrow: {
-    fontSize: 42,
-    lineHeight: 40
-  },
-  darkEyebrow: {
-    color: colors.fitblockPurpleLight,
-    fontFamily: fontFamilies.interface,
-    fontSize: typeScale.caption,
-    fontWeight: "500",
-    letterSpacing: 1.5,
-    marginBottom: spacing[2]
-  },
-  darkSectionTitle: {
-    color: colors.canvas,
-    fontFamily: fontFamilies.display,
-    fontSize: typeScale.displayHero,
-    fontWeight: "400",
-    lineHeight: typeScale.displayHero * 0.9
-  },
-  darkSectionDescription: {
-    color: colors.stone,
-    fontFamily: fontFamilies.interface,
-    fontSize: typeScale.bodyMd,
-    lineHeight: 25,
-    maxWidth: 360,
-    width: "34%"
-  },
-  darkSectionDescriptionMobile: {
-    maxWidth: "100%",
-    width: "100%"
-  },
-  campGrid: {
+
+  experienceGrid: {
     alignItems: "stretch",
     flexDirection: "row",
-    gap: spacing[2]
+    gap: spacing[3]
   },
-  campCarouselContent: {
-    gap: spacing[2],
-    paddingRight: spacing[5]
+  experienceCarousel: {
+    gap: spacing[3],
+    paddingRight: layout.gutter.mobile
   },
-  campCardMobile: {
-    flex: 0
+  carouselItem: {
+    flexGrow: 0,
+    flexShrink: 0
   },
-  // Bloco de manifesto claro dentro da seção escura: o contraste vem da troca de
-  // superfície, não de uma quarta cor.
-  campManifesto: {
-    backgroundColor: colors.canvas,
-    borderRadius: radius.none,
+  experienceManifesto: {
+    backgroundColor: colors.surface01,
+    borderColor: colors.border,
+    borderRadius: radius.card,
+    borderWidth: 1,
     flex: 1,
     justifyContent: "space-between",
-    minHeight: 340,
+    minHeight: 390,
+    minWidth: 0,
+    overflow: "hidden",
     padding: spacing[5]
   },
-  campManifestoMobile: {
-    minHeight: 300,
-    padding: spacing[5]
+  manifestoRule: {
+    backgroundColor: colors.purple500,
+    height: 5,
+    width: 64
   },
-  campManifestoMark: {
-    color: colors.fitblockPurple,
-    fontFamily: fontFamilies.display,
-    fontSize: 46,
-    fontWeight: "400"
+  manifestoHeading: {
+    marginTop: spacing[6]
   },
-  campManifestoText: {
-    color: colors.ink,
-    fontFamily: fontFamilies.display,
-    fontSize: 36,
-    fontWeight: "400",
-    lineHeight: 32
+  manifestoCaption: {
+    color: colors.textSecondary,
+    fontFamily: fontFamilies.interfaceBold,
+    fontSize: 10,
+    letterSpacing: 1.2,
+    marginTop: spacing[6]
   },
-  campManifestoTextMobile: {
-    fontSize: 30,
-    lineHeight: 28
-  },
-  campManifestoCaption: {
-    color: colors.ink,
-    fontFamily: fontFamilies.interface,
-    fontSize: typeScale.caption,
-    fontWeight: "500",
-    letterSpacing: 1.4
-  },
+
   contentList: {
-    borderBottomColor: colors.hairline,
+    borderBottomColor: colors.border,
     borderBottomWidth: 1
   },
   contentRow: {
     alignItems: "center",
-    borderTopColor: colors.hairline,
+    borderTopColor: colors.border,
     borderTopWidth: 1,
     flexDirection: "row",
-    gap: spacing[4],
-    minHeight: 92,
-    paddingHorizontal: spacing[3]
+    gap: spacing[5],
+    minHeight: 104,
+    paddingVertical: spacing[4]
   },
-  // 44px + 120px de colunas fixas somam ~165px antes do gap: em 320-375px de viewport
-  // sobra menos de 30px pro título. Encolhe as colunas fixas pra abrir espaço.
   contentRowMobile: {
-    gap: spacing[3]
+    alignItems: "flex-start",
+    gap: spacing[3],
+    minHeight: 0,
+    paddingVertical: spacing[5]
   },
-  contentNumber: {
-    color: colors.fitblockPurple,
-    fontFamily: fontFamilies.display,
-    fontSize: 24,
-    fontWeight: "400",
-    width: 44
-  },
-  contentNumberMobile: {
-    fontSize: 18,
-    width: 26
-  },
-  contentCategory: {
-    color: colors.textMuted,
-    fontFamily: fontFamilies.interface,
-    fontSize: typeScale.caption,
-    fontWeight: "500",
-    letterSpacing: 1.2,
-    width: 120
-  },
-  contentCategoryMobile: {
-    fontSize: 10,
-    letterSpacing: 0.8,
-    width: 64
+  contentLabel: {
+    minWidth: 118
   },
   contentTitle: {
-    color: colors.ink,
+    color: colors.textPrimary,
     flex: 1,
-    fontFamily: fontFamilies.display,
-    fontSize: 26,
-    fontWeight: "400"
+    fontFamily: fontFamilies.displayBold,
+    fontSize: 30,
+    letterSpacing: -0.3,
+    lineHeight: 30,
+    textTransform: "uppercase"
   },
   contentTitleMobile: {
-    fontSize: 20
+    fontSize: 27,
+    lineHeight: 28
   },
-  // CTA editorial: imagem à direita, degradê protege o bloco de leitura à esquerda.
+
   finalCta: {
-    backgroundColor: "#0E0E0E",
-    minHeight: 523,
+    backgroundColor: colors.bgDeep,
+    minHeight: 560,
     overflow: "hidden",
     position: "relative"
   },
   finalCtaImage: {
-    alignSelf: "center",
     bottom: 0,
     height: "100%",
-    position: "absolute",
-    width: "100%",
-    zIndex: 1
-  },
-  finalCtaOverlay: {
-    backgroundImage: "linear-gradient(90deg, #000000 36.05%, rgba(0, 0, 0, 0) 73.29%)",
-    bottom: 0,
     left: 0,
-    pointerEvents: "none",
     position: "absolute",
     right: 0,
     top: 0,
-    zIndex: 2
-  },
-  finalCtaContent: {
-    alignItems: "flex-start",
-    justifyContent: "center",
-    minHeight: 523,
-    paddingHorizontal: "6%",
-    paddingVertical: spacing[8],
-    width: "58%",
-    zIndex: 3
-  },
-  finalCtaContentMobile: {
-    minHeight: 520,
-    paddingHorizontal: spacing[5],
     width: "100%"
   },
-  finalCtaEyebrow: {
-    color: colors.fitblockPurpleLight,
-    fontFamily: fontFamilies.interface,
-    fontSize: typeScale.caption,
-    fontWeight: "500",
-    letterSpacing: 1.5,
-    textAlign: "left"
+  finalCtaScrim: {
+    backgroundColor: "rgba(5,5,7,0.24)",
+    bottom: 0,
+    left: 0,
+    position: "absolute",
+    right: 0,
+    top: 0
   },
-  finalCtaTitle: {
-    color: colors.canvas,
-    fontFamily: fontFamilies.display,
-    fontSize: typeScale.displayCampaign,
-    fontWeight: "400",
-    lineHeight: typeScale.displayCampaign * 0.9,
-    marginTop: spacing[3],
-    textAlign: "left"
+  finalCtaReadingVeil: {
+    backgroundColor: "rgba(5,5,7,0.88)",
+    bottom: 0,
+    left: 0,
+    position: "absolute",
+    top: 0,
+    width: "56%"
+  },
+  finalCtaReadingVeilMobile: {
+    backgroundColor: "rgba(5,5,7,0.62)",
+    top: "42%",
+    width: "100%"
+  },
+  finalCtaContent: {
+    alignSelf: "center",
+    justifyContent: "center",
+    maxWidth: layout.container,
+    minHeight: 560,
+    paddingHorizontal: layout.gutter.desktop,
+    paddingVertical: spacing[9],
+    width: "100%"
+  },
+  finalCtaContentMobile: {
+    justifyContent: "flex-end",
+    minHeight: 560,
+    paddingHorizontal: layout.gutter.mobile,
+    paddingVertical: spacing[7]
   },
   finalCtaDescription: {
-    color: colors.stone,
+    color: colors.textPrimary,
     fontFamily: fontFamilies.interface,
     fontSize: typeScale.bodyMd,
     lineHeight: 24,
-    marginTop: spacing[4],
-    maxWidth: 450,
-    textAlign: "left"
+    marginTop: spacing[5],
+    maxWidth: 445,
+    ...imageTextShadow
   },
   finalCtaButton: {
-    alignItems: "center",
-    backgroundColor: colors.canvas,
-    borderRadius: radius.pill,
-    flexDirection: "row",
-    gap: spacing[4],
-    justifyContent: "space-between",
-    marginTop: spacing[6],
-    minHeight: 56,
-    paddingLeft: spacing[5],
-    paddingRight: 7,
-    width: 182
+    marginTop: spacing[6]
   },
-  finalCtaButtonText: {
-    color: colors.ink,
-    fontFamily: fontFamilies.interface,
-    fontSize: typeScale.bodySm,
-    fontWeight: "500"
-  },
-  finalCtaButtonIcon: {
-    alignItems: "center",
-    backgroundColor: colors.fitblockPurple,
-    borderRadius: radius.pill,
-    height: 42,
-    justifyContent: "center",
-    width: 42
-  },
+
   footer: {
-    backgroundColor: colors.black,
-    paddingHorizontal: "6%",
+    alignItems: "center",
+    backgroundColor: colors.bgDeep,
+    borderTopColor: colors.border,
+    borderTopWidth: 1,
+    width: "100%"
+  },
+  footerInner: {
+    maxWidth: layout.container,
+    paddingHorizontal: layout.gutter.desktop,
+    paddingVertical: spacing[8],
+    width: "100%"
+  },
+  footerInnerMobile: {
+    paddingHorizontal: layout.gutter.mobile,
     paddingVertical: spacing[7]
   },
   footerTop: {
@@ -1648,69 +1696,66 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between"
   },
-  // Logo (150px fixa) + headline de 31px + link somam bem mais que qualquer viewport de
-  // telefone numa row sem wrap (flexShrink é 0 por padrão no RN, então empilha em vez de tentar caber).
   footerTopMobile: {
-    alignItems: "flex-start",
     flexDirection: "column",
     gap: spacing[5]
+  },
+  footerBrand: {
+    gap: spacing[4],
+    maxWidth: 330
   },
   footerLogo: {
     height: 28,
     width: 150
   },
   footerStatement: {
-    color: colors.canvas,
-    fontFamily: fontFamilies.display,
-    fontSize: 31,
-    fontWeight: "400",
-    lineHeight: 29
-  },
-  footerLink: {
-    alignItems: "center",
-    flexDirection: "row",
-    gap: spacing[2],
-    minHeight: 44
-  },
-  footerLinkText: {
-    color: colors.fitblockPurpleLight,
-    fontFamily: fontFamilies.interface,
-    fontSize: typeScale.bodySm,
-    fontWeight: "500"
+    color: colors.textSecondary,
+    fontFamily: fontFamilies.interfaceSemiBold,
+    fontSize: 12,
+    letterSpacing: 0.55,
+    lineHeight: 18,
+    textTransform: "uppercase"
   },
   footerBottom: {
     alignItems: "center",
-    borderTopColor: colors.graphite,
+    borderTopColor: colors.border,
     borderTopWidth: 1,
     flexDirection: "row",
+    gap: spacing[4],
     justifyContent: "space-between",
     marginTop: spacing[8],
     paddingTop: spacing[4]
   },
-  // Copyright + 4 links de navegação também somam mais que a largura de um telefone em row.
   footerBottomMobile: {
     alignItems: "flex-start",
-    flexDirection: "column",
-    gap: spacing[4]
+    flexDirection: "column"
   },
   footerCopyright: {
-    color: colors.textMuted,
-    fontFamily: fontFamilies.interface,
-    fontSize: typeScale.caption,
-    fontWeight: "500",
-    letterSpacing: 1
+    color: colors.textMutedAccessible,
+    fontFamily: fontFamilies.interfaceMedium,
+    fontSize: 11,
+    letterSpacing: 0.8
   },
   footerLinks: {
     flexDirection: "row",
     flexWrap: "wrap",
     gap: spacing[4]
   },
-  footerNavText: {
-    color: colors.textMuted,
-    fontFamily: fontFamilies.interface,
-    fontSize: typeScale.caption
+  footerLink: {
+    borderBottomColor: "transparent",
+    borderBottomWidth: 2,
+    justifyContent: "center",
+    minHeight: 44
+  },
+  footerLinkFocused: {
+    borderBottomColor: colors.purple400
+  },
+  footerLinkText: {
+    color: colors.textSecondary,
+    fontFamily: fontFamilies.interfaceSemiBold,
+    fontSize: 12
   },
   pressed: {
-    opacity: 0.72
+    opacity: 0.78
   }
 });

@@ -15,6 +15,7 @@ type GroupSelectModalProps = {
 
 export function GroupSelectModal({ teams, isLoading, isSubmitting, onRequestJoin, onDismiss }: GroupSelectModalProps) {
   const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null);
+  const [focusedControl, setFocusedControl] = useState<string | null>(null);
   const canConfirm = selectedTeamId !== null && !isSubmitting;
 
   return (
@@ -30,9 +31,11 @@ export function GroupSelectModal({ teams, isLoading, isSubmitting, onRequestJoin
             accessibilityLabel="Fechar seleção de grupo"
             testID="dismiss-group-select-modal"
             onPress={onDismiss}
-            style={({ pressed }) => [styles.closeButton, pressed && styles.pressed]}
+            onFocus={() => setFocusedControl("dismiss")}
+            onBlur={() => setFocusedControl(null)}
+            style={({ pressed }) => [styles.closeButton, focusedControl === "dismiss" && styles.focusedControl, pressed && styles.pressed]}
           >
-            <Ionicons name="close" size={20} color={colors.ink} />
+            <Ionicons name="close" size={20} color={colors.textPrimary} />
           </Pressable>
         </View>
 
@@ -56,10 +59,13 @@ export function GroupSelectModal({ teams, isLoading, isSubmitting, onRequestJoin
                   disabled={isDisabled}
                   testID={`group-option-${team.id}`}
                   onPress={() => setSelectedTeamId(team.id)}
+                  onFocus={() => setFocusedControl(`team-${team.id}`)}
+                  onBlur={() => setFocusedControl(null)}
                   style={({ pressed }) => [
                     styles.teamOption,
                     isSelected && styles.teamOptionSelected,
                     isDisabled && styles.teamOptionDisabled,
+                    focusedControl === `team-${team.id}` && styles.focusedControl,
                     pressed && !isDisabled && styles.pressed
                   ]}
                 >
@@ -67,13 +73,13 @@ export function GroupSelectModal({ teams, isLoading, isSubmitting, onRequestJoin
                     <Ionicons
                       name={team.membership_status === "member" ? "checkmark-circle" : "time-outline"}
                       size={20}
-                      color={colors.textMuted}
+                      color={colors.textMutedAccessible}
                     />
                   ) : (
                     <Ionicons
                       name={isSelected ? "radio-button-on" : "radio-button-off"}
                       size={20}
-                      color={isSelected ? colors.fitblockPurple : colors.textMuted}
+                      color={isSelected ? colors.purple500 : colors.textMutedAccessible}
                     />
                   )}
                   <View style={styles.teamOptionCopy}>
@@ -95,9 +101,12 @@ export function GroupSelectModal({ teams, isLoading, isSubmitting, onRequestJoin
             disabled={!canConfirm}
             testID="confirm-group-select"
             onPress={() => selectedTeamId && onRequestJoin(selectedTeamId)}
+            onFocus={() => setFocusedControl("confirm")}
+            onBlur={() => setFocusedControl(null)}
             style={({ pressed }) => [
               styles.confirmButton,
               !canConfirm && styles.confirmButtonDisabled,
+              focusedControl === "confirm" && styles.focusedControlOnColor,
               pressed && styles.pressed
             ]}
           >
@@ -108,7 +117,9 @@ export function GroupSelectModal({ teams, isLoading, isSubmitting, onRequestJoin
             accessibilityLabel="Cancelar"
             testID="cancel-group-select"
             onPress={onDismiss}
-            style={({ pressed }) => [styles.cancelButton, pressed && styles.pressed]}
+            onFocus={() => setFocusedControl("cancel")}
+            onBlur={() => setFocusedControl(null)}
+            style={({ pressed }) => [styles.cancelButton, focusedControl === "cancel" && styles.focusedControl, pressed && styles.pressed]}
           >
             <Text style={styles.cancelButtonText}>Cancelar</Text>
           </Pressable>
@@ -121,29 +132,32 @@ export function GroupSelectModal({ teams, isLoading, isSubmitting, onRequestJoin
 const styles = StyleSheet.create({
   backdrop: {
     alignItems: "center",
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    backgroundColor: "rgba(5, 5, 7, 0.82)",
     flex: 1,
     justifyContent: "center",
     padding: spacing[4]
   },
   modal: {
-    backgroundColor: colors.canvas,
-    borderRadius: radius.lg,
+    backgroundColor: colors.surface02,
+    borderColor: colors.border,
+    borderRadius: radius.card,
+    borderWidth: 1,
     maxWidth: 450,
     maxHeight: "80%",
     padding: spacing[5],
     width: "100%"
   },
   header: { alignItems: "flex-start", flexDirection: "row", justifyContent: "space-between", marginBottom: spacing[4] },
-  label: { color: colors.textMuted, fontFamily: fontFamilies.interface, fontSize: 12, fontWeight: "700", letterSpacing: 1 },
-  title: { color: colors.ink, fontFamily: fontFamilies.interface, fontSize: 16, fontWeight: "700", marginTop: spacing[1] },
-  closeButton: { alignItems: "center", height: 40, justifyContent: "center", width: 40 },
+  label: { color: colors.textMutedAccessible, fontFamily: fontFamilies.interfaceBold, fontSize: 11, letterSpacing: 1.1, textTransform: "uppercase" },
+  title: { color: colors.textPrimary, fontFamily: fontFamilies.display, fontSize: 28, lineHeight: 28, marginTop: spacing[1] },
+  closeButton: { alignItems: "center", backgroundColor: colors.surface03, borderRadius: radius.pill, height: 44, justifyContent: "center", width: 44 },
   helperText: { color: colors.textSecondary, fontFamily: fontFamilies.interface, fontSize: 14, marginBottom: spacing[3] },
   teamList: { gap: spacing[2], marginBottom: spacing[3] },
   teamOption: {
     alignItems: "center",
-    borderColor: colors.hairline,
-    borderRadius: radius.sm,
+    backgroundColor: colors.surface01,
+    borderColor: colors.border,
+    borderRadius: radius.md,
     borderWidth: 1,
     flexDirection: "row",
     gap: spacing[3],
@@ -151,27 +165,30 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing[3],
     paddingVertical: spacing[2]
   },
-  teamOptionSelected: { backgroundColor: colors.softCloud, borderColor: colors.fitblockPurple },
+  teamOptionSelected: { backgroundColor: colors.surface03, borderColor: colors.borderPurple },
   teamOptionDisabled: { opacity: 0.6 },
+  focusedControl: { borderColor: colors.purple400, borderWidth: 2 },
+  focusedControlOnColor: { borderColor: colors.white, borderWidth: 2 },
   teamOptionCopy: { flex: 1, minWidth: 0 },
-  teamOptionText: { color: colors.ink, fontFamily: fontFamilies.interface, fontSize: 14, fontWeight: "700" },
-  teamOptionCoach: { color: colors.textMuted, fontFamily: fontFamilies.interface, fontSize: 12, marginTop: 2 },
-  statusBadge: { color: colors.textMuted, fontFamily: fontFamilies.interface, fontSize: 11, fontWeight: "700" },
+  teamOptionText: { color: colors.textPrimary, fontFamily: fontFamilies.interfaceBold, fontSize: 14 },
+  teamOptionCoach: { color: colors.textMutedAccessible, fontFamily: fontFamilies.interface, fontSize: 12, marginTop: 2 },
+  statusBadge: { color: colors.textMutedAccessible, fontFamily: fontFamilies.interfaceBold, fontSize: 11 },
   actions: { flexDirection: "row", gap: spacing[3], marginTop: spacing[2] },
   confirmButton: {
     alignItems: "center",
-    backgroundColor: colors.fitblockPurple,
+    backgroundColor: colors.purple500,
     borderRadius: radius.pill,
     flex: 1,
     justifyContent: "center",
     minHeight: 44,
     paddingVertical: spacing[3]
   },
-  confirmButtonDisabled: { backgroundColor: "#E8E6F0", opacity: 1 },
-  confirmButtonText: { color: colors.canvas, fontFamily: fontFamilies.interface, fontSize: 14, fontWeight: "700" },
+  confirmButtonDisabled: { backgroundColor: colors.surface04, opacity: 1 },
+  confirmButtonText: { color: colors.white, fontFamily: fontFamilies.interfaceBold, fontSize: 14 },
   cancelButton: {
     alignItems: "center",
-    borderColor: colors.hairline,
+    backgroundColor: colors.surface03,
+    borderColor: colors.border,
     borderRadius: radius.pill,
     borderWidth: 1,
     flex: 1,
@@ -179,6 +196,6 @@ const styles = StyleSheet.create({
     minHeight: 44,
     paddingVertical: spacing[3]
   },
-  cancelButtonText: { color: colors.ink, fontFamily: fontFamilies.interface, fontSize: 14, fontWeight: "700" },
+  cancelButtonText: { color: colors.textPrimary, fontFamily: fontFamilies.interfaceBold, fontSize: 14 },
   pressed: { opacity: 0.72 }
 });

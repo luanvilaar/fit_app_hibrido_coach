@@ -15,7 +15,7 @@ import {
   useWindowDimensions
 } from "react-native";
 import type { ViewStyle } from "react-native";
-import { colors, fontFamilies, radius, spacing, typeScale } from "@fitblock/design-tokens";
+import { colors, fontFamilies, radius, shadows, spacing, typeScale } from "@fitblock/design-tokens";
 import { useAuth } from "@/auth/auth-provider";
 import {
   validatePasswordStrength,
@@ -39,7 +39,7 @@ const authLayout = {
 const webPhotoFade = {
   desktop: {
     backgroundColor: "transparent",
-    backgroundImage: "linear-gradient(90deg, rgba(18, 18, 18, 0) 58.6538%, #121212 86.0577%)",
+    backgroundImage: "linear-gradient(90deg, rgba(5, 5, 7, 0) 58.6538%, #050507 86.0577%)",
     bottom: 0,
     left: 0,
     opacity: 1,
@@ -49,7 +49,7 @@ const webPhotoFade = {
   } as unknown as ViewStyle,
   compact: {
     backgroundColor: "transparent",
-    backgroundImage: "linear-gradient(167deg, rgba(18, 18, 18, 0) 58.6538%, #121212 86.0577%)",
+    backgroundImage: "linear-gradient(167deg, rgba(5, 5, 7, 0) 58.6538%, #050507 86.0577%)",
     bottom: 0,
     left: 0,
     opacity: 1,
@@ -294,7 +294,7 @@ export function AuthScreen({ mode }: { mode: AuthScreenMode }) {
             <>
               <FieldLabel label="E-mail" />
               <View style={[styles.inputShell, focusedControl === "email" && styles.inputShellFocused]}>
-                <Ionicons name="mail-outline" size={18} color={colors.authTextMuted} />
+                <Ionicons name="mail-outline" size={18} color={colors.textSecondary} />
                 <TextInput
                   accessibilityLabel="E-mail"
                   autoCapitalize="none"
@@ -304,7 +304,7 @@ export function AuthScreen({ mode }: { mode: AuthScreenMode }) {
                   onBlur={() => setFocusedControl(null)}
                   onFocus={() => setFocusedControl("email")}
                   placeholder="voce@email.com"
-                  placeholderTextColor={colors.authTextMuted}
+                  placeholderTextColor={colors.textMutedAccessible}
                   testID="auth-email"
                   value={email}
                   onChangeText={setEmail}
@@ -346,7 +346,7 @@ export function AuthScreen({ mode }: { mode: AuthScreenMode }) {
                   (focusedControl === "password" || focusedControl === "password-toggle") && styles.inputShellFocused
                 ]}
               >
-                <Ionicons name="lock-closed-outline" size={18} color={colors.authTextMuted} />
+                <Ionicons name="lock-closed-outline" size={18} color={colors.textSecondary} />
                 <TextInput
                   accessibilityLabel="Senha"
                   autoCapitalize="none"
@@ -354,7 +354,7 @@ export function AuthScreen({ mode }: { mode: AuthScreenMode }) {
                   onBlur={() => setFocusedControl(null)}
                   onFocus={() => setFocusedControl("password")}
                   placeholder="••••••••"
-                  placeholderTextColor={colors.authTextMuted}
+                  placeholderTextColor={colors.textMutedAccessible}
                   secureTextEntry={!showPassword}
                   testID="auth-password"
                   value={password}
@@ -381,7 +381,7 @@ export function AuthScreen({ mode }: { mode: AuthScreenMode }) {
                   <Ionicons
                     name={showPassword ? "eye-off-outline" : "eye-outline"}
                     size={18}
-                    color={colors.authTextMuted}
+                    color={colors.textSecondary}
                   />
                 </Pressable>
               </View>
@@ -392,7 +392,7 @@ export function AuthScreen({ mode }: { mode: AuthScreenMode }) {
             <>
               <FieldLabel label="Confirmar senha" />
               <View style={[styles.inputShell, focusedControl === "confirm-password" && styles.inputShellFocused]}>
-                <Ionicons name="shield-checkmark-outline" size={18} color={colors.authTextMuted} />
+                <Ionicons name="shield-checkmark-outline" size={18} color={colors.textSecondary} />
                 <TextInput
                   accessibilityLabel="Confirmar senha"
                   autoCapitalize="none"
@@ -400,7 +400,7 @@ export function AuthScreen({ mode }: { mode: AuthScreenMode }) {
                   onBlur={() => setFocusedControl(null)}
                   onFocus={() => setFocusedControl("confirm-password")}
                   placeholder="••••••••"
-                  placeholderTextColor={colors.authTextMuted}
+                  placeholderTextColor={colors.textMutedAccessible}
                   secureTextEntry={!showPassword}
                   testID="auth-confirm-password"
                   value={confirmPassword}
@@ -442,11 +442,11 @@ export function AuthScreen({ mode }: { mode: AuthScreenMode }) {
             ]}
           >
             {isSubmitting ? (
-              <ActivityIndicator color={colors.canvas} />
+              <ActivityIndicator color={colors.white} />
             ) : (
               <>
                 <Text style={styles.submitText}>{screenCopy.button}</Text>
-                <Ionicons name="arrow-forward" size={17} color={colors.canvas} />
+                <Ionicons name="arrow-forward" size={17} color={colors.white} />
               </>
             )}
           </Pressable>
@@ -520,8 +520,8 @@ export function AuthScreen({ mode }: { mode: AuthScreenMode }) {
 export function AuthLoadingScreen() {
   return (
     <View style={styles.loadingScreen}>
-      <ActivityIndicator color={colors.fitblockPurple} />
-      <Text style={styles.loadingText}>Abrindo seu espaço FitBlock...</Text>
+      <ActivityIndicator color={colors.purple400} />
+      <Text style={styles.loadingText}>Abrindo seu espaço FitBlock…</Text>
     </View>
   );
 }
@@ -589,9 +589,9 @@ function AuthVisual({ isCompact, compactHeroHeight }: { isCompact: boolean; comp
 }
 
 const styles = StyleSheet.create({
-  screen: { backgroundColor: colors.authBackdrop, flex: 1, minHeight: "100%" },
+  screen: { backgroundColor: colors.bgDeep, flex: 1, minHeight: "100%" },
   authVisual: {
-    backgroundColor: colors.authBackdrop,
+    backgroundColor: colors.bgDeep,
     bottom: 0,
     left: 0,
     overflow: "hidden",
@@ -618,7 +618,7 @@ const styles = StyleSheet.create({
   },
   visualPhotoCompact: { height: "101.7%", left: "-7.63%", top: 0, width: "115.27%" },
   visualPhotoFade: {
-    backgroundColor: colors.authPhotoOverlay,
+    backgroundColor: colors.bgDeep,
     bottom: 0,
     opacity: 0.82,
     position: "absolute",
@@ -637,35 +637,36 @@ const styles = StyleSheet.create({
   },
   formScrollCompact: { alignItems: "center", justifyContent: "flex-start", paddingBottom: spacing[7], paddingHorizontal: 0 },
   formCard: {
-    backgroundColor: colors.authSurface,
+    backgroundColor: colors.surface02,
+    borderColor: colors.border,
     borderRadius: radius.authPanelDesktop,
+    borderWidth: 1,
     maxWidth: authLayout.desktopCardMaxWidth,
     minHeight: authLayout.desktopCardMinHeight,
     minWidth: 0,
     overflow: "hidden",
-    width: authLayout.desktopCardWidth
+    width: authLayout.desktopCardWidth,
+    ...shadows.card
   },
   formCardCompact: { borderRadius: radius.authPanelMobile, maxWidth: authLayout.compactCardWidth, minHeight: 412, minWidth: 0, width: "74%" },
   formBody: { minHeight: authLayout.desktopCardMinHeight, padding: spacing[7] },
   formBodyCompact: { minHeight: 0, padding: spacing[5] },
   eyebrow: {
-    color: colors.fitblockPurpleDark,
-    fontFamily: fontFamilies.interface,
+    color: colors.purple400,
+    fontFamily: fontFamilies.interfaceBold,
     fontSize: typeScale.caption,
-    fontWeight: "800",
     letterSpacing: 1.4,
     marginBottom: spacing[3]
   },
   title: {
-    color: colors.ink,
-    fontFamily: fontFamilies.interface,
-    fontSize: typeScale.headingLg,
-    fontWeight: "900",
+    color: colors.textPrimary,
+    fontFamily: fontFamilies.displayBold,
+    fontSize: 40,
     letterSpacing: -0.4,
-    lineHeight: 32
+    lineHeight: 34
   },
   description: {
-    color: colors.authTextSecondary,
+    color: colors.textSecondary,
     fontFamily: fontFamilies.interface,
     fontSize: typeScale.bodyMd,
     lineHeight: 22,
@@ -673,27 +674,26 @@ const styles = StyleSheet.create({
     marginTop: spacing[3]
   },
   fieldLabel: {
-    color: colors.ink,
-    fontFamily: fontFamilies.interface,
+    color: colors.textPrimary,
+    fontFamily: fontFamilies.interfaceBold,
     fontSize: typeScale.bodySm,
-    fontWeight: "700",
     marginBottom: spacing[2]
   },
   passwordLabelRow: { alignItems: "center", flexDirection: "row", justifyContent: "space-between" },
   inputShell: {
     alignItems: "center",
-    backgroundColor: colors.authInput,
-    borderColor: colors.authInputBorder,
-    borderRadius: radius.xs,
+    backgroundColor: colors.surface04,
+    borderColor: colors.border,
+    borderRadius: radius.md,
     borderWidth: 1,
     flexDirection: "row",
     height: 48,
     marginBottom: spacing[4],
     paddingHorizontal: spacing[4]
   },
-  inputShellFocused: { borderColor: colors.fitblockPurpleDark, borderWidth: 2 },
+  inputShellFocused: { borderColor: colors.purple400, borderWidth: 2 },
   input: {
-    color: colors.ink,
+    color: colors.textPrimary,
     flex: 1,
     fontFamily: fontFamilies.interface,
     fontSize: typeScale.bodyMd,
@@ -701,12 +701,12 @@ const styles = StyleSheet.create({
     minWidth: 0,
     paddingHorizontal: spacing[3]
   },
-  passwordToggle: { alignItems: "center", borderRadius: radius.xs, height: 44, justifyContent: "center", marginRight: -spacing[3], width: 44 },
-  passwordToggleHovered: { backgroundColor: colors.authControlHighlight },
-  passwordToggleFocused: { backgroundColor: colors.authControlHighlight, borderColor: colors.fitblockPurpleDark, borderWidth: 1 },
+  passwordToggle: { alignItems: "center", borderRadius: radius.md, height: 44, justifyContent: "center", marginRight: -spacing[3], width: 44 },
+  passwordToggleHovered: { backgroundColor: colors.surface03 },
+  passwordToggleFocused: { backgroundColor: colors.surface03, borderColor: colors.purple400, borderWidth: 1 },
   passwordStrengthContainer: { marginBottom: spacing[4] },
   passwordStrengthBar: {
-    backgroundColor: colors.authInputBorder,
+    backgroundColor: colors.surface03,
     borderRadius: radius.xs,
     height: 4,
     marginBottom: spacing[2],
@@ -719,64 +719,63 @@ const styles = StyleSheet.create({
     alignItems: "center"
   },
   passwordStrengthLabel: {
-    color: colors.ink,
-    fontFamily: fontFamilies.interface,
-    fontSize: typeScale.bodySm,
-    fontWeight: "600"
+    color: colors.textPrimary,
+    fontFamily: fontFamilies.interfaceSemiBold,
+    fontSize: typeScale.bodySm
   },
   passwordStrengthError: {
-    color: colors.authDanger,
+    color: colors.danger,
     fontFamily: fontFamilies.interface,
-    fontSize: typeScale.bodySm,
-    fontWeight: "500"
+    fontSize: typeScale.bodySm
   },
-  inlineLinkButton: { alignItems: "center", borderRadius: radius.xs, justifyContent: "center", minHeight: 44, paddingHorizontal: spacing[1] },
-  inlineLink: { color: colors.fitblockPurpleDark, fontFamily: fontFamilies.interface, fontSize: typeScale.bodySm, fontWeight: "700" },
-  linkHovered: { backgroundColor: colors.authControlHighlight },
-  linkFocused: { backgroundColor: colors.authControlHighlight, borderColor: colors.fitblockPurpleDark, borderWidth: 1 },
+  inlineLinkButton: { alignItems: "center", borderRadius: radius.md, justifyContent: "center", minHeight: 44, paddingHorizontal: spacing[1] },
+  inlineLink: { color: colors.purple400, fontFamily: fontFamilies.interfaceBold, fontSize: typeScale.bodySm },
+  linkHovered: { backgroundColor: colors.surface03 },
+  linkFocused: { backgroundColor: colors.surface03, borderColor: colors.purple400, borderWidth: 1 },
   submitButton: {
     alignItems: "center",
-    backgroundColor: colors.fitblockPurple,
-    borderRadius: radius.xs,
+    backgroundColor: colors.purple500,
+    borderRadius: radius.pill,
     flexDirection: "row",
     height: 48,
     justifyContent: "space-between",
     marginTop: spacing[2],
-    paddingHorizontal: spacing[5]
+    paddingHorizontal: spacing[5],
+    ...shadows.ctaGlow
   },
-  submitButtonHovered: { backgroundColor: colors.fitblockPurpleDark },
-  submitButtonFocused: { borderColor: colors.ink, borderWidth: 2 },
-  submitText: { color: colors.canvas, fontFamily: fontFamilies.interface, fontSize: typeScale.bodyMd, fontWeight: "800" },
+  submitButtonHovered: { backgroundColor: colors.purple400 },
+  submitButtonFocused: { borderColor: colors.white, borderWidth: 2 },
+  submitText: { color: colors.white, fontFamily: fontFamilies.interfaceBold, fontSize: typeScale.bodyMd },
   pressed: { opacity: 0.8 },
   disabled: { opacity: 0.55 },
   errorMessage: {
-    color: colors.authDanger,
+    color: colors.danger,
     fontFamily: fontFamilies.interface,
     fontSize: typeScale.bodySm,
     lineHeight: 20,
     marginBottom: spacing[3]
   },
   successMessage: {
-    color: colors.authSuccess,
+    color: colors.success,
     fontFamily: fontFamilies.interface,
     fontSize: typeScale.bodySm,
     lineHeight: 20,
     marginBottom: spacing[3]
   },
   configurationNotice: {
-    backgroundColor: colors.softCloud,
+    backgroundColor: colors.surface04,
     borderColor: colors.warning,
     borderRadius: radius.md,
     borderWidth: 1,
     marginBottom: spacing[5],
     padding: spacing[4]
   },
-  configurationTitle: { color: colors.ink, fontFamily: fontFamilies.interface, fontSize: typeScale.bodySm, fontWeight: "800" },
-  configurationText: { color: colors.authTextSecondary, fontFamily: fontFamilies.interface, fontSize: typeScale.bodySm, lineHeight: 20, marginTop: spacing[2] },
+  configurationTitle: { color: colors.textPrimary, fontFamily: fontFamilies.interfaceBold, fontSize: typeScale.bodySm },
+  configurationText: { color: colors.textSecondary, fontFamily: fontFamilies.interface, fontSize: typeScale.bodySm, lineHeight: 20, marginTop: spacing[2] },
   alternateRow: { alignItems: "center", flexDirection: "row", flexWrap: "wrap", gap: spacing[2], justifyContent: "center", marginTop: spacing[6] },
-  alternateText: { color: colors.authTextSecondary, fontFamily: fontFamilies.interface, fontSize: typeScale.bodySm },
-  homeLink: { alignItems: "center", alignSelf: "center", borderRadius: radius.xs, justifyContent: "center", marginTop: spacing[5], minHeight: 44, paddingHorizontal: spacing[2] },
-  homeLinkText: { color: colors.authTextSecondary, fontFamily: fontFamilies.interface, fontSize: typeScale.bodySm },
-  loadingScreen: { alignItems: "center", backgroundColor: colors.authBackdrop, flex: 1, justifyContent: "center", minHeight: "100%" },
+  alternateText: { color: colors.textSecondary, fontFamily: fontFamilies.interface, fontSize: typeScale.bodySm },
+  homeLink: { alignItems: "center", alignSelf: "center", borderRadius: radius.md, justifyContent: "center", marginTop: spacing[5], minHeight: 44, paddingHorizontal: spacing[2] },
+  homeLinkText: { color: colors.textSecondary, fontFamily: fontFamilies.interface, fontSize: typeScale.bodySm },
+  loadingScreen: { alignItems: "center", backgroundColor: colors.bgDeep, flex: 1, justifyContent: "center", minHeight: "100%" },
   loadingText: { color: colors.textSecondary, fontFamily: fontFamilies.interface, fontSize: typeScale.bodySm, marginTop: spacing[3] }
 });

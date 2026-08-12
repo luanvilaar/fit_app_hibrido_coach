@@ -3,7 +3,7 @@ import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import type { ComponentProps } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import { colors, fontFamilies, radius, spacing, typeScale } from "@fitblock/design-tokens";
+import { colors, fontFamilies, radius, spacing } from "@fitblock/design-tokens";
 import { createCoachFlowRepository, type TrainingGroupSummary } from "@fitblock/backend";
 import {
   buildCreateTeamPayload,
@@ -29,6 +29,7 @@ export function CoachTeamsScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [focusedTeamId, setFocusedTeamId] = useState<string | null>(null);
 
   async function refresh() {
     if (!supabase) {
@@ -83,7 +84,9 @@ export function CoachTeamsScreen() {
     <View style={styles.page} testID="coach-teams-screen">
       <View style={styles.pageIntro}>
         <Text style={styles.eyebrow}>ÁREA DO COACH</Text>
-        <Text style={styles.pageTitle}>Suas equipes.</Text>
+        <Text style={styles.pageTitle}>
+          Suas <Text style={styles.pageTitleChip}>equipes</Text>.
+        </Text>
         <Text style={styles.pageDescription}>
           Crie grupos, defina nível e objetivo, e gerencie quem faz parte de cada equipe.
         </Text>
@@ -97,8 +100,15 @@ export function CoachTeamsScreen() {
         <View style={styles.listCard} testID="coach-teams-list">
           <Text style={styles.eyebrowMuted}>SUAS EQUIPES</Text>
           {isLoading && <Text style={styles.helperText}>Carregando equipes...</Text>}
+
           {!isLoading && teams.length === 0 && (
-            <Text style={styles.helperText}>Você ainda não criou nenhuma equipe.</Text>
+            <View style={styles.emptyState} testID="coach-teams-empty">
+              <View style={styles.emptyStateCopy}>
+                <Text style={styles.helperText}>Você ainda não criou nenhuma equipe.</Text>
+                <Text style={styles.emptyStateHint}>Preencha o formulário ao lado para montar a primeira.</Text>
+              </View>
+              <Ionicons color={colors.purple400} name="people-outline" size={40} style={styles.emptyIcon} />
+            </View>
           )}
 
           {teams.map((team) => (
@@ -108,7 +118,13 @@ export function CoachTeamsScreen() {
               accessibilityLabel={`Abrir equipe ${team.name}`}
               testID={`team-card-${team.id}`}
               onPress={() => router.push(`/app/coach/equipes/${team.id}`)}
-              style={({ pressed }) => [styles.teamCard, pressed && styles.pressed]}
+              onFocus={() => setFocusedTeamId(team.id)}
+              onBlur={() => setFocusedTeamId(null)}
+              style={({ pressed }) => [
+                styles.teamCard,
+                focusedTeamId === team.id && styles.focusedControl,
+                pressed && styles.pressed
+              ]}
             >
               <View style={styles.teamCardCopy}>
                 <Text style={styles.teamCardName}>{team.name}</Text>
@@ -120,7 +136,7 @@ export function CoachTeamsScreen() {
                   {team.athlete_count === 1 ? "atleta" : "atletas"}
                 </Text>
               </View>
-              <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+              <Ionicons name="chevron-forward" size={18} color={colors.textSecondary} />
             </Pressable>
           ))}
         </View>
@@ -142,26 +158,40 @@ const styles = StyleSheet.create({
   page: { gap: spacing[5] },
   pageIntro: { maxWidth: 620 },
   eyebrow: {
-    color: colors.fitblockPurple,
-    fontFamily: fontFamilies.interface,
+    color: colors.textSecondary,
+    fontFamily: fontFamilies.interfaceBold,
     fontSize: 11,
-    fontWeight: "800",
     letterSpacing: 1.6,
     marginBottom: spacing[2]
   },
-  pageTitle: { color: colors.ink, fontFamily: fontFamilies.interface, fontSize: typeScale.headingXl, fontWeight: "700" },
+  pageTitle: {
+    color: colors.textPrimary,
+    fontFamily: fontFamilies.display,
+    fontSize: 40,
+    letterSpacing: -0.4,
+    lineHeight: 42
+  },
+  pageTitleChip: {
+    backgroundColor: colors.purple500,
+    color: colors.white,
+    fontFamily: fontFamilies.display,
+    fontSize: 40,
+    letterSpacing: -0.4,
+    overflow: "hidden",
+    paddingHorizontal: spacing[2]
+  },
   pageDescription: {
     color: colors.textSecondary,
     fontFamily: fontFamilies.interface,
     fontSize: 15,
     lineHeight: 22,
-    marginTop: spacing[2]
+    marginTop: spacing[3]
   },
   messageCard: {
     alignItems: "center",
-    backgroundColor: colors.canvas,
-    borderColor: "#F3C3C8",
-    borderRadius: radius.md,
+    backgroundColor: colors.surface01,
+    borderColor: colors.danger,
+    borderRadius: radius.lg,
     borderWidth: 1,
     flexDirection: "row",
     gap: spacing[3],
@@ -170,35 +200,52 @@ const styles = StyleSheet.create({
   messageText: { color: colors.textSecondary, flex: 1, fontFamily: fontFamilies.interface, fontSize: 14 },
   contentGrid: { flexDirection: "row", flexWrap: "wrap", gap: spacing[5] },
   listCard: {
-    backgroundColor: colors.canvas,
-    borderColor: colors.hairline,
-    borderRadius: radius.lg,
+    backgroundColor: colors.surface02,
+    borderColor: colors.border,
+    borderRadius: radius.xl,
     borderWidth: 1,
     flex: 1,
-    minWidth: 320,
+    minWidth: 0,
     padding: spacing[5]
   },
   eyebrowMuted: {
-    color: colors.textMuted,
-    fontFamily: fontFamilies.interface,
+    color: colors.textSecondary,
+    fontFamily: fontFamilies.interfaceBold,
     fontSize: 10,
-    fontWeight: "800",
     letterSpacing: 1.3,
     marginBottom: spacing[3]
   },
   helperText: { color: colors.textSecondary, fontFamily: fontFamilies.interface, fontSize: 13 },
+  emptyState: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: spacing[3],
+    justifyContent: "space-between",
+    paddingVertical: spacing[2]
+  },
+  emptyStateCopy: { flex: 1, minWidth: 0 },
+  emptyStateHint: {
+    color: colors.textSecondary,
+    fontFamily: fontFamilies.interface,
+    fontSize: 12,
+    marginTop: spacing[1]
+  },
+  emptyIcon: { flexShrink: 0 },
   teamCard: {
     alignItems: "center",
-    borderTopColor: colors.hairline,
+    borderRadius: radius.md,
+    borderTopColor: colors.border,
     borderTopWidth: StyleSheet.hairlineWidth,
     flexDirection: "row",
     justifyContent: "space-between",
     minHeight: 72,
+    paddingHorizontal: spacing[2],
     paddingVertical: spacing[3]
   },
   teamCardCopy: { flex: 1, minWidth: 0 },
-  teamCardName: { color: colors.ink, fontFamily: fontFamilies.interface, fontSize: 14, fontWeight: "800" },
+  teamCardName: { color: colors.textPrimary, fontFamily: fontFamilies.interfaceBold, fontSize: 14 },
   teamCardMeta: { color: colors.textSecondary, fontFamily: fontFamilies.interface, fontSize: 12, marginTop: 3 },
-  teamCardCounts: { color: colors.textMuted, fontFamily: fontFamilies.interface, fontSize: 11, marginTop: 3 },
-  pressed: { opacity: 0.72 }
+  teamCardCounts: { color: colors.textSecondary, fontFamily: fontFamilies.interface, fontSize: 11, marginTop: 3 },
+  focusedControl: { backgroundColor: colors.surface03, borderColor: colors.purple400, borderWidth: 1 },
+  pressed: { backgroundColor: colors.surface03, opacity: 0.85 }
 });

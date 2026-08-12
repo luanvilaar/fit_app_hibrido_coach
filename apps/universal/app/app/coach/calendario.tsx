@@ -1,11 +1,10 @@
 import { AthleteShell } from "@/components/athlete-shell";
-import { CoachCalendarScreen } from "@/components/coach-calendar-screen";
+import { PrescriptionScreen } from "@/components/coach-hibrido/prescription-screen";
 
 export default function CoachCalendarRoute() {
   return (
     <AthleteShell active="coach">
-      <CoachCalendarScreen />
+      <PrescriptionScreen />
     </AthleteShell>
   );
 }
-

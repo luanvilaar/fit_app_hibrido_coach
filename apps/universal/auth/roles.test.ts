@@ -78,6 +78,9 @@ describe("modelo de papéis", () => {
 
     expect(userRoles.roles).toEqual(["owner"]);
     expect(hasRole(userRoles, "owner")).toBe(true);
+    expect(hasRole(userRoles, "coach")).toBe(true);
+    expect(hasRole(userRoles, "athlete")).toBe(true);
+    expect(canAccessCoachArea(userRoles)).toBe(true);
     expect(canAccessOwnerArea(userRoles)).toBe(true);
   });
 

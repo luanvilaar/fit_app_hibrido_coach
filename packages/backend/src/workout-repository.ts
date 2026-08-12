@@ -1,6 +1,7 @@
 import type { FitBlockSupabaseClient } from "./supabase";
 import type { CalendarSessionRecord } from "./calendar-repository";
 import type { AthleteSessionProgressRecord } from "./today-repository";
+import type { BlockScoreRecord, LeaderboardEntry, SubmitBlockScoreRequest } from "./coach-flow-repository";
 
 export type AthleteSetResultRecord = {
   id: string;
@@ -68,6 +69,39 @@ export function createWorkoutRepository(client: FitBlockSupabaseClient) {
       }
 
       return data as AthleteSetResultRecord;
+    },
+
+    async submitBlockScore(input: SubmitBlockScoreRequest): Promise<BlockScoreRecord> {
+      const { data, error } = await client
+        .rpc("submit_block_score", {
+          p_session_id: input.sessionId,
+          p_block_id: input.blockId,
+          p_score_type: input.scoreType,
+          p_time_seconds: input.timeSeconds ?? null,
+          p_rounds: input.rounds ?? null,
+          p_reps: input.reps ?? null,
+          p_load_kg: input.loadKg ?? null
+        })
+        .single();
+
+      if (error) {
+        throw new WorkoutBackendError(error.message, "submitBlockScore");
+      }
+
+      return data as BlockScoreRecord;
+    },
+
+    async listBlockLeaderboard(sessionId: string, blockId: string): Promise<LeaderboardEntry[]> {
+      const { data, error } = await client.rpc("list_block_leaderboard", {
+        p_session_id: sessionId,
+        p_block_id: blockId
+      });
+
+      if (error) {
+        throw new WorkoutBackendError(error.message, "listBlockLeaderboard");
+      }
+
+      return (data ?? []) as LeaderboardEntry[];
     }
   };
 }

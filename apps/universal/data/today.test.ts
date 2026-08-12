@@ -3,7 +3,7 @@ import type {
   AthleteSessionProgressRecord,
   CalendarSessionRecord
 } from "@fitblock/backend";
-import type { SnapshotBlock } from "@/data/calendar";
+import type { HybridBlock } from "@/data/coach-hibrido/session-snapshot";
 import {
   averageCheckinScore,
   buildTodayBlocks,
@@ -19,17 +19,18 @@ import {
   formatWeekEyebrow,
   getWeeklyProgress
 } from "@/data/today";
-import { readSessionBlocks } from "@/data/calendar";
+import { readSessionBlocks } from "@/data/coach-hibrido/session-snapshot";
 
-function buildSnapshotBlock(overrides: Partial<SnapshotBlock> & { id: string }): SnapshotBlock {
+function buildBlock(overrides: Partial<HybridBlock> & { id: string }): HybridBlock {
   return {
     name: "Bloco",
     kind: "strength",
-    description: "",
+    body: "",
+    movements: [],
+    protocol: null,
     ranking: null,
-    sets: [],
-    volumes: [],
-    items: [],
+    volume: null,
+    enduranceVolumes: [],
     ...overrides
   };
 }
@@ -49,37 +50,31 @@ const session: CalendarSessionRecord = {
         id: "11111111-1111-1111-1111-111111111111",
         name: "Aquecimento",
         kind: "warm-up",
-        items: [
-          {
-            id: "aaaaaaa1-1111-1111-1111-111111111111",
-            exercise_name: "Mobilidade de quadril",
-            prescription: { kind: "timed", duration_seconds: 480, sets: [] }
-          }
-        ]
+        details: { schema_version: 3, body: "8 min de mobilidade de quadril" },
+        items: []
       },
       {
         id: "22222222-2222-2222-2222-222222222222",
         name: "Força principal",
         kind: "strength",
+        details: {
+          schema_version: 3,
+          body: "@Back Squat\n3 x 5 @ 75%\n\n@Remada Curvada\n1 x 10",
+          volume: { sets: 4, reps: 25, source: "auto" }
+        },
         items: [
           {
             id: "aaaaaaa2-2222-2222-2222-222222222222",
+            exercise_slug: "back-squat",
             exercise_name: "Back Squat",
             exercise_video_url: "https://youtu.be/exemplo",
-            prescription: {
-              kind: "sets-reps",
-              rest_seconds: 120,
-              sets: [
-                { set_number: 1, reps: 5, load_type: "percentage-1rm", load_value: 75 },
-                { set_number: 2, reps: 5, load_type: "percentage-1rm", load_value: 75 },
-                { set_number: 3, reps: 5, load_type: "percentage-1rm", load_value: 75 }
-              ]
-            }
+            prescription: { kind: "reference" }
           },
           {
             id: "aaaaaaa3-3333-3333-3333-333333333333",
-            exercise_name: "Remada curvada",
-            prescription: { kind: "sets-reps", sets: [{ set_number: 1, reps: 10 }] }
+            exercise_slug: "remada-curvada",
+            exercise_name: "Remada Curvada",
+            prescription: { kind: "reference" }
           }
         ]
       }
@@ -132,33 +127,56 @@ describe("derivações da aba Hoje", () => {
     const blocks = readSessionBlocks(session);
 
     expect(deriveSessionFocus(blocks)).toBe("Força");
-    expect(deriveSessionFocus([buildSnapshotBlock({ id: "b", name: "Metcon", kind: "conditioning" })])).toBe(
+    expect(deriveSessionFocus([buildBlock({ id: "b", name: "Metcon", kind: "conditioning" })])).toBe(
       "Endurance"
     );
     expect(
       deriveSessionFocus([
-        buildSnapshotBlock({ id: "b1", name: "Força", kind: "strength" }),
-        buildSnapshotBlock({ id: "b2", name: "Metcon", kind: "conditioning" })
+        buildBlock({ id: "b1", name: "Força", kind: "strength" }),
+        buildBlock({ id: "b2", name: "Metcon", kind: "conditioning" })
       ])
     ).toBe("Mixed");
   });
 
-  it("estima a duração somando prescrição cronometrada, séries e descanso", () => {
-    // 480s de mobilidade + (3 × 45s + 2 × 120s de descanso) + 45s = 900s = 15 min
-    expect(estimateSessionMinutes(readSessionBlocks(session))).toBe(15);
-    expect(formatSessionDuration(15)).toBe("≈ 15 min");
+  it("estima a duração pelo volume de séries do bloco de força", () => {
+    // Aquecimento sem tempo declarado + 4 séries × 75s = 300s = 5 min
+    expect(estimateSessionMinutes(readSessionBlocks(session))).toBe(5);
+    expect(formatSessionDuration(5)).toBe("≈ 5 min");
     expect(formatSessionDuration(0)).toBe("Duração livre");
+  });
+
+  it("soma a duração declarada no protocolo e no volume de endurance", () => {
+    const amrap = buildBlock({
+      id: "b1",
+      kind: "metcon",
+      protocol: { type: "amrap", durationMinutes: 12, timeCapMinutes: null, rounds: null, workSeconds: null, restSeconds: null }
+    });
+    const bike = buildBlock({
+      id: "b2",
+      kind: "endurance",
+      enduranceVolumes: [{ modality: "bike", value: 30, unit: "min" }]
+    });
+
+    expect(estimateSessionMinutes([amrap, bike])).toBe(42);
+  });
+
+  it("não inventa duração para um bloco sem tempo nem volume", () => {
+    expect(estimateSessionMinutes([buildBlock({ id: "b", kind: "warm-up", body: "2 rounds leves" })])).toBe(0);
   });
 
   it("marca como concluídos apenas os blocos registrados no progresso do atleta", () => {
     const blocks = buildTodayBlocks(session, progress);
 
     expect(blocks).toHaveLength(2);
-    expect(blocks[0]).toMatchObject({ name: "Aquecimento", status: "done" });
+    expect(blocks[0]).toMatchObject({
+      name: "Aquecimento",
+      status: "done",
+      detail: "8 min de mobilidade de quadril"
+    });
     expect(blocks[1]).toMatchObject({
       name: "Força principal",
       status: "pending",
-      detail: "Back Squat · 3 × 5 · +1 exercício"
+      detail: "Back Squat · 3 x 5 @ 75% — 4 séries · 25 reps"
     });
   });
 
@@ -269,7 +287,7 @@ describe("derivações da aba Hoje", () => {
 
   it("descreve a próxima sessão com dia, duração estimada e foco", () => {
     expect(describeNextSession({ ...session, scheduled_date: "2026-08-07" })).toBe(
-      "Sexta-feira · ≈ 15 min · Força"
+      "Sexta-feira · ≈ 5 min · Força"
     );
   });
 });
