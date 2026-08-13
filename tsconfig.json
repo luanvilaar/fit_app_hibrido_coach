@@ -28,6 +28,7 @@
     "apps/universal/**/*.ts",
     "apps/universal/**/*.tsx",
     "packages/**/*.ts",
+    "api/**/*.ts",
     "tests/**/*.ts",
     "tests/**/*.tsx"
   ],

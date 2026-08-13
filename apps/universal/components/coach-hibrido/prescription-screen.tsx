@@ -4,6 +4,7 @@ import { Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-na
 import {
   createCoachFlowRepository,
   type CalendarSessionRecord,
+  type CreateExerciseRequest,
   type ExerciseRecord,
   type TrainingGroupRecord
 } from "@fitblock/backend";
@@ -14,6 +15,7 @@ import {
   buildUpdateSessionPayload,
   describePrescriptionError
 } from "@/data/coach-hibrido/payload";
+import { withMovement } from "@/data/coach-hibrido/movement-bank";
 import { toSessionForm } from "@/data/coach-hibrido/session-edit";
 import {
   cloneSessionForm,
@@ -131,6 +133,21 @@ export function PrescriptionScreen() {
     );
     setCopiedSessionId(null);
     setSuccessMessage("Cópia pronta como rascunho. Revise e salve.");
+  }
+
+  /**
+   * Cadastro de movimento feito de dentro do editor: o catálogo em memória recebe o que voltou
+   * do banco, então a menção já acende sem esperar um novo carregamento da tela.
+   */
+  async function handleCreateMovement(input: CreateExerciseRequest): Promise<ExerciseRecord> {
+    if (!supabase) {
+      throw new Error(getSupabaseConfigurationError() ?? "Cadastro de movimento indisponível.");
+    }
+
+    const created = await createCoachFlowRepository(supabase).createExercise(input);
+    setCatalog((current) => withMovement(current, created));
+
+    return created;
   }
 
   async function handleSubmit() {
@@ -267,6 +284,7 @@ export function PrescriptionScreen() {
             isSaving={isSaving}
             mode={editingSessionId ? "edit" : "create"}
             onCancel={() => resetToCreate(form.teamId)}
+            onCreateMovement={supabase ? handleCreateMovement : undefined}
             onChange={handleChange}
             onDelete={() => setIsConfirmingDelete(true)}
             onSubmit={() => void handleSubmit()}

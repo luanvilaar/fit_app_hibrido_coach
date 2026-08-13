@@ -10,7 +10,7 @@
     "start": "node scripts/with-root-env.cjs start",
     "dev": "node scripts/with-root-env.cjs start --web",
     "web": "node scripts/with-root-env.cjs start --web",
-    "lint": "npm --workspace @fitblock/universal run lint",
+    "lint": "eslint api packages && npm --workspace @fitblock/universal run lint",
     "typecheck": "tsc --noEmit",
     "test": "npm --workspace @fitblock/universal run test",
     "verify:schema": "node scripts/verify-schema.mjs",

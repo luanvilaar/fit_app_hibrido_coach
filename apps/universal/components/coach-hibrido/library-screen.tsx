@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { Pressable, StyleSheet, Text, TextInput, View, useWindowDimensions } from "react-native";
 import {
   createCoachFlowRepository,
+  type CreateExerciseRequest,
   type ExerciseRecord,
   type SessionTemplateSummary,
   type TrainingGroupRecord
@@ -14,6 +15,7 @@ import {
   buildUpdateTemplatePayload,
   describePrescriptionError
 } from "@/data/coach-hibrido/payload";
+import { withMovement } from "@/data/coach-hibrido/movement-bank";
 import { toTemplateForm } from "@/data/coach-hibrido/session-edit";
 import { createInitialSessionForm, type SessionForm } from "@/data/coach-hibrido/session-form";
 import { SessionComposer } from "@/components/coach-hibrido/session-composer";
@@ -106,6 +108,21 @@ export function LibraryScreen() {
     } catch (error: unknown) {
       setErrorMessage(describePrescriptionError(error));
     }
+  }
+
+  /**
+   * Cadastro de movimento feito de dentro do editor: o catálogo em memória recebe o que voltou
+   * do banco, então a menção já acende sem esperar um novo carregamento da tela.
+   */
+  async function handleCreateMovement(input: CreateExerciseRequest): Promise<ExerciseRecord> {
+    if (!supabase) {
+      throw new Error(getSupabaseConfigurationError() ?? "Cadastro de movimento indisponível.");
+    }
+
+    const created = await createCoachFlowRepository(supabase).createExercise(input);
+    setCatalog((current) => withMovement(current, created));
+
+    return created;
   }
 
   async function handleSubmit() {
@@ -310,6 +327,7 @@ export function LibraryScreen() {
             isSaving={isSaving}
             mode={editingTemplateId ? "edit" : "create"}
             onCancel={resetToCreate}
+            onCreateMovement={supabase ? handleCreateMovement : undefined}
             onChange={(next) => {
               setForm(next);
               setErrorMessage(null);

@@ -97,6 +97,12 @@ export const colors = {
   inkOnLightPress: fb.white,
   focusRing: "rgba(162,124,255,0.82)",
 
+  // Menção de movimento (@Front Squat) no texto do treino. O roxo de ação (#7132F5)
+  // rende só 3.0:1 sobre surface02 — abaixo de AA para os 14px do corpo do bloco —
+  // então o link usa o roxo claro, a 5.9:1, e a menção sem vídeo usa o cinza acessível.
+  mentionLink: "#A27CFF",
+  mentionDraft: "#8E8E9D",
+
   // Compatibility aliases. They preserve functional code while its composition
   // migrates away from the previous Sentry vocabulary; all resolve only to the
   // official Dark Performance palette.

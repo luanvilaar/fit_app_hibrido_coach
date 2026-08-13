@@ -21,10 +21,13 @@ export type NavigationId =
   | "calendario"
   | "progresso"
   | "loja"
+  | "meus-treinos"
   | "perfil"
   | "coach"
   | "coach-equipes"
-  | "coach-treinos";
+  | "coach-treinos"
+  | "coach-financeiro"
+  | "coach-produtos";
 
 type NavigationItem = {
   id: NavigationId;
@@ -39,6 +42,7 @@ const navigationItems: NavigationItem[] = [
   { id: "calendario", label: "Calendário", href: "/app/calendario", icon: "calendar-outline" },
   { id: "progresso", label: "Progresso", href: "/app/progresso", icon: "stats-chart-outline" },
   { id: "loja", label: "Loja", href: "/app/loja", icon: "bag-handle-outline" },
+  { id: "meus-treinos", label: "Meus Treinos", href: "/app/meus-treinos", icon: "barbell-outline" },
   { id: "perfil", label: "Perfil", href: "/app/perfil", icon: "person-outline" },
   {
     id: "coach",
@@ -59,6 +63,20 @@ const navigationItems: NavigationItem[] = [
     label: "Treinos",
     href: "/app/coach/treinos",
     icon: "library-outline",
+    requiredRole: "coach"
+  },
+  {
+    id: "coach-financeiro",
+    label: "Financeiro",
+    href: "/app/coach/financeiro",
+    icon: "wallet-outline",
+    requiredRole: "coach"
+  },
+  {
+    id: "coach-produtos",
+    label: "Meus Produtos",
+    href: "/app/coach/produtos",
+    icon: "pricetags-outline",
     requiredRole: "coach"
   }
 ];
@@ -82,7 +100,14 @@ export function AthleteShell({ children, active, editorial = false }: AthleteShe
   const { user, signOut } = useAuth();
   const { userRoles } = useUserRoles();
   const items = useMemo(() => getVisibleNavigationItems(userRoles), [userRoles]);
-  const isTrainingContext = active !== "loja" && active !== "perfil";
+  // Loja, perfil e financeiro não são o contexto de treino: exibem a marca FitBlock, não a do
+  // Coach Híbrido.
+  const isTrainingContext =
+    active !== "loja"
+    && active !== "meus-treinos"
+    && active !== "perfil"
+    && active !== "coach-financeiro"
+    && active !== "coach-produtos";
 
   function navigate(href: Href) {
     if (pathname !== href) router.push(href);

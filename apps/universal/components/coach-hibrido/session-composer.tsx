@@ -1,7 +1,11 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useState } from "react";
 import { Pressable, StyleSheet, Text, TextInput, View, useWindowDimensions } from "react-native";
-import type { ExerciseRecord, TrainingGroupRecord } from "@fitblock/backend";
+import type {
+  CreateExerciseRequest,
+  ExerciseRecord,
+  TrainingGroupRecord
+} from "@fitblock/backend";
 import { colors, fontFamilies, radius, shadows, spacing, typeScale } from "@fitblock/design-tokens";
 import { blockDefinitions, type BlockKind } from "@/data/coach-hibrido/blocks";
 import {
@@ -27,6 +31,8 @@ export type ComposerMode = "create" | "edit";
 type SessionComposerProps = {
   form: SessionForm;
   catalog: ExerciseRecord[];
+  /** Ausente quando a tela não sabe cadastrar movimento; o campo de menção só sugere. */
+  onCreateMovement?: (input: CreateExerciseRequest) => Promise<ExerciseRecord>;
   teams: TrainingGroupRecord[];
   mode: ComposerMode;
   isSaving: boolean;
@@ -48,6 +54,7 @@ const statusOptions: Array<{ value: SessionStatus; label: string; hint: string }
 export function SessionComposer({
   form,
   catalog,
+  onCreateMovement,
   teams,
   mode,
   isSaving,
@@ -152,6 +159,7 @@ export function SessionComposer({
           index={index}
           key={block.id}
           onChangeKind={(kind) => onChange(changeBlockKind(form, block.id, kind))}
+          onCreateMovement={onCreateMovement}
           onEndurance={(modality, patch) =>
             onChange(updateEnduranceVolume(form, block.id, modality, patch))
           }

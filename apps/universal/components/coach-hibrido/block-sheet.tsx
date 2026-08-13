@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useState } from "react";
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
-import type { ExerciseRecord } from "@fitblock/backend";
+import type { CreateExerciseRequest, ExerciseRecord } from "@fitblock/backend";
 import { colors, fontFamilies, radius, spacing } from "@fitblock/design-tokens";
 import { blockDefinition, blockDefinitions, type BlockKind } from "@/data/coach-hibrido/blocks";
 import { collectMentions } from "@/data/coach-hibrido/mentions";
@@ -20,13 +20,14 @@ import {
   RankingField,
   VolumeField
 } from "@/components/coach-hibrido/block-fields";
-import { MovementMentionInput } from "@/components/coach-hibrido/movement-mention-input";
+import { MovementMentionInput, PANEL_ELEVATION } from "@/components/coach-hibrido/movement-mention-input";
 
 type BlockSheetProps = {
   block: BlockForm;
   index: number;
   total: number;
   catalog: ExerciseRecord[];
+  onCreateMovement?: (input: CreateExerciseRequest) => Promise<ExerciseRecord>;
   onUpdate: (patch: Partial<Pick<BlockForm, "name" | "body">>) => void;
   onChangeKind: (kind: BlockKind) => void;
   onMove: (direction: -1 | 1) => void;
@@ -51,6 +52,7 @@ export function BlockSheet({
   index,
   total,
   catalog,
+  onCreateMovement,
   onUpdate,
   onChangeKind,
   onMove,
@@ -64,12 +66,15 @@ export function BlockSheet({
   const [isSwitchingKind, setIsSwitchingKind] = useState(false);
   const [isKindFocused, setIsKindFocused] = useState(false);
   const [isNameFocused, setIsNameFocused] = useState(false);
+  // Sobe de camada enquanto o painel de menção está aberto, para não ser coberto pelo próximo
+  // bloco da lista quando o painel vaza além dos próprios limites (ex.: formulário de cadastro).
+  const [isMentionPanelOpen, setIsMentionPanelOpen] = useState(false);
   const definition = blockDefinition(block.kind);
   const movements = collectMentions(block.body, catalog);
   const testID = `block-${index}`;
 
   return (
-    <View style={styles.sheet} testID={testID}>
+    <View style={[styles.sheet, isMentionPanelOpen && styles.sheetElevated]} testID={testID}>
       <View style={styles.header}>
         <View accessibilityLabel={`Bloco ${orderMark(index)}`} style={styles.order}>
           <Text style={styles.orderText}>{orderMark(index)}</Text>
@@ -158,14 +163,17 @@ export function BlockSheet({
         accessibilityLabel={`Treino do bloco ${orderMark(index)}`}
         catalog={catalog}
         onChangeText={(body) => onUpdate({ body })}
+        onCreateMovement={onCreateMovement}
+        onPanelOpenChange={setIsMentionPanelOpen}
         placeholder={definition.placeholder}
         testID={`${testID}-body`}
         value={block.body}
       />
 
       <Text style={styles.mentionHint}>
-        Digite <Text style={styles.mentionHintMark}>@</Text> para vincular um movimento do catálogo —
-        o atleta abre o vídeo pelo nome.
+        Digite <Text style={styles.mentionHintMark}>@</Text> para vincular um movimento do catálogo.
+        O nome acende assim que o vínculo pega, e o atleta abre o vídeo por ele.
+        {onCreateMovement ? " Se o movimento ainda não existe, dá para cadastrá-lo ali mesmo." : ""}
       </Text>
 
       {movements.length > 0 && (
@@ -239,6 +247,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     gap: spacing[4],
     padding: spacing[5]
+  },
+  /** Mesma camada do campo de menção elevado — cobre o painel vazando para o próximo bloco. */
+  sheetElevated: {
+    zIndex: PANEL_ELEVATION
   },
   header: {
     alignItems: "flex-start",
@@ -318,7 +330,7 @@ const styles = StyleSheet.create({
     lineHeight: 18
   },
   mentionHintMark: {
-    color: colors.purple500,
+    color: colors.mentionLink,
     fontFamily: fontFamilies.mono,
     fontWeight: "700"
   },

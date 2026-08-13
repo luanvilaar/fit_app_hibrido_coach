@@ -31,6 +31,13 @@ const MAX_TERM_WORDS = 4;
 const MAX_TERM_LENGTH = 48;
 
 /**
+ * Nome de movimento é só letra, espaço e hífen. Prescrição vira número logo depois do nome
+ * ("@Front Squat 4 x 3-5"), e sem este corte a busca seguiria viva por mais três palavras,
+ * oferecendo "nenhum movimento com…" enquanto o coach escreve as séries.
+ */
+const TERM_SHAPE = /^[\p{L}\s'-]*$/u;
+
+/**
  * Menção em digitação imediatamente antes do cursor, ou `null`.
  * Um `@` colado em palavra (e-mail, por exemplo) não abre menção.
  */
@@ -48,6 +55,7 @@ export function findMentionQuery(text: string, cursor: number): MentionQuery | n
 
     const term = text.slice(index + 1, position);
     if (term.length > MAX_TERM_LENGTH) return null;
+    if (!TERM_SHAPE.test(term)) return null;
     if (term.trim().split(/\s+/).filter(Boolean).length > MAX_TERM_WORDS) return null;
 
     return { start: index, end: position, term };
@@ -69,17 +77,30 @@ export function applyMention(
 }
 
 /**
+ * O movimento cujo nome é exatamente o termo, ou `null`.
+ *
+ * É o que separa "não existe no catálogo" de "a menção já está fechada": nos dois casos não há
+ * o que sugerir, mas só o primeiro pede um cadastro.
+ */
+export function findMovementByName(catalog: ExerciseRecord[], term: string): ExerciseRecord | null {
+  const needle = foldName(term);
+  if (!needle) return null;
+
+  return catalog.find((exercise) => foldName(exercise.name) === needle) ?? null;
+}
+
+/**
  * Movimentos oferecidos para o termo digitado. Quem começa com o termo vem primeiro;
  * um termo que já é exatamente um movimento não sugere nada, porque a menção está pronta.
  */
 export function suggestMovements(
   catalog: ExerciseRecord[],
   term: string,
-  limit = 6
+  limit = 5
 ): ExerciseRecord[] {
   const needle = foldName(term);
   if (!needle) return catalog.slice(0, limit);
-  if (catalog.some((exercise) => foldName(exercise.name) === needle)) return [];
+  if (findMovementByName(catalog, term)) return [];
 
   const matches = catalog.filter((exercise) => foldName(exercise.name).includes(needle));
 
@@ -157,29 +178,33 @@ export type BodySegment =
   | { type: "text"; value: string }
   | { type: "mention"; value: string; movement: BlockMovement };
 
-/** Uma linha do texto quebrada em trechos comuns e menções, pronta para renderizar. */
-export function splitBodyLine(line: string, movements: BlockMovement[]): BodySegment[] {
-  const matches = scanMentions(line, mentionCandidates(line, movements));
+/**
+ * Um trecho do texto quebrado em partes comuns e menções, pronto para renderizar.
+ * Serve tanto para uma linha isolada quanto para o corpo inteiro — as quebras de linha,
+ * quando existem, ficam preservadas dentro dos segmentos de texto.
+ */
+export function splitSegments(text: string, movements: BlockMovement[]): BodySegment[] {
+  const matches = scanMentions(text, mentionCandidates(text, movements));
 
-  if (matches.length === 0) return line ? [{ type: "text", value: line }] : [];
+  if (matches.length === 0) return text ? [{ type: "text", value: text }] : [];
 
   const segments: BodySegment[] = [];
   let cursor = 0;
 
-  matches.forEach(({ item, start, length, text }) => {
+  matches.forEach(({ item, start, length, text: matched }) => {
     if (start < cursor) return;
-    if (start > cursor) segments.push({ type: "text", value: line.slice(cursor, start) });
+    if (start > cursor) segments.push({ type: "text", value: text.slice(cursor, start) });
 
-    segments.push({ type: "mention", value: text, movement: item });
+    segments.push({ type: "mention", value: matched, movement: item });
     cursor = start + length;
   });
 
-  if (cursor < line.length) segments.push({ type: "text", value: line.slice(cursor) });
+  if (cursor < text.length) segments.push({ type: "text", value: text.slice(cursor) });
 
   return segments;
 }
 
 /** O texto do bloco em linhas já segmentadas, pronto para renderizar. */
 export function splitBody(body: string, movements: BlockMovement[]): BodySegment[][] {
-  return body.split("\n").map((line) => splitBodyLine(line, movements));
+  return body.split("\n").map((line) => splitSegments(line, movements));
 }

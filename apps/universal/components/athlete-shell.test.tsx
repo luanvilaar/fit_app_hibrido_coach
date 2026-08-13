@@ -43,6 +43,7 @@ describe("navegação por papel", () => {
       "calendario",
       "progresso",
       "loja",
+      "meus-treinos",
       "perfil"
     ]);
     expect(getVisibleNavigationItems(emptyUserRoles).some((item) => item.id === "coach")).toBe(false);

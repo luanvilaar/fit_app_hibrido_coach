@@ -46,7 +46,8 @@ Fitblock é uma **plataforma de fitness que conecta atletas com coaches** atrav�
 - **Dados:** Dados de demonstração/mock inicialmente; integração com backend conforme progresso
 - **Acessibilidade:** WCAG AA obrigatória em todos os surfaces (labels semânticas, foco visível, alterar motion respeitada, touch targets 44×44 px mínimo, sem overflow horizontal)
 - **Responsividade:** Breakpoints conceituais: mobile 320–639 px, tablet 640–1023 px, desktop 1024 px+
-- **Não escopo agora:** Pagamentos, compliance regulatória detalha, analytics avançado
+- **Cobrança:** O coach controla mensalidade dentro da plataforma — plano por aluno, geração das cobranças do mês, recebimento manual e perdão de dívida. **Gateway de pagamento online está fora**: OAuth e webhook exigem endpoint server-side, e o deploy é estático (`expo export` no Vercel), sem servidor onde hospedá-lo
+- **Não escopo agora:** Pagamento online (Mercado Pago), marketplace de treinos, compliance regulatória detalhada, analytics avançado
 
 ## Brand Commitments
 

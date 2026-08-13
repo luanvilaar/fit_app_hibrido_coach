@@ -24,6 +24,7 @@ describe("ExperienceCard", () => {
     expect(screen.getByText("PulseFit · João Pessoa")).toBeTruthy();
     expect(screen.getByText("Inscrições abertas")).toBeTruthy();
     expect(screen.getByText("CAMP")).toBeTruthy();
+    expect(screen.getByTestId("experience-cover-fitblock-training-camp-2026")).toBeTruthy();
     expect(
       screen.getByLabelText(
         "Abrir FitBlock Training Camp, 29 AGO 2026, PulseFit · João Pessoa. Inscrições abertas"

@@ -1,3 +1,5 @@
+import type { ImageSourcePropType } from "react-native";
+
 export type HomeSectionId = "inicio" | "programas" | "acompanhamento" | "camps" | "loja" | "conteudo";
 
 export type HomeNavItem = {
@@ -44,6 +46,8 @@ export type FitBlockExperience = {
   id: string;
   order: number;
   typeLabel: "CAMP" | "LAB" | "MEET";
+  /** Imagem editorial opcional; os dados do evento continuam independentes da sua apresentação. */
+  coverImage?: ImageSourcePropType;
   title: string;
   date: string;
   location: string;
@@ -64,6 +68,7 @@ export const trainingCampExperience: FitBlockExperience = {
   id: "fitblock-training-camp-2026",
   order: 1,
   typeLabel: "CAMP",
+  coverImage: require("@/assets/training-camp-banner.png"),
   title: "FitBlock Training Camp",
   date: "29 AGO 2026",
   location: "PulseFit · João Pessoa",

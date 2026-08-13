@@ -5,6 +5,7 @@ import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { colors, fontFamilies, radius, spacing, typeScale } from "@fitblock/design-tokens";
 import { createTeamDiscoveryRepository, type DiscoverableTeamRecord } from "@fitblock/backend";
 import { describeTeamDiscoveryBackendError, validateDisplayName } from "@/data/team-discovery";
+import { AthleteChargesCard } from "@/components/athlete-charges-card";
 import { AthleteShell } from "@/components/athlete-shell";
 import { GroupSelectModal } from "@/components/group-select-modal";
 import { useAuth } from "@/auth/auth-provider";
@@ -262,6 +263,9 @@ export function AthleteProfileScreen() {
             </>
           )}
         </View>
+
+        {/* Some sozinho quando o treinador não cobra pela plataforma. */}
+        <AthleteChargesCard />
       </View>
 
       {isModalOpen && (

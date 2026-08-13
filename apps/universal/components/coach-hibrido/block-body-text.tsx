@@ -156,24 +156,28 @@ const styles = StyleSheet.create({
   pressed: { opacity: 0.72 }
 });
 
-/** Sobre `colors.bg` (ex: dentro do block-sheet do coach). */
+/**
+ * O link usa `mentionLink` e não o roxo de ação: sobre graphite o #7132F5 rende 3.0:1, e o
+ * nome do movimento é corpo de 14px, que a AA cobra em 4.5:1. Sublinhado e ícone continuam
+ * marcando o link para quem não distingue a cor.
+ */
 const light = StyleSheet.create({
   line: { color: colors.textPrimary },
-  mention: { color: colors.purple500, textDecorationLine: "underline" },
-  mentionMuted: { color: colors.textSecondary, textDecorationLine: "underline", textDecorationStyle: "dotted" },
+  mention: { color: colors.mentionLink, textDecorationLine: "underline" },
+  mentionMuted: { color: colors.textMutedAccessible, textDecorationLine: "underline", textDecorationStyle: "dotted" },
   chip: { backgroundColor: colors.bgDeep, borderColor: colors.border },
   chipText: { color: colors.textPrimary },
-  chipIcon: { color: colors.purple500 },
-  chipMutedIcon: { color: colors.textSecondary }
+  chipIcon: { color: colors.mentionLink },
+  chipMutedIcon: { color: colors.textMutedAccessible }
 });
 
 /** Sobre `colors.bgDeep` (ex: painel de execução do atleta). */
 const dark = StyleSheet.create({
   line: { color: colors.textPrimary },
-  mention: { color: colors.purple500, textDecorationLine: "underline" },
-  mentionMuted: { color: colors.textSecondary, textDecorationLine: "underline", textDecorationStyle: "dotted" },
+  mention: { color: colors.mentionLink, textDecorationLine: "underline" },
+  mentionMuted: { color: colors.textMutedAccessible, textDecorationLine: "underline", textDecorationStyle: "dotted" },
   chip: { backgroundColor: colors.bg, borderColor: colors.border },
   chipText: { color: colors.textPrimary },
-  chipIcon: { color: colors.purple500 },
-  chipMutedIcon: { color: colors.textSecondary }
+  chipIcon: { color: colors.mentionLink },
+  chipMutedIcon: { color: colors.textMutedAccessible }
 });

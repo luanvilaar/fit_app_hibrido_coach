@@ -198,6 +198,19 @@ export type ExerciseRecord = {
   created_at: string;
 };
 
+/**
+ * Movimento novo indo para o banco. `created_by` não viaja no payload: a coluna já usa
+ * `default auth.uid()`, que é exatamente o que a policy de insert cobra — mandar o id daqui
+ * só abriria espaço para divergir dela.
+ */
+export type CreateExerciseRequest = {
+  slug: string;
+  name: string;
+  category: ExerciseCategory;
+  /** Null quando o coach cadastrou o movimento sem link; a constraint exige https quando existe. */
+  videoUrl: string | null;
+};
+
 export class CoachFlowBackendError extends Error {
   constructor(message: string, public readonly operation: string) {
     super(message);
@@ -267,6 +280,30 @@ export function createCoachFlowRepository(client: FitBlockSupabaseClient) {
       }
 
       return (data ?? []) as ExerciseRecord[];
+    },
+
+    /**
+     * Cadastra um movimento no banco a partir do editor. O catálogo oficial tem `created_by`
+     * nulo; o que o coach cria fica com o id dele, e é essa distinção que a policy
+     * "authenticated users can create exercises" já protege.
+     */
+    async createExercise(input: CreateExerciseRequest): Promise<ExerciseRecord> {
+      const { data, error } = await client
+        .from("exercises")
+        .insert({
+          slug: input.slug,
+          name: input.name,
+          category: input.category,
+          video_url: input.videoUrl
+        })
+        .select("id,slug,name,video_url,category,created_by,created_at")
+        .single();
+
+      if (error) {
+        throw new CoachFlowBackendError(error.message, "createExercise");
+      }
+
+      return data as ExerciseRecord;
     },
 
     async createTrainingGroup(input: CreateTrainingGroupRequest): Promise<TrainingGroupRecord> {

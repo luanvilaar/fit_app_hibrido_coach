@@ -4,7 +4,7 @@ import {
   collectMentions,
   findMentionQuery,
   splitBody,
-  splitBodyLine,
+  splitSegments,
   suggestMovements,
   toBlockMovement
 } from "@/data/coach-hibrido/mentions";
@@ -54,6 +54,18 @@ describe("menções de movimento", () => {
     const text = "@uma duas tres quatro cinco";
 
     expect(findMentionQuery(text, text.length)).toBeNull();
+  });
+
+  it("fecha a menção quando a prescrição começa, para não buscar durante as séries", () => {
+    const text = "@Front Squat 4 x";
+
+    expect(findMentionQuery(text, text.length)).toBeNull();
+  });
+
+  it("mantém a menção viva em nome com hífen e apóstrofo", () => {
+    const text = "@Sots-Press";
+
+    expect(findMentionQuery(text, text.length)).toMatchObject({ term: "Sots-Press" });
   });
 
   it("substitui o termo digitado pelo nome completo e devolve o cursor depois do espaço", () => {
@@ -109,7 +121,7 @@ describe("menções de movimento", () => {
 
   it("quebra a linha em texto e menção, preservando o que vem depois", () => {
     const movements = [toBlockMovement(catalog[0])];
-    const segments = splitBodyLine("15 @Front Squat 43kg", movements);
+    const segments = splitSegments("15 @Front Squat 43kg", movements);
 
     expect(segments).toEqual([
       { type: "text", value: "15 " },
@@ -120,10 +132,20 @@ describe("menções de movimento", () => {
 
   it("dá o vídeo do movimento à menção renderizada", () => {
     const movements = [toBlockMovement(catalog[0])];
-    const [segment] = splitBodyLine("@Front Squat", movements);
+    const [segment] = splitSegments("@Front Squat", movements);
 
     expect(segment).toMatchObject({ type: "mention" });
     expect(segment.type === "mention" && segment.movement.videoUrl).toBe("https://youtu.be/abc");
+  });
+
+  it("preserva a quebra de linha ao segmentar o corpo inteiro, como o espelho do editor faz", () => {
+    const movements = [toBlockMovement(catalog[0])];
+    const segments = splitSegments("@Front Squat\n4 x 3-5", movements);
+
+    expect(segments).toEqual([
+      { type: "mention", value: "Front Squat", movement: movements[0] },
+      { type: "text", value: "\n4 x 3-5" }
+    ]);
   });
 
   it("mantém uma entrada por linha do texto original", () => {

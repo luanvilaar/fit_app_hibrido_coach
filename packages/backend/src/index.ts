@@ -5,4 +5,7 @@ export * from "./today-repository";
 export * from "./workout-repository";
 export * from "./progress-repository";
 export * from "./team-discovery-repository";
+export * from "./billing-repository";
+export * from "./payment-connection-repository";
+export * from "./store-repository";
 export * from "./supabase";

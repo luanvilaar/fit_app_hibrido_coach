@@ -1,7 +1,9 @@
 import { fireEvent, render, waitFor } from "@testing-library/react-native";
+import { Dimensions, Platform, StyleSheet } from "react-native";
 import { AuthScreen } from "@/components/auth-screen";
 
 const mockRouter = { replace: jest.fn(), push: jest.fn() };
+const mockUseSafeAreaInsets = jest.fn();
 const mockAuth = {
   isConfigured: true,
   session: null as { user: { email: string } } | null,
@@ -12,12 +14,25 @@ const mockAuth = {
   signOut: jest.fn()
 };
 
+function mockViewport(width: number, height: number) {
+  return jest.spyOn(Dimensions, "get").mockImplementation(() => ({
+    fontScale: 1,
+    height,
+    scale: 1,
+    width
+  }));
+}
+
 jest.mock("expo-router", () => ({
   useRouter: () => mockRouter
 }));
 
 jest.mock("@/auth/auth-provider", () => ({
   useAuth: () => mockAuth
+}));
+
+jest.mock("react-native-safe-area-context", () => ({
+  useSafeAreaInsets: () => mockUseSafeAreaInsets()
 }));
 
 jest.mock("@/auth/rate-limiter", () => ({
@@ -31,12 +46,17 @@ jest.mock("@/auth/rate-limiter", () => ({
 describe("AuthScreen", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockUseSafeAreaInsets.mockReturnValue({ bottom: 0, left: 0, right: 0, top: 0 });
     mockAuth.isConfigured = true;
     mockAuth.session = null;
     mockAuth.signIn.mockResolvedValue(undefined);
     mockAuth.signUp.mockResolvedValue({ needsEmailConfirmation: false });
     mockAuth.resetPassword.mockResolvedValue(undefined);
     mockAuth.updatePassword.mockResolvedValue(undefined);
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
   });
 
   it("submits credentials and enters the athlete area", async () => {
@@ -58,6 +78,47 @@ describe("AuthScreen", () => {
     expect(screen.getByTestId("auth-visual", { includeHiddenElements: true })).toBeTruthy();
     expect(screen.getByTestId("auth-campaign-image", { includeHiddenElements: true })).toBeTruthy();
     expect(screen.getByTestId("auth-card")).toBeTruthy();
+  });
+
+  it.each([
+    [320, 568, 104],
+    [360, 800, 136],
+    [390, 844, 160],
+    [412, 915, 178]
+  ])("keeps the login fields available on a %ipx-wide compact viewport", async (width, height, expectedTop) => {
+    mockViewport(width, height);
+    const screen = await render(<AuthScreen mode="sign-in" />);
+    const card = StyleSheet.flatten(screen.getByTestId("auth-card").props.style);
+    const scrollView = screen.UNSAFE_getByProps({ keyboardShouldPersistTaps: "handled" });
+    const scrollContent = StyleSheet.flatten(scrollView.props.contentContainerStyle);
+
+    expect(screen.getByTestId("auth-email")).toBeTruthy();
+    expect(screen.getByTestId("auth-password")).toBeTruthy();
+    expect(screen.getByTestId("auth-submit")).toBeTruthy();
+    expect(card.maxWidth).toBe(430);
+    expect(card.width).toBe("88%");
+    expect(scrollContent.paddingTop).toBe(expectedTop);
+  });
+
+  it("respects safe-area insets without moving the compact form below its visual anchor", async () => {
+    mockViewport(390, 844);
+    mockUseSafeAreaInsets.mockReturnValue({ bottom: 34, left: 0, right: 0, top: 47 });
+    const screen = await render(<AuthScreen mode="sign-in" />);
+    const scrollView = screen.UNSAFE_getByProps({ keyboardShouldPersistTaps: "handled" });
+    const scrollContent = StyleSheet.flatten(scrollView.props.contentContainerStyle);
+
+    expect(scrollContent.paddingTop).toBe(160);
+    expect(scrollContent.paddingBottom).toBe(58);
+  });
+
+  it("uses platform keyboard avoidance while preserving form taps", async () => {
+    jest.spyOn(Platform, "select").mockImplementation((options) => options.android);
+    const screen = await render(<AuthScreen mode="sign-in" />);
+    const keyboardAvoidingView = screen.UNSAFE_getByProps({ behavior: "height" });
+    const scrollView = screen.UNSAFE_getByProps({ keyboardShouldPersistTaps: "handled" });
+
+    expect(keyboardAvoidingView).toBeTruthy();
+    expect(scrollView).toBeTruthy();
   });
 
   it("uses password-manager metadata and provides a readable password toggle", async () => {

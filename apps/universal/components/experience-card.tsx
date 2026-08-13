@@ -2,6 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import * as Linking from "expo-linking";
 import { useEffect, useState } from "react";
 import {
+  Image,
   Platform,
   Pressable,
   type StyleProp,
@@ -92,6 +93,16 @@ export function ExperienceCard({ experience, style }: ExperienceCardProps) {
       ]}
     >
       <View style={[styles.visual, isMobile && styles.visualMobile]}>
+        {experience.coverImage && (
+          <Image
+            accessible={false}
+            resizeMode="cover"
+            source={experience.coverImage}
+            style={styles.coverImage}
+            testID={`experience-cover-${experience.id}`}
+          />
+        )}
+        {experience.coverImage && <View pointerEvents="none" style={styles.coverScrim} />}
         <View style={styles.visualSignal} />
         <Text style={[styles.typeLabel, isMobile && styles.typeLabelMobile]}>{experience.typeLabel}</Text>
         <View style={styles.arrowFrame}>
@@ -146,6 +157,21 @@ const styles = StyleSheet.create({
     height: 190,
     padding: spacing[4]
   },
+  coverImage: {
+    height: "100%",
+    left: 0,
+    position: "absolute",
+    top: 0,
+    width: "100%"
+  },
+  coverScrim: {
+    backgroundColor: "rgba(5, 5, 7, 0.38)",
+    bottom: 0,
+    left: 0,
+    position: "absolute",
+    right: 0,
+    top: 0
+  },
   visualSignal: {
     backgroundColor: colors.purple500,
     height: 5,
@@ -160,6 +186,9 @@ const styles = StyleSheet.create({
     fontSize: 88,
     letterSpacing: -1.8,
     lineHeight: 78,
+    textShadowColor: "rgba(5, 5, 7, 0.78)",
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 8,
     textTransform: "uppercase"
   },
   typeLabelMobile: {

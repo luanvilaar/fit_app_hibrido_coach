@@ -15,6 +15,7 @@ import {
   useWindowDimensions
 } from "react-native";
 import type { ViewStyle } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { colors, fontFamilies, radius, shadows, spacing, typeScale } from "@fitblock/design-tokens";
 import { useAuth } from "@/auth/auth-provider";
 import {
@@ -26,10 +27,11 @@ import { loginRateLimiter } from "@/auth/rate-limiter";
 
 const authLayout = {
   compactBreakpoint: 860,
-  compactCardWidth: 274,
-  compactHeroHeight: 594,
-  compactHeroMinimum: 400,
-  compactPanelOverlap: 123,
+  compactCardMaxWidth: 430,
+  compactHeroMaximum: 360,
+  compactHeroMinimum: 248,
+  compactHeroWidthRatio: 0.8,
+  compactPanelOverlap: 152,
   desktopCardMaxWidth: 430,
   desktopCardMinHeight: 724,
   desktopCardWidth: "31.25%",
@@ -159,7 +161,8 @@ function getEmailErrorMessage(email: string): string | null {
 export function AuthScreen({ mode }: { mode: AuthScreenMode }) {
   const router = useRouter();
   const { isConfigured, session, signIn, signUp, resetPassword, updatePassword } = useAuth();
-  const { width, height } = useWindowDimensions();
+  const { width } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -171,9 +174,16 @@ export function AuthScreen({ mode }: { mode: AuthScreenMode }) {
   const [hoveredControl, setHoveredControl] = useState<string | null>(null);
   const isCompact = width < authLayout.compactBreakpoint;
   const compactHeroHeight = Math.round(
-    Math.min(authLayout.compactHeroHeight, Math.max(authLayout.compactHeroMinimum, height * 0.7))
+    Math.min(
+      authLayout.compactHeroMaximum,
+      Math.max(authLayout.compactHeroMinimum, width * authLayout.compactHeroWidthRatio)
+    )
   );
   const compactFormTop = Math.max(spacing[9], compactHeroHeight - authLayout.compactPanelOverlap);
+  const formScrollInsets = {
+    paddingBottom: Math.max(isCompact ? spacing[7] : spacing[6], insets.bottom + spacing[5]),
+    paddingTop: Math.max(isCompact ? compactFormTop : spacing[6], insets.top + spacing[3])
+  };
   const isRecoveryUpdate = mode === "reset" && Boolean(session);
   const needsEmail = !isRecoveryUpdate;
   const screenCopy = isRecoveryUpdate
@@ -497,13 +507,13 @@ export function AuthScreen({ mode }: { mode: AuthScreenMode }) {
 
       <KeyboardAvoidingView
         style={styles.formArea}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        behavior={Platform.select({ ios: "padding", android: "height", default: undefined })}
       >
         <ScrollView
           contentContainerStyle={[
             styles.formScroll,
             isCompact && styles.formScrollCompact,
-            isCompact && { paddingTop: compactFormTop }
+            formScrollInsets
           ]}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
@@ -635,7 +645,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: "3.5%",
     paddingVertical: spacing[6]
   },
-  formScrollCompact: { alignItems: "center", justifyContent: "flex-start", paddingBottom: spacing[7], paddingHorizontal: 0 },
+  formScrollCompact: { alignItems: "center", justifyContent: "flex-start", paddingHorizontal: 0 },
   formCard: {
     backgroundColor: colors.surface02,
     borderColor: colors.border,
@@ -648,7 +658,13 @@ const styles = StyleSheet.create({
     width: authLayout.desktopCardWidth,
     ...shadows.card
   },
-  formCardCompact: { borderRadius: radius.authPanelMobile, maxWidth: authLayout.compactCardWidth, minHeight: 412, minWidth: 0, width: "74%" },
+  formCardCompact: {
+    borderRadius: radius.authPanelMobile,
+    maxWidth: authLayout.compactCardMaxWidth,
+    minHeight: 0,
+    minWidth: 0,
+    width: "88%"
+  },
   formBody: { minHeight: authLayout.desktopCardMinHeight, padding: spacing[7] },
   formBodyCompact: { minHeight: 0, padding: spacing[5] },
   eyebrow: {
