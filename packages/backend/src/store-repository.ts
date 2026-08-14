@@ -17,7 +17,7 @@ export type StoreProgramSession = {
   id: string;
   week_number: number;
   day_number: number;
-  session_template_id: string;
+  session_template_id?: string;
   title: string;
 };
 
@@ -128,7 +128,7 @@ function parseSessions(value: unknown): StoreProgramSession[] {
   return value.filter((item): item is StoreProgramSession => {
     if (!item || typeof item !== "object") return false;
     const record = item as Record<string, unknown>;
-    return ["id", "week_number", "day_number", "session_template_id", "title"].every(
+    return ["id", "week_number", "day_number", "title"].every(
       (key) => key in record
     );
   });

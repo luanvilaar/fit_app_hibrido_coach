@@ -60,7 +60,7 @@ describe("validação da assinatura", () => {
     const v1 = await sign("id:999;request-id:req-1;ts:1700000000;");
 
     await expect(
-      isValidSignature({ ...base, signatureHeader: `ts=1700000000,v1=${v1}` })
+      isValidSignature({ ...base, nowSeconds: 1700000000, signatureHeader: `ts=1700000000,v1=${v1}` })
     ).resolves.toBe(true);
   });
 
@@ -68,7 +68,11 @@ describe("validação da assinatura", () => {
     const v1 = await sign("id:999;request-id:req-1;ts:1700000000;");
 
     await expect(
-      isValidSignature({ ...base, signatureHeader: `ts=1700000000,v1=${v1.toUpperCase()}` })
+      isValidSignature({
+        ...base,
+        nowSeconds: 1700000000,
+        signatureHeader: `ts=1700000000,v1=${v1.toUpperCase()}`
+      })
     ).resolves.toBe(true);
   });
 
@@ -77,7 +81,12 @@ describe("validação da assinatura", () => {
     const v1 = await sign("id:999;request-id:req-1;ts:1700000000;");
 
     await expect(
-      isValidSignature({ ...base, dataId: "1000", signatureHeader: `ts=1700000000,v1=${v1}` })
+      isValidSignature({
+        ...base,
+        nowSeconds: 1700000000,
+        dataId: "1000",
+        signatureHeader: `ts=1700000000,v1=${v1}`
+      })
     ).resolves.toBe(false);
   });
 
@@ -85,7 +94,15 @@ describe("validação da assinatura", () => {
     const v1 = await sign("id:999;request-id:req-1;ts:1700000000;");
 
     await expect(
-      isValidSignature({ ...base, signatureHeader: `ts=1700000001,v1=${v1}` })
+      isValidSignature({ ...base, nowSeconds: 1700000000, signatureHeader: `ts=1700000001,v1=${v1}` })
+    ).resolves.toBe(false);
+  });
+
+  it("recusa assinatura fora da janela temporal", async () => {
+    const v1 = await sign("id:999;request-id:req-1;ts:1700000000;");
+
+    await expect(
+      isValidSignature({ ...base, nowSeconds: 1700001000, signatureHeader: `ts=1700000000,v1=${v1}` })
     ).resolves.toBe(false);
   });
 
@@ -93,7 +110,12 @@ describe("validação da assinatura", () => {
     const v1 = await sign("id:999;request-id:req-1;ts:1700000000;");
 
     await expect(
-      isValidSignature({ ...base, secret: "outro", signatureHeader: `ts=1700000000,v1=${v1}` })
+      isValidSignature({
+        ...base,
+        nowSeconds: 1700000000,
+        secret: "outro",
+        signatureHeader: `ts=1700000000,v1=${v1}`
+      })
     ).resolves.toBe(false);
   });
 

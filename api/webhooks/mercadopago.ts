@@ -12,6 +12,7 @@ type PaymentIntent = {
   athlete_id: string;
   coach_id: string;
   provider_payment_id: string;
+  amount_cents: number;
 };
 
 type StorePaymentIntent = {
@@ -20,6 +21,7 @@ type StorePaymentIntent = {
   buyer_id: string;
   seller_coach_id: string;
   provider_payment_id: string;
+  amount_cents: number;
 };
 
 type MercadoPagoPayment = {
@@ -27,6 +29,7 @@ type MercadoPagoPayment = {
   status?: string;
   transaction_amount?: number;
   payment_method_id?: string;
+  external_reference?: string;
   date_approved?: string | null;
 };
 
@@ -102,13 +105,23 @@ async function settleChargePayment(
 ) {
   const status = mapPaymentStatus(payment.status);
 
-  const { error: updateError } = await client
-    .from("charge_payment_intents")
-    .update({ status })
-    .eq("id", intent.id);
+  if (String(payment.id ?? "") !== intent.provider_payment_id) {
+    throw new Error("O identificador confirmado não corresponde à intenção de cobrança.");
+  }
 
-  if (updateError) throw updateError;
-  if (status !== "approved") return;
+  if (payment.external_reference !== intent.charge_id) {
+    throw new Error("A referência externa não corresponde à cobrança.");
+  }
+
+  if (status !== "approved") {
+    const { error: updateError } = await client
+      .from("charge_payment_intents")
+      .update({ status })
+      .eq("id", intent.id);
+
+    if (updateError) throw updateError;
+    return;
+  }
 
   if (
     typeof payment.transaction_amount !== "number"
@@ -118,9 +131,14 @@ async function settleChargePayment(
     throw new Error("O pagamento aprovado não trouxe um valor válido.");
   }
 
+  const amountCents = Math.round(payment.transaction_amount * 100);
+  if (amountCents !== intent.amount_cents) {
+    throw new Error("O valor confirmado não corresponde à intenção de cobrança.");
+  }
+
   const { error: paymentError } = await client.from("charge_payments").insert({
     charge_id: intent.charge_id,
-    amount_cents: Math.round(payment.transaction_amount * 100),
+    amount_cents: amountCents,
     source: "mercado_pago",
     payment_method: payment.payment_method_id === "pix" ? "pix" : "credit_card",
     paid_at: dateOnly(payment.date_approved),
@@ -130,6 +148,13 @@ async function settleChargePayment(
 
   // O índice único é a idempotência do webhook: a reentrega do mesmo pagamento é sucesso.
   if (paymentError && paymentError.code !== "23505") throw paymentError;
+
+  const { error: updateError } = await client
+    .from("charge_payment_intents")
+    .update({ status: "approved" })
+    .eq("id", intent.id);
+
+  if (updateError) throw updateError;
 }
 
 async function settleStorePayment(
@@ -139,13 +164,23 @@ async function settleStorePayment(
 ) {
   const status = mapPaymentStatus(payment.status);
 
-  const { error: updateError } = await client
-    .from("store_payment_intents")
-    .update({ status })
-    .eq("id", intent.id);
+  if (String(payment.id ?? "") !== intent.provider_payment_id) {
+    throw new Error("O identificador confirmado não corresponde à intenção da compra.");
+  }
 
-  if (updateError) throw updateError;
-  if (status !== "approved") return;
+  if (payment.external_reference !== intent.order_id) {
+    throw new Error("A referência externa não corresponde ao pedido.");
+  }
+
+  if (status !== "approved") {
+    const { error: updateError } = await client
+      .from("store_payment_intents")
+      .update({ status })
+      .eq("id", intent.id);
+
+    if (updateError) throw updateError;
+    return;
+  }
 
   if (
     typeof payment.transaction_amount !== "number"
@@ -155,9 +190,14 @@ async function settleStorePayment(
     throw new Error("A compra aprovada não trouxe um valor válido.");
   }
 
+  const amountCents = Math.round(payment.transaction_amount * 100);
+  if (amountCents !== intent.amount_cents) {
+    throw new Error("O valor confirmado não corresponde ao pedido.");
+  }
+
   const { error: settleError } = await client.rpc("settle_store_order", {
     p_provider_payment_id: intent.provider_payment_id,
-    p_amount_cents: Math.round(payment.transaction_amount * 100),
+    p_amount_cents: amountCents,
     p_paid_at: payment.date_approved ?? null
   });
 
@@ -209,7 +249,7 @@ export default async function handler(request: Request): Promise<Response> {
     const client = serviceRoleClient();
     const { data: intent, error: intentError } = await client
       .from("charge_payment_intents")
-      .select("id, charge_id, athlete_id, coach_id, provider_payment_id")
+      .select("id, charge_id, athlete_id, coach_id, provider_payment_id, amount_cents")
       .eq("provider", "mercado_pago")
       .eq("provider_payment_id", dataId)
       .maybeSingle<PaymentIntent>();
@@ -221,7 +261,7 @@ export default async function handler(request: Request): Promise<Response> {
     if (!intent) {
       const { data: nextStoreIntent, error: storeIntentError } = await client
         .from("store_payment_intents")
-        .select("id, order_id, buyer_id, seller_coach_id, provider_payment_id")
+        .select("id, order_id, buyer_id, seller_coach_id, provider_payment_id, amount_cents")
         .eq("provider", "mercado_pago")
         .eq("provider_payment_id", dataId)
         .maybeSingle<StorePaymentIntent>();
@@ -244,7 +284,7 @@ export default async function handler(request: Request): Promise<Response> {
     } catch (error: unknown) {
       if (error instanceof ConnectionMissingError) {
         console.error("[pagamentos] webhook: conexão do coach ausente", coachId);
-        return json({ received: true });
+        throw error;
       }
 
       throw error;
@@ -254,9 +294,9 @@ export default async function handler(request: Request): Promise<Response> {
     if (intent) await settleChargePayment(client, intent, payment);
     if (storeIntent) await settleStorePayment(client, storeIntent, payment);
   } catch (error: unknown) {
-    // O provedor só precisa saber que recebemos o aviso; qualquer falha interna fica observável
-    // sem provocar uma tempestade de retries duplicados.
+    // Falhas internas precisam de resposta não-2xx para o provedor repetir a notificação.
     console.error("[pagamentos] webhook:", error);
+    return failure("Webhook não processado.", 500);
   }
 
   return json({ received: true });

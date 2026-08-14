@@ -31,15 +31,15 @@ function getAuthErrorMessage(error: { code?: string; message?: string }): string
       return "E-mail ou senha inválidos.";
     case "email_exists":
     case "user_already_exists":
-      return "Já existe uma conta com este e-mail.";
+      return "Não foi possível concluir a operação. Tente novamente mais tarde.";
     case "weak_password":
       return "Escolha uma senha mais forte, com pelo menos 12 caracteres (maiúsculas, minúsculas, números e símbolos).";
     case "email_not_confirmed":
-      return "Confirme seu e-mail antes de entrar. Verifique sua caixa de entrada ou pasta de spam.";
+      return "Não foi possível concluir a operação. Tente novamente mais tarde.";
     case "session_not_found":
       return "Sua sessão expirou. Faça login novamente.";
     case "user_not_found":
-      return "Usuário não encontrado.";
+      return "Não foi possível concluir a operação. Tente novamente mais tarde.";
     default:
       // Generic message to avoid information disclosure
       return "Não foi possível concluir a operação. Tente novamente mais tarde.";

@@ -11,6 +11,8 @@
 
 export type SignatureParts = { ts: string; v1: string } | null;
 
+export const WEBHOOK_TIMESTAMP_TOLERANCE_SECONDS = 5 * 60;
+
 export function parseSignatureHeader(header: string | null): SignatureParts {
   if (!header) return null;
 
@@ -80,10 +82,24 @@ export async function isValidSignature(input: {
   requestId: string | null;
   dataId: string;
   secret: string;
+  nowSeconds?: number;
+  timestampToleranceSeconds?: number;
 }): Promise<boolean> {
   const parts = parseSignatureHeader(input.signatureHeader);
 
   if (!parts) return false;
+
+  const signedAt = Number(parts.ts);
+  const nowSeconds = input.nowSeconds ?? Math.floor(Date.now() / 1000);
+  const tolerance = input.timestampToleranceSeconds ?? WEBHOOK_TIMESTAMP_TOLERANCE_SECONDS;
+
+  if (
+    !Number.isSafeInteger(signedAt)
+    || !Number.isSafeInteger(nowSeconds)
+    || Math.abs(nowSeconds - signedAt) > tolerance
+  ) {
+    return false;
+  }
 
   const expected = await hmacHex(
     input.secret,

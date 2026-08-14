@@ -5,7 +5,8 @@ function createClient(data: unknown = null) {
   const rpc = jest.fn().mockImplementation(() => {
     const response = Promise.resolve({ data, error: null });
     return Object.assign(response, {
-      single: jest.fn().mockResolvedValue({ data, error: null })
+      single: jest.fn().mockResolvedValue({ data, error: null }),
+      maybeSingle: jest.fn().mockResolvedValue({ data, error: null })
     });
   });
   const client = {
@@ -71,5 +72,29 @@ describe("store backend repository", () => {
     await expect(createStoreRepository(client).listMyTrainingPrograms()).resolves.toMatchObject([
       { product_id: "product-1", sessions: [{ title: "Treino A" }] }
     ]);
+  });
+
+  it("aceita detalhes públicos sem expor o id do template", async () => {
+    const { client } = createClient({
+      id: "product-1",
+      seller_coach_id: "coach-1",
+      seller_display_name: "Coach",
+      type: "training_program",
+      title: "Base de Força",
+      slug: "base-de-forca",
+      description: "Ciclo completo",
+      short_description: "Para começar",
+      cover_image_url: null,
+      price_cents: 19900,
+      category: "strength",
+      level: "beginner",
+      duration_weeks: 8,
+      status: "published",
+      sessions: [{ id: "session-1", week_number: 1, day_number: 1, title: "Treino A" }]
+    });
+
+    await expect(createStoreRepository(client).getProduct("base-de-forca")).resolves.toMatchObject({
+      sessions: [{ id: "session-1", title: "Treino A" }]
+    });
   });
 });

@@ -27,7 +27,8 @@ const intent = {
   charge_id: "charge-1",
   athlete_id: "athlete-1",
   coach_id: "coach-1",
-  provider_payment_id: "987"
+  provider_payment_id: "987",
+  amount_cents: 1234
 };
 
 const storeIntent = {
@@ -35,7 +36,8 @@ const storeIntent = {
   order_id: "order-1",
   buyer_id: "athlete-1",
   seller_coach_id: "coach-1",
-  provider_payment_id: "987"
+  provider_payment_id: "987",
+  amount_cents: 19900
 };
 
 function createClient(options: {
@@ -127,6 +129,7 @@ describe("POST /api/webhooks/mercadopago", () => {
         id: 987,
         status: "approved",
         transaction_amount: 12.34,
+        external_reference: "charge-1",
         payment_method_id: "pix",
         date_approved: "2026-08-16T14:20:00.000Z"
       })
@@ -162,6 +165,7 @@ describe("POST /api/webhooks/mercadopago", () => {
         id: 987,
         status: "approved",
         transaction_amount: 12.34,
+        external_reference: "charge-1",
         payment_method_id: "pix",
         date_approved: "2026-08-16T14:20:00.000Z"
       })
@@ -178,7 +182,7 @@ describe("POST /api/webhooks/mercadopago", () => {
     global.fetch = jest.fn().mockResolvedValue({
       ok: true,
       status: 200,
-      json: async () => ({ id: 987, status: "rejected" })
+      json: async () => ({ id: 987, status: "rejected", external_reference: "charge-1" })
     }) as unknown as typeof fetch;
 
     await handler(request({ type: "payment", data: { id: "987" }, status: "approved" }));
@@ -197,6 +201,7 @@ describe("POST /api/webhooks/mercadopago", () => {
         id: 987,
         status: "approved",
         transaction_amount: 199,
+        external_reference: "order-1",
         payment_method_id: "pix",
         date_approved: "2026-08-16T14:20:00.000Z"
       })
@@ -205,7 +210,6 @@ describe("POST /api/webhooks/mercadopago", () => {
     const response = await handler(request({ type: "payment", data: { id: "987" } }));
 
     expect(response.status).toBe(200);
-    expect(fake.storeIntentUpdate.update).toHaveBeenCalledWith({ status: "approved" });
     expect(fake.rpc).toHaveBeenCalledWith("settle_store_order", {
       p_provider_payment_id: "987",
       p_amount_cents: 19900,
@@ -221,5 +225,59 @@ describe("POST /api/webhooks/mercadopago", () => {
 
     expect(response.status).toBe(200);
     expect(mockGetValidAccessToken).not.toHaveBeenCalled();
+  });
+
+  it("não grava quando o valor confirmado diverge da intenção", async () => {
+    const fake = createClient({ foundIntent: intent });
+    mockServiceRoleClient.mockReturnValue(fake.client);
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        id: 987,
+        status: "approved",
+        transaction_amount: 12.35,
+        external_reference: "charge-1",
+        payment_method_id: "pix",
+        date_approved: "2026-08-16T14:20:00.000Z"
+      })
+    }) as unknown as typeof fetch;
+
+    const response = await handler(request({ type: "payment", data: { id: "987" } }));
+
+    expect(response.status).toBe(500);
+    expect(fake.paymentInsert.insert).not.toHaveBeenCalled();
+  });
+
+  it("não grava quando a referência externa diverge da intenção", async () => {
+    const fake = createClient({ foundIntent: intent });
+    mockServiceRoleClient.mockReturnValue(fake.client);
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        id: 987,
+        status: "approved",
+        transaction_amount: 12.34,
+        external_reference: "another-charge",
+        payment_method_id: "pix",
+        date_approved: "2026-08-16T14:20:00.000Z"
+      })
+    }) as unknown as typeof fetch;
+
+    const response = await handler(request({ type: "payment", data: { id: "987" } }));
+
+    expect(response.status).toBe(500);
+    expect(fake.paymentInsert.insert).not.toHaveBeenCalled();
+  });
+
+  it("devolve erro para o provedor quando a leitura interna falha", async () => {
+    mockServiceRoleClient.mockImplementation(() => {
+      throw new Error("database unavailable");
+    });
+
+    const response = await handler(request({ type: "payment", data: { id: "987" } }));
+
+    expect(response.status).toBe(500);
   });
 });
