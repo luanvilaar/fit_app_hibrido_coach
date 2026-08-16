@@ -1,0 +1,12 @@
+# Arquivos de teste não devem virar Serverless Functions no deploy.
+# Sem esta exclusão, cada teste dentro de api/ conta para o limite de
+# funções do plano Hobby (12), além de expor endpoints não-funcionais
+# publicamente. `npm run build` não depende desses arquivos.
+# Mantenha alinhado com o testMatch de apps/universal/jest.config.cjs
+# ("**/*.(test|spec).(ts|tsx)"), que já varre api/ via `roots`.
+api/**/*.test.ts
+api/**/*.test.tsx
+api/**/*.spec.ts
+api/**/*.spec.tsx
+api/**/__tests__/**
+api/**/*.d.ts
