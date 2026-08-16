@@ -1,8 +1,8 @@
-import { authenticate } from "../_lib/auth";
-import { publicAppUrl } from "../_lib/env";
-import { renderWelcomeEmail } from "../_lib/email-templates";
-import { failure, json, logAndFail, methodNotAllowed } from "../_lib/http";
-import { sendTransactionalEmail } from "../_lib/resend";
+import { authenticate } from "../_lib/auth.js";
+import { publicAppUrl } from "../_lib/env.js";
+import { renderWelcomeEmail } from "../_lib/email-templates.js";
+import { failure, json, logAndFail, methodNotAllowed } from "../_lib/http.js";
+import { sendTransactionalEmail } from "../_lib/resend.js";
 
 /**
  * Dispara o e-mail de boas-vindas quando a conta já nasce confirmada (projeto Supabase com
@@ -14,7 +14,7 @@ import { sendTransactionalEmail } from "../_lib/resend";
  * A identidade vem sempre do token da própria sessão recém-criada, nunca de um `email` no corpo:
  * senão qualquer chamada autenticada conseguiria mandar este endpoint escrever para outra pessoa.
  */
-export default async function handler(request: Request): Promise<Response> {
+async function handler(request: Request): Promise<Response> {
   if (request.method !== "POST") return methodNotAllowed("POST");
 
   const user = await authenticate(request);
@@ -34,3 +34,5 @@ export default async function handler(request: Request): Promise<Response> {
 
   return json({ sent: true });
 }
+
+export default { fetch: handler };

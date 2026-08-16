@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { ConnectionMissingError } from "../_lib/connection";
-import handler from "./create";
+import handlerModule from "./create";
+const handler = handlerModule.fetch;
 
 const mockAuthenticate = jest.fn();
 const mockServiceRoleClient = jest.fn();

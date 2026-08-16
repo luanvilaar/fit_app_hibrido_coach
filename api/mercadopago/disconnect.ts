@@ -1,5 +1,5 @@
-import { authenticate, serviceRoleClient } from "../_lib/auth";
-import { failure, json, logAndFail, methodNotAllowed } from "../_lib/http";
+import { authenticate, serviceRoleClient } from "../_lib/auth.js";
+import { failure, json, logAndFail, methodNotAllowed } from "../_lib/http.js";
 
 /**
  * Desconecta a conta do coach.
@@ -8,7 +8,7 @@ import { failure, json, logAndFail, methodNotAllowed } from "../_lib/http";
  * credencial revogada não tem por que continuar existindo cifrada no banco. O histórico do que já
  * foi pago vive em `charge_payments` e não depende desta tabela.
  */
-export default async function handler(request: Request): Promise<Response> {
+async function handler(request: Request): Promise<Response> {
   if (request.method !== "POST") return methodNotAllowed("POST");
 
   try {
@@ -30,3 +30,5 @@ export default async function handler(request: Request): Promise<Response> {
     return logAndFail("disconnect", error, "Não foi possível desconectar a conta.");
   }
 }
+
+export default { fetch: handler };

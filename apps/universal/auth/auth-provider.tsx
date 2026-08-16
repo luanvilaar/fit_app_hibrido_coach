@@ -40,6 +40,10 @@ function getAuthErrorMessage(error: { code?: string; message?: string }): string
       return "Sua sessão expirou. Faça login novamente.";
     case "user_not_found":
       return "Não foi possível concluir a operação. Tente novamente mais tarde.";
+    case "over_email_send_rate_limit":
+      return "Você já pediu isso há pouco tempo. Aguarde alguns minutos antes de tentar novamente.";
+    case "over_request_rate_limit":
+      return "Muitas tentativas em pouco tempo. Aguarde alguns minutos antes de tentar novamente.";
     default:
       // Generic message to avoid information disclosure
       return "Não foi possível concluir a operação. Tente novamente mais tarde.";

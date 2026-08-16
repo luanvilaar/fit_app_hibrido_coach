@@ -30,7 +30,8 @@ jest.mock("../_lib/email-templates", () => ({
 }));
 
 import { WebhookVerificationError } from "standardwebhooks";
-import handler from "./supabase-auth-email";
+import handlerModule from "./supabase-auth-email";
+const handler = handlerModule.fetch;
 
 beforeEach(() => {
   jest.clearAllMocks();

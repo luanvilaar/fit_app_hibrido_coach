@@ -18,7 +18,8 @@ jest.mock("../_lib/email-templates", () => ({
   renderWelcomeEmail: (...args: unknown[]) => mockRenderWelcomeEmail(...args)
 }));
 
-import handler from "./welcome";
+import handlerModule from "./welcome";
+const handler = handlerModule.fetch;
 
 beforeEach(() => {
   jest.clearAllMocks();

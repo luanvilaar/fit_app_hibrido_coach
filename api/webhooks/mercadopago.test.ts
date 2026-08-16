@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import handler from "./mercadopago";
+import handlerModule from "./mercadopago";
+const handler = handlerModule.fetch;
 
 const mockServiceRoleClient = jest.fn();
 const mockGetValidAccessToken = jest.fn();

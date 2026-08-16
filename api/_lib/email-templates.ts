@@ -1,4 +1,4 @@
-import { publicAppUrl } from "./env";
+import { publicAppUrl } from "./env.js";
 
 /**
  * Endereço mostrado no rodapé dos e-mails transacionais. Puramente de apresentação — trocar aqui

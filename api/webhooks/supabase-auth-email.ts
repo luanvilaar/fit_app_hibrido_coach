@@ -1,8 +1,8 @@
 import { Webhook, WebhookVerificationError } from "standardwebhooks";
-import { renderPasswordResetEmail, renderWelcomeEmail, type RenderedEmail } from "../_lib/email-templates";
-import { supabaseAuthHookSecret, supabaseConfig } from "../_lib/env";
-import { failure, json, logAndFail, methodNotAllowed } from "../_lib/http";
-import { sendTransactionalEmail } from "../_lib/resend";
+import { renderPasswordResetEmail, renderWelcomeEmail, type RenderedEmail } from "../_lib/email-templates.js";
+import { supabaseAuthHookSecret, supabaseConfig } from "../_lib/env.js";
+import { failure, json, logAndFail, methodNotAllowed } from "../_lib/http.js";
+import { sendTransactionalEmail } from "../_lib/resend.js";
 
 /**
  * "Send Email Hook" do Supabase (Authentication > Hooks > Send Email).
@@ -82,7 +82,7 @@ function renderFallbackEmail(email: string, actionUrl: string): RenderedEmail {
   };
 }
 
-export default async function handler(request: Request): Promise<Response> {
+async function handler(request: Request): Promise<Response> {
   if (request.method !== "POST") return methodNotAllowed("POST");
 
   const rawBody = await request.text().catch(() => "");
@@ -134,3 +134,5 @@ export default async function handler(request: Request): Promise<Response> {
 
   return json({ received: true });
 }
+
+export default { fetch: handler };

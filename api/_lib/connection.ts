@@ -1,7 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { decryptSecret, encryptSecret } from "./crypto";
-import { encryptionKeyMaterial, mercadoPagoConfig } from "./env";
-import { expiresAtFrom, refreshAccessToken } from "./mercadopago";
+import { decryptSecret, encryptSecret } from "./crypto.js";
+import { encryptionKeyMaterial, mercadoPagoConfig } from "./env.js";
+import { expiresAtFrom, refreshAccessToken } from "./mercadopago.js";
 
 export type ProviderConnection = {
   coach_id: string;

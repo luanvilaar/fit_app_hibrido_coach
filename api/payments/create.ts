@@ -1,7 +1,7 @@
-import { authenticate, serviceRoleClient } from "../_lib/auth";
-import { ConnectionMissingError, getValidAccessToken } from "../_lib/connection";
-import { appOrigin } from "../_lib/env";
-import { failure, json, logAndFail, methodNotAllowed } from "../_lib/http";
+import { authenticate, serviceRoleClient } from "../_lib/auth.js";
+import { ConnectionMissingError, getValidAccessToken } from "../_lib/connection.js";
+import { appOrigin } from "../_lib/env.js";
+import { failure, json, logAndFail, methodNotAllowed } from "../_lib/http.js";
 
 const PAYMENTS_URL = "https://api.mercadopago.com/v1/payments";
 
@@ -19,7 +19,7 @@ type ChargeRow = {
  * O valor é sempre relido do saldo no banco, nunca aceito do corpo da requisição: um
  * `amount` vindo do cliente seria o próprio aluno dizendo quanto deve.
  */
-export default async function handler(request: Request): Promise<Response> {
+async function handler(request: Request): Promise<Response> {
   if (request.method !== "POST") return methodNotAllowed("POST");
 
   try {
@@ -175,3 +175,5 @@ export default async function handler(request: Request): Promise<Response> {
     return logAndFail("create", error, "Não foi possível gerar o pagamento.");
   }
 }
+
+export default { fetch: handler };

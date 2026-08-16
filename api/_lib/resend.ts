@@ -1,5 +1,5 @@
 import { Resend } from "resend";
-import { resendConfig } from "./env";
+import { resendConfig } from "./env.js";
 
 let client: Resend | null = null;
 

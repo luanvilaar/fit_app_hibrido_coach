@@ -1,7 +1,7 @@
-import { authenticate, serviceRoleClient } from "../_lib/auth";
-import { ConnectionMissingError, getValidAccessToken } from "../_lib/connection";
-import { appOrigin } from "../_lib/env";
-import { failure, json, logAndFail, methodNotAllowed } from "../_lib/http";
+import { authenticate, serviceRoleClient } from "../_lib/auth.js";
+import { ConnectionMissingError, getValidAccessToken } from "../_lib/connection.js";
+import { appOrigin } from "../_lib/env.js";
+import { failure, json, logAndFail, methodNotAllowed } from "../_lib/http.js";
 
 const PAYMENTS_URL = "https://api.mercadopago.com/v1/payments";
 
@@ -36,7 +36,7 @@ type PaymentPayload = {
  * O produto e o vendedor são relidos no servidor. O cliente só escolhe o produto; não escolhe
  * preço, coach recebedor ou conteúdo liberado.
  */
-export default async function handler(request: Request): Promise<Response> {
+async function handler(request: Request): Promise<Response> {
   if (request.method !== "POST") return methodNotAllowed("POST");
 
   try {
@@ -219,3 +219,5 @@ async function createOrder(
 
   return { ...order, store_order_items: [{ product_id: input.productId }] } as PendingOrderRow;
 }
+
+export default { fetch: handler };

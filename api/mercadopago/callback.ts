@@ -1,8 +1,8 @@
-import { serviceRoleClient } from "../_lib/auth";
-import { encryptSecret } from "../_lib/crypto";
-import { appOrigin, encryptionKeyMaterial, mercadoPagoConfig } from "../_lib/env";
-import { methodNotAllowed, redirect } from "../_lib/http";
-import { exchangeAuthorizationCode, expiresAtFrom } from "../_lib/mercadopago";
+import { serviceRoleClient } from "../_lib/auth.js";
+import { encryptSecret } from "../_lib/crypto.js";
+import { appOrigin, encryptionKeyMaterial, mercadoPagoConfig } from "../_lib/env.js";
+import { methodNotAllowed, redirect } from "../_lib/http.js";
+import { exchangeAuthorizationCode, expiresAtFrom } from "../_lib/mercadopago.js";
 
 /**
  * O retorno do Mercado Pago depois que o coach autoriza.
@@ -15,7 +15,7 @@ import { exchangeAuthorizationCode, expiresAtFrom } from "../_lib/mercadopago";
  * Sempre termina em redirect para o painel, com o resultado na query: quem está do outro lado é
  * uma janela de navegador, não código esperando JSON.
  */
-export default async function handler(request: Request): Promise<Response> {
+async function handler(request: Request): Promise<Response> {
   if (request.method !== "GET") return methodNotAllowed("GET");
 
   const panel = `${appOrigin()}/app/coach/financeiro`;
@@ -92,3 +92,5 @@ export default async function handler(request: Request): Promise<Response> {
     return redirect(`${panel}?mp=erro`);
   }
 }
+
+export default { fetch: handler };

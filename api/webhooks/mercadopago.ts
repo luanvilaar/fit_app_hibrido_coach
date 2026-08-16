@@ -1,8 +1,8 @@
-import { serviceRoleClient } from "../_lib/auth";
-import { ConnectionMissingError, getValidAccessToken } from "../_lib/connection";
-import { mercadoPagoWebhookSecret } from "../_lib/env";
-import { failure, json, logAndFail, methodNotAllowed } from "../_lib/http";
-import { isValidSignature } from "../_lib/webhook-signature";
+import { serviceRoleClient } from "../_lib/auth.js";
+import { ConnectionMissingError, getValidAccessToken } from "../_lib/connection.js";
+import { mercadoPagoWebhookSecret } from "../_lib/env.js";
+import { failure, json, logAndFail, methodNotAllowed } from "../_lib/http.js";
+import { isValidSignature } from "../_lib/webhook-signature.js";
 
 const PAYMENTS_URL = "https://api.mercadopago.com/v1/payments";
 
@@ -208,7 +208,7 @@ async function settleStorePayment(
  * Recebe apenas o aviso de mudança; o estado verdadeiro é relido no Mercado Pago depois da
  * assinatura. Assim, um corpo forjado ou antigo nunca consegue dar baixa numa cobrança.
  */
-export default async function handler(request: Request): Promise<Response> {
+async function handler(request: Request): Promise<Response> {
   if (request.method !== "POST") return methodNotAllowed("POST");
 
   const rawBody = await request.text().catch(() => "");
@@ -301,3 +301,5 @@ export default async function handler(request: Request): Promise<Response> {
 
   return json({ received: true });
 }
+
+export default { fetch: handler };
