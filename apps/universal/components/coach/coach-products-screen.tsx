@@ -6,8 +6,10 @@ import type {
   SessionTemplateSummary,
   StoreProductCategory,
   StoreProductLevel,
+  StoreProgramScheduleDay,
   StoreReviewProductRecord,
-  StoreSaleRecord
+  StoreSaleRecord,
+  TeamMemberRecord
 } from "@fitblock/backend";
 import { createCoachFlowRepository, createStoreRepository } from "@fitblock/backend";
 import { colors, fontFamilies, radius, spacing, typeScale } from "@fitblock/design-tokens";
@@ -20,6 +22,7 @@ import {
   describeProductStatus,
   slugifyStoreTitle
 } from "@/data/store";
+import { createInitialProgramSchedule, validateProgramSchedule } from "@/data/program-builder";
 import { getSupabaseConfigurationError, supabase } from "@/lib/supabase";
 
 type ProductForm = {
@@ -32,7 +35,7 @@ type ProductForm = {
   category: StoreProductCategory;
   level: StoreProductLevel;
   durationWeeks: string;
-  sessionTemplateId: string;
+  schedule: StoreProgramScheduleDay[];
 };
 
 const categories: StoreProductCategory[] = [
@@ -57,7 +60,7 @@ const initialForm: ProductForm = {
   category: "strength",
   level: "all",
   durationWeeks: "",
-  sessionTemplateId: ""
+  schedule: createInitialProgramSchedule()
 };
 
 export function CoachProductsScreen() {
@@ -70,14 +73,23 @@ export function CoachProductsScreen() {
   const [reviewProducts, setReviewProducts] = useState<StoreReviewProductRecord[]>([]);
   const [sales, setSales] = useState<StoreSaleRecord[]>([]);
   const [templates, setTemplates] = useState<SessionTemplateSummary[]>([]);
+  const [teams, setTeams] = useState<Array<{ id: string; name: string }>>([]);
+  const [deliveryMembers, setDeliveryMembers] = useState<TeamMemberRecord[]>([]);
+  const [deliveryTarget, setDeliveryTarget] = useState<"team" | "athlete">("team");
+  const [deliveryAthleteId, setDeliveryAthleteId] = useState<string>("");
   const [form, setForm] = useState<ProductForm>(initialForm);
   const [editingProductId, setEditingProductId] = useState<string | null>(null);
   const [rejectionReasons, setRejectionReasons] = useState<Record<string, string>>({});
+  const [reviewSchedules, setReviewSchedules] = useState<Record<string, StoreProgramScheduleDay[]>>({});
+  const [scheduleLoadingProductId, setScheduleLoadingProductId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [busyProductId, setBusyProductId] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [deliveryProductId, setDeliveryProductId] = useState<string>("");
+  const [deliveryTeamId, setDeliveryTeamId] = useState<string>("");
+  const [deliveryDate, setDeliveryDate] = useState(() => new Date().toISOString().slice(0, 10));
 
   const load = useCallback(async () => {
     const client = supabase;
@@ -90,15 +102,19 @@ export function CoachProductsScreen() {
     setIsLoading(true);
     try {
       const storeRepository = createStoreRepository(client);
-      const [nextProducts, nextSales, nextTemplates, nextReviewProducts] = await Promise.all([
+      const [nextProducts, nextSales, nextTemplates, nextTeams, nextReviewProducts] = await Promise.all([
         storeRepository.listCoachProducts(),
         storeRepository.listCoachSales(),
         createCoachFlowRepository(client).listSessionTemplates(),
+        createCoachFlowRepository(client).listCoachTeams(),
         isOwner ? storeRepository.listProductsForReview() : Promise.resolve([])
       ]);
       setProducts(nextProducts);
       setSales(nextSales);
       setTemplates(nextTemplates);
+      setTeams(nextTeams);
+      setDeliveryTeamId((current) => current || nextTeams[0]?.id || "");
+      setDeliveryProductId((current) => current || nextProducts.find((product) => product.status === "published")?.id || "");
       setReviewProducts(nextReviewProducts);
       setErrorMessage(null);
     } catch (error: unknown) {
@@ -112,6 +128,29 @@ export function CoachProductsScreen() {
     if (isCoach || isOwner) void load();
     else setIsLoading(false);
   }, [isCoach, isOwner, load]);
+
+  useEffect(() => {
+    if (!supabase || !deliveryTeamId || !isCoach) {
+      setDeliveryMembers([]);
+      setDeliveryAthleteId("");
+      return;
+    }
+
+    let mounted = true;
+    void createCoachFlowRepository(supabase).listTeamMembers(deliveryTeamId)
+      .then((members) => {
+        if (!mounted) return;
+        const athletes = members.filter((member) => member.role === "athlete");
+        setDeliveryMembers(athletes);
+        setDeliveryAthleteId((current) => athletes.some((member) => member.user_id === current) ? current : (athletes[0]?.user_id || ""));
+      })
+      .catch(() => {
+        if (mounted) setDeliveryMembers([]);
+      });
+    return () => {
+      mounted = false;
+    };
+  }, [deliveryTeamId, isCoach]);
 
   if (!isCoach && !isOwner) {
     return (
@@ -129,27 +168,37 @@ export function CoachProductsScreen() {
     setForm((current) => ({ ...current, title: value, slug: slugifyStoreTitle(value) }));
   }
 
-  function editProduct(product: CoachStoreProductRecord) {
+  async function editProduct(product: CoachStoreProductRecord) {
+    if (!supabase) return;
     setEditingProductId(product.id);
-    setForm({
-      title: product.title,
-      slug: product.slug,
-      shortDescription: product.short_description,
-      description: product.description,
-      coverImageUrl: product.cover_image_url ?? "",
-      price: formatAmountInput(product.price_cents),
-      category: product.category,
-      level: product.level,
-      durationWeeks: product.duration_weeks ? String(product.duration_weeks) : "",
-      sessionTemplateId: product.session_template_id
-    });
-    setErrorMessage(null);
-    setSuccessMessage(null);
+    try {
+      const schedule = await createStoreRepository(supabase).getCoachProductSchedule(product.id);
+      setForm({
+        title: product.title,
+        slug: product.slug,
+        shortDescription: product.short_description,
+        description: product.description,
+        coverImageUrl: product.cover_image_url ?? "",
+        price: formatAmountInput(product.price_cents),
+        category: product.category,
+        level: product.level,
+        durationWeeks: product.duration_weeks ? String(product.duration_weeks) : "",
+        schedule: schedule.length > 0 ? schedule : createInitialProgramSchedule(product.session_template_id)
+      });
+      setErrorMessage(null);
+      setSuccessMessage(null);
+    } catch (error: unknown) {
+      setEditingProductId(null);
+      setErrorMessage(describeBackendError(error));
+    }
   }
 
   function resetForm() {
     setEditingProductId(null);
-    setForm({ ...initialForm, sessionTemplateId: templates[0]?.id ?? "" });
+    setForm({
+      ...initialForm,
+      schedule: createInitialProgramSchedule(templates.find((template) => template.status === "published")?.id ?? null)
+    });
     setErrorMessage(null);
     setSuccessMessage(null);
   }
@@ -170,8 +219,9 @@ export function CoachProductsScreen() {
     }
 
     const durationWeeks = form.durationWeeks.trim().length === 0 ? null : Number(form.durationWeeks);
-    if (!form.title.trim() || form.shortDescription.trim().length < 8 || !form.sessionTemplateId) {
-      setErrorMessage("Preencha título, resumo, preço e selecione um treino da biblioteca.");
+    const scheduleError = validateProgramSchedule(form.schedule);
+    if (!form.title.trim() || form.shortDescription.trim().length < 8 || scheduleError) {
+      setErrorMessage(scheduleError ?? "Preencha título, resumo, preço e o programa.");
       return;
     }
     if (!Number.isInteger(durationWeeks) && durationWeeks !== null) {
@@ -192,14 +242,14 @@ export function CoachProductsScreen() {
         category: form.category,
         level: form.level,
         durationWeeks,
-        sessionTemplateId: form.sessionTemplateId
+        schedule: form.schedule
       };
 
       if (editingProductId) {
-        await repository.updateTrainingProduct({ ...input, productId: editingProductId });
-        setSuccessMessage("Produto atualizado. Se ele estava publicado, voltou para rascunho e precisa de nova análise.");
+        await repository.updateTrainingProgram({ ...input, productId: editingProductId });
+        setSuccessMessage("Programa atualizado. Ele voltou para rascunho e precisa de nova análise.");
       } else {
-        await repository.createTrainingProduct(input);
+        await repository.createTrainingProgram(input);
         setSuccessMessage("Produto criado como rascunho.");
       }
       resetForm();
@@ -263,6 +313,40 @@ export function CoachProductsScreen() {
     }
   }
 
+  async function loadReviewSchedule(productId: string) {
+    if (!supabase || scheduleLoadingProductId) return;
+    setScheduleLoadingProductId(productId);
+    try {
+      const schedule = await createStoreRepository(supabase).getCoachProductSchedule(productId);
+      setReviewSchedules((current) => ({ ...current, [productId]: schedule }));
+      setErrorMessage(null);
+    } catch (error: unknown) {
+      setErrorMessage(describeBackendError(error));
+    } finally {
+      setScheduleLoadingProductId(null);
+    }
+  }
+
+  async function createDelivery() {
+    if (!supabase || !deliveryProductId || !deliveryTeamId || busyProductId) return;
+    setBusyProductId(deliveryProductId);
+    setErrorMessage(null);
+    setSuccessMessage(null);
+    try {
+      await createStoreRepository(supabase).createProgramDelivery({
+        productId: deliveryProductId,
+        teamId: deliveryTarget === "team" ? deliveryTeamId : null,
+        athleteId: deliveryTarget === "athlete" ? deliveryAthleteId : null,
+        startDate: deliveryDate
+      });
+      setSuccessMessage("Programa entregue à equipe. As sessões foram adicionadas ao calendário.");
+    } catch (error: unknown) {
+      setErrorMessage(describeBackendError(error));
+    } finally {
+      setBusyProductId(null);
+    }
+  }
+
   const grossSales = sales.reduce((total, sale) => total + sale.gross_amount_cents, 0);
 
   return (
@@ -304,7 +388,7 @@ export function CoachProductsScreen() {
                 key={product.id}
                 busy={busyProductId === product.id}
                 onArchive={() => void runProductAction(product.id, "archive")}
-                onEdit={() => editProduct(product)}
+                onEdit={() => void editProduct(product)}
                 onSubmit={() => void runProductAction(product.id, "submit")}
                 product={product}
               />
@@ -312,6 +396,23 @@ export function CoachProductsScreen() {
           </View>
 
           <SalesPanel grossSales={grossSales} isLoading={isLoading} sales={sales} />
+          {isCoach && <DeliveryPanel
+            busy={busyProductId !== null}
+            date={deliveryDate}
+            productId={deliveryProductId}
+            products={products.filter((product) => product.status === "published")}
+            target={deliveryTarget}
+            teamId={deliveryTeamId}
+            teams={teams}
+            athleteId={deliveryAthleteId}
+            members={deliveryMembers}
+            onCreate={() => void createDelivery()}
+            onDateChange={setDeliveryDate}
+            onProductChange={setDeliveryProductId}
+            onTargetChange={(target) => setDeliveryTarget(target)}
+            onTeamChange={setDeliveryTeamId}
+            onAthleteChange={setDeliveryAthleteId}
+          />}
         </View>
       </View>
 
@@ -320,8 +421,11 @@ export function CoachProductsScreen() {
           busyProductId={busyProductId}
           products={reviewProducts}
           rejectionReasons={rejectionReasons}
+          schedules={reviewSchedules}
+          scheduleLoadingProductId={scheduleLoadingProductId}
           onReasonChange={(productId, value) => setRejectionReasons((current) => ({ ...current, [productId]: value }))}
           onReview={(productId, action) => void reviewProduct(productId, action)}
+          onLoadSchedule={(productId) => void loadReviewSchedule(productId)}
         />
       )}
     </View>
@@ -382,24 +486,96 @@ function ProductEditor({
       <OptionGroup label="Categoria" options={categories} selected={form.category} getLabel={describeProductCategory} onChange={(value) => onChange("category", value)} />
       <OptionGroup label="Nível" options={levels} selected={form.level} getLabel={describeProductLevel} onChange={(value) => onChange("level", value)} />
 
-      <View style={styles.field}>
-        <Text style={styles.fieldLabel}>TREINO BASE DA BIBLIOTECA</Text>
-        {templates.length === 0 ? (
-          <Text style={styles.helperText}>Crie um treino na Biblioteca antes de montar um produto.</Text>
-        ) : templates.map((template) => (
-          <ChoiceRow
-            key={template.id}
-            label={template.title}
-            selected={form.sessionTemplateId === template.id}
-            onPress={() => onChange("sessionTemplateId", template.id)}
-          />
-        ))}
-      </View>
+      <ProgramScheduleEditor
+        days={form.schedule}
+        templates={templates.filter((template) => template.status === "published")}
+        onChange={(schedule) => onChange("schedule", schedule)}
+      />
 
       <View style={styles.editorActions}>
         {editingProductId && <ActionButton label="Cancelar edição" onPress={onCancel} />}
         <ActionButton disabled={isSaving} label={isSaving ? "Salvando…" : editingProductId ? "Salvar produto" : "Criar rascunho"} onPress={onSubmit} primary />
       </View>
+    </View>
+  );
+}
+
+function ProgramScheduleEditor({
+  days,
+  templates,
+  onChange
+}: {
+  days: StoreProgramScheduleDay[];
+  templates: SessionTemplateSummary[];
+  onChange: (days: StoreProgramScheduleDay[]) => void;
+}) {
+  function update(index: number, patch: Partial<StoreProgramScheduleDay>) {
+    onChange(days.map((day, dayIndex) => dayIndex === index ? { ...day, ...patch } : day));
+  }
+
+  function addDay() {
+    const last = days[days.length - 1];
+    const nextWeek = last && last.day_number >= 7 ? last.week_number + 1 : (last?.week_number ?? 1);
+    const nextDay = last && last.day_number >= 7 ? 1 : (last?.day_number ?? 0) + 1;
+    onChange([
+      ...days,
+      {
+        week_number: nextWeek,
+        day_number: nextDay,
+        is_rest_day: true,
+        session_template_id: null
+      }
+    ]);
+  }
+
+  return (
+    <View style={styles.field} testID="program-schedule-editor">
+      <Text style={styles.fieldLabel}>ESTRUTURA DO PROGRAMA</Text>
+      {templates.length === 0 && <Text style={styles.helperText}>Publique treinos na Biblioteca antes de montar o programa.</Text>}
+      {days.map((day, index) => (
+        <View key={`${day.week_number}-${day.day_number}-${index}`} style={styles.scheduleRow}>
+          <TextInput
+            accessibilityLabel={`Semana da sessão ${index + 1}`}
+            keyboardType="number-pad"
+            onChangeText={(value) => update(index, { week_number: Number(value.replace(/[^0-9]/g, "")) || 1 })}
+            style={styles.scheduleNumber}
+            value={String(day.week_number)}
+          />
+          <TextInput
+            accessibilityLabel={`Dia da sessão ${index + 1}`}
+            keyboardType="number-pad"
+            onChangeText={(value) => update(index, { day_number: Number(value.replace(/[^0-9]/g, "")) || 1 })}
+            style={styles.scheduleNumber}
+            value={String(day.day_number)}
+          />
+          <ChoiceRow
+            compact
+            label={day.is_rest_day ? "Descanso" : day.session_title || "Treino"}
+            selected={day.is_rest_day}
+            onPress={() => update(index, {
+              is_rest_day: !day.is_rest_day,
+              session_template_id: day.is_rest_day ? (templates[0]?.id ?? null) : null,
+              session_title: day.is_rest_day ? templates[0]?.title ?? null : null
+            })}
+          />
+          {!day.is_rest_day && (
+            <View style={styles.scheduleTemplates}>
+              {templates.map((template) => (
+                <ChoiceRow
+                  key={template.id}
+                  compact
+                  label={template.title}
+                  selected={day.session_template_id === template.id}
+                  onPress={() => update(index, { session_template_id: template.id, session_title: template.title })}
+                />
+              ))}
+            </View>
+          )}
+          {days.length > 1 && <SmallButton label="Remover" onPress={() => onChange(days.filter((_, dayIndex) => dayIndex !== index))} />}
+        </View>
+      ))}
+      <SmallButton label="Adicionar dia" onPress={addDay} primary />
+      <Text style={styles.helperText}>A publicação congela o conteúdo. Alterações futuras criam uma nova revisão.</Text>
     </View>
   );
 }
@@ -422,7 +598,7 @@ function ProductRow({ product, busy, onEdit, onSubmit, onArchive }: { product: C
   );
 }
 
-function ReviewQueue({ products, busyProductId, rejectionReasons, onReasonChange, onReview }: { products: StoreReviewProductRecord[]; busyProductId: string | null; rejectionReasons: Record<string, string>; onReasonChange: (productId: string, value: string) => void; onReview: (productId: string, action: "approve" | "reject") => void }) {
+function ReviewQueue({ products, busyProductId, rejectionReasons, schedules, scheduleLoadingProductId, onReasonChange, onReview, onLoadSchedule }: { products: StoreReviewProductRecord[]; busyProductId: string | null; rejectionReasons: Record<string, string>; schedules: Record<string, StoreProgramScheduleDay[]>; scheduleLoadingProductId: string | null; onReasonChange: (productId: string, value: string) => void; onReview: (productId: string, action: "approve" | "reject") => void; onLoadSchedule: (productId: string) => void }) {
   return (
     <View style={styles.panel} testID="store-review-queue">
       <PanelHeading eyebrow="MODERAÇÃO" title="Produtos aguardando análise" />
@@ -431,8 +607,14 @@ function ReviewQueue({ products, busyProductId, rejectionReasons, onReasonChange
           <View style={styles.productRowCopy}>
             <Text style={styles.productRowTitle}>{product.title}</Text>
             <Text style={styles.productRowMeta}>por {product.seller_display_name} · {formatBRL(product.price_cents)}</Text>
+            {schedules[product.id] && (
+              <Text style={styles.productRowMeta}>
+                {schedules[product.id].map((day) => `${day.is_rest_day ? "Descanso" : day.session_title ?? "Treino"} (S${day.week_number} · D${day.day_number})`).join(" · ")}
+              </Text>
+            )}
           </View>
           <View style={styles.reviewActions}>
+            <SmallButton disabled={scheduleLoadingProductId === product.id} label={schedules[product.id] ? "Atualizar estrutura" : "Ver estrutura"} onPress={() => onLoadSchedule(product.id)} />
             <SmallButton disabled={busyProductId === product.id} label="Aprovar" onPress={() => onReview(product.id, "approve")} primary />
             <TextInput accessibilityLabel={`Motivo da rejeição de ${product.title}`} onChangeText={(value) => onReasonChange(product.id, value)} placeholder="Motivo para devolver" placeholderTextColor={colors.textSecondary} style={styles.reasonInput} value={rejectionReasons[product.id] ?? ""} />
             <SmallButton disabled={busyProductId === product.id} label="Devolver" onPress={() => onReview(product.id, "reject")} />
@@ -456,6 +638,75 @@ function SalesPanel({ sales, grossSales, isLoading }: { sales: StoreSaleRecord[]
           <Text style={styles.saleAmount}>{formatBRL(sale.gross_amount_cents)}</Text>
         </View>
       ))}
+    </View>
+  );
+}
+
+function DeliveryPanel({
+  busy,
+  date,
+  productId,
+  products,
+  target,
+  teamId,
+  teams,
+  athleteId,
+  members,
+  onCreate,
+  onDateChange,
+  onProductChange,
+  onTargetChange,
+  onTeamChange,
+  onAthleteChange
+}: {
+  busy: boolean;
+  date: string;
+  productId: string;
+  products: Array<{ id: string; title: string }>;
+  target: "team" | "athlete";
+  teamId: string;
+  teams: Array<{ id: string; name: string }>;
+  athleteId: string;
+  members: TeamMemberRecord[];
+  onCreate: () => void;
+  onDateChange: (value: string) => void;
+  onProductChange: (value: string) => void;
+  onTargetChange: (value: "team" | "athlete") => void;
+  onTeamChange: (value: string) => void;
+  onAthleteChange: (value: string) => void;
+}) {
+  return (
+    <View style={styles.panel} testID="program-delivery-panel">
+      <PanelHeading eyebrow="ENTREGA PERSONALIZADA" title="Leve um programa para sua equipe." />
+      {products.length === 0 || teams.length === 0 ? (
+        <Text style={styles.helperText}>Publique um programa e tenha uma equipe disponível para criar uma entrega.</Text>
+      ) : (
+        <>
+          <Field label="Programa publicado">
+            {products.map((product) => <ChoiceRow key={product.id} compact label={product.title} selected={productId === product.id} onPress={() => onProductChange(product.id)} />)}
+          </Field>
+          <Field label="Equipe">
+            {teams.map((team) => <ChoiceRow key={team.id} compact label={team.name} selected={teamId === team.id} onPress={() => onTeamChange(team.id)} />)}
+          </Field>
+          <Field label="Destino">
+            <View style={styles.optionWrap}>
+              <ChoiceRow compact label="Equipe inteira" selected={target === "team"} onPress={() => onTargetChange("team")} />
+              <ChoiceRow compact label="Um atleta" selected={target === "athlete"} onPress={() => onTargetChange("athlete")} />
+            </View>
+          </Field>
+          {target === "athlete" && (
+            <Field label="Atleta">
+              {members.length === 0 ? <Text style={styles.helperText}>A equipe não possui atletas disponíveis.</Text> : members.map((member) => (
+                <ChoiceRow key={member.user_id} compact label={member.email} selected={athleteId === member.user_id} onPress={() => onAthleteChange(member.user_id)} />
+              ))}
+            </Field>
+          )}
+          <Field label="Data inicial">
+            <TextInput accessibilityLabel="Data inicial da entrega" onChangeText={onDateChange} style={styles.input} value={date} />
+          </Field>
+          <SmallButton disabled={busy || !productId || !teamId || (target === "athlete" && !athleteId)} label={busy ? "Entregando…" : "Criar entrega"} onPress={onCreate} primary />
+        </>
+      )}
     </View>
   );
 }
@@ -518,13 +769,16 @@ const styles = StyleSheet.create({
   textArea: { minHeight: 100, textAlignVertical: "top" },
   optionWrap: { flexDirection: "row", flexWrap: "wrap", gap: spacing[2] },
   choice: { alignItems: "center", backgroundColor: colors.surface01, borderColor: colors.border, borderRadius: radius.md, borderWidth: 1, flexDirection: "row", gap: spacing[2], minHeight: 44, paddingHorizontal: spacing[3] },
-  choiceCompact: { borderRadius: radius.pill, minHeight: 38 },
+  choiceCompact: { borderRadius: radius.pill, minHeight: 44 },
   choiceSelected: { backgroundColor: colors.purple500, borderColor: colors.purple500 },
   choiceDot: { borderColor: colors.textSecondary, borderRadius: radius.pill, borderWidth: 1, height: 9, width: 9 },
   choiceDotSelected: { backgroundColor: colors.white, borderColor: colors.white },
   choiceText: { color: colors.textSecondary, fontFamily: fontFamilies.interface, fontSize: 12 },
   choiceTextSelected: { color: colors.white, fontFamily: fontFamilies.interfaceBold },
   editorActions: { alignItems: "center", flexDirection: "row", flexWrap: "wrap", gap: spacing[3], justifyContent: "flex-end", marginTop: spacing[2] },
+  scheduleRow: { alignItems: "flex-start", borderColor: colors.border, borderRadius: radius.md, borderWidth: 1, gap: spacing[2], padding: spacing[2] },
+  scheduleNumber: { backgroundColor: colors.surface01, borderColor: colors.border, borderRadius: radius.md, borderWidth: 1, color: colors.textPrimary, fontFamily: fontFamilies.interface, fontSize: 13, minHeight: 44, paddingHorizontal: spacing[2], width: 54 },
+  scheduleTemplates: { flexDirection: "row", flexWrap: "wrap", gap: spacing[2] },
   actionButton: { alignItems: "center", borderColor: colors.border, borderRadius: radius.pill, borderWidth: 1, justifyContent: "center", minHeight: 44, paddingHorizontal: spacing[4] },
   actionButtonPrimary: { backgroundColor: colors.purple500, borderColor: colors.purple500 },
   actionButtonDisabled: { opacity: 0.5 },

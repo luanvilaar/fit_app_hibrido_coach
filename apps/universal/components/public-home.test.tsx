@@ -7,6 +7,11 @@ jest.mock("expo-router", () => ({
   useRouter: () => ({ push: mockPush })
 }));
 
+jest.mock("expo-video", () => ({
+  useVideoPlayer: () => ({ play: jest.fn() }),
+  VideoView: "VideoView"
+}));
+
 describe("PublicHome", () => {
   beforeEach(() => {
     mockPush.mockClear();

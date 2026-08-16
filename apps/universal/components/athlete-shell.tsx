@@ -328,7 +328,6 @@ function TrainingBrand({ compact = false }: { compact?: boolean }) {
       <View style={styles.brandDot} />
       <View style={compact ? styles.mobileBrandCopy : styles.sidebarBrandCopy}>
         <Text style={compact ? styles.mobileWordmark : styles.sidebarWordmark}>FITBLOCK</Text>
-        <Text style={compact ? styles.mobileBrandByline : styles.sidebarBrandByline}>COACH HÍBRIDO</Text>
       </View>
     </View>
   );

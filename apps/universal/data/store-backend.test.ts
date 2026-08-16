@@ -97,4 +97,48 @@ describe("store backend repository", () => {
       sessions: [{ id: "session-1", title: "Treino A" }]
     });
   });
+
+  it("envia a agenda multi-semana sem campos internos da UI", async () => {
+    const { client, rpc } = createClient({ id: "product-2" });
+
+    await createStoreRepository(client).createTrainingProgram({
+      title: "Base Híbrida",
+      slug: "base-hibrida",
+      description: "Ciclo completo",
+      shortDescription: "Para evoluir",
+      coverImageUrl: null,
+      priceCents: 14900,
+      category: "hybrid",
+      level: "all",
+      durationWeeks: 8,
+      schedule: [
+        { week_number: 1, day_number: 1, is_rest_day: false, session_template_id: "template-1", session_title: "Treino A" },
+        { week_number: 1, day_number: 2, is_rest_day: true, session_template_id: null, session_title: "Descanso" }
+      ]
+    });
+
+    expect(rpc).toHaveBeenCalledWith("create_store_training_program", expect.objectContaining({
+      p_schedule: [
+        { week_number: 1, day_number: 1, is_rest_day: false, session_template_id: "template-1" },
+        { week_number: 1, day_number: 2, is_rest_day: true, session_template_id: null }
+      ]
+    }));
+  });
+
+  it("cria uma entrega para equipe sem aceitar preço, coach ou conteúdo do cliente", async () => {
+    const { client, rpc } = createClient({ id: "delivery-1" });
+
+    await createStoreRepository(client).createProgramDelivery({
+      productId: "product-1",
+      teamId: "team-1",
+      startDate: "2026-08-20"
+    });
+
+    expect(rpc).toHaveBeenCalledWith("create_training_program_delivery", {
+      p_product_id: "product-1",
+      p_team_id: "team-1",
+      p_athlete_id: null,
+      p_start_date: "2026-08-20"
+    });
+  });
 });

@@ -1,6 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
-import { StyleSheet, Text, View, useWindowDimensions } from "react-native";
+import { Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import {
   createStoreRepository,
   type StoreOrderRecord,
@@ -93,6 +94,7 @@ export function MyTrainingProgramsScreen() {
 }
 
 function ProgramCard({ program }: { program: TrainingProgramRecord }) {
+  const router = useRouter();
   return (
     <View style={styles.programCard} testID={`training-program-${program.product_id}`}>
       <View style={styles.programHeader}>
@@ -119,11 +121,18 @@ function ProgramCard({ program }: { program: TrainingProgramRecord }) {
           <Text style={styles.helperText}>O coach ainda não adicionou sessões a este programa.</Text>
         ) : (
           program.sessions.map((session) => (
-            <View key={session.id} style={styles.sessionRow}>
+            <Pressable
+              key={session.id}
+              accessibilityRole={session.is_rest_day ? undefined : "button"}
+              accessibilityLabel={session.is_rest_day ? `${session.title}, descanso` : `Iniciar ${session.title}`}
+              disabled={session.is_rest_day || !session.session_instance_id}
+              onPress={() => session.session_instance_id && router.push(`/app/treino?sessionId=${session.session_instance_id}`)}
+              style={({ pressed }) => [styles.sessionRow, pressed && styles.pressed]}
+            >
               <Text style={styles.sessionNumber}>S{session.week_number} · D{session.day_number}</Text>
               <Text style={styles.sessionTitle}>{session.title}</Text>
-              <Ionicons color={colors.textSecondary} name="lock-open-outline" size={16} />
-            </View>
+              <Ionicons color={session.is_rest_day ? colors.textSecondary : colors.success} name={session.is_rest_day ? "moon-outline" : "play-circle-outline"} size={16} />
+            </Pressable>
           ))
         )}
       </View>
@@ -202,6 +211,7 @@ const styles = StyleSheet.create({
   sessionRow: { alignItems: "center", borderBottomColor: colors.border, borderBottomWidth: 1, flexDirection: "row", gap: spacing[3], minHeight: 48, paddingVertical: spacing[2] },
   sessionNumber: { color: colors.purple400, fontFamily: fontFamilies.interfaceBold, fontSize: 11, width: 68 },
   sessionTitle: { color: colors.textPrimary, flex: 1, fontFamily: fontFamilies.interface, fontSize: 14 },
+  pressed: { opacity: 0.8 },
   helperText: { color: colors.textSecondary, fontFamily: fontFamilies.interface, fontSize: 13, lineHeight: 20 },
   ordersSection: { gap: spacing[3], marginTop: spacing[3] },
   sectionEyebrow: { color: colors.textSecondary, fontFamily: fontFamilies.interfaceBold, fontSize: 10, letterSpacing: 1.2 },

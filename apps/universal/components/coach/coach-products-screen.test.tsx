@@ -7,7 +7,8 @@ const mockStoreRepository = {
   listProductsForReview: jest.fn()
 };
 const mockCoachRepository = {
-  listSessionTemplates: jest.fn()
+  listSessionTemplates: jest.fn(),
+  listCoachTeams: jest.fn()
 };
 
 jest.mock("@fitblock/backend", () => ({
@@ -30,6 +31,7 @@ describe("CoachProductsScreen", () => {
     mockStoreRepository.listCoachProducts.mockResolvedValue([]);
     mockStoreRepository.listCoachSales.mockResolvedValue([]);
     mockCoachRepository.listSessionTemplates.mockResolvedValue([]);
+    mockCoachRepository.listCoachTeams.mockResolvedValue([]);
   });
 
   it("apresenta o editor e o estado vazio dos produtos do coach", async () => {

@@ -12,6 +12,7 @@
  */
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
+import { useVideoPlayer, VideoView } from "expo-video";
 import { createElement, useEffect, useRef, useState } from "react";
 import {
   AccessibilityInfo,
@@ -42,7 +43,6 @@ import { homePillars } from "@/data/homePillars";
 
 const wordmarkWhite = require("@/assets/fitblock-wordmark-white.png");
 const fitblockMark = require("@/assets/fitblock-mark.png");
-const heroFallbackImage = require("@/assets/mari1.webp");
 const heroVideoAsset = require("@/assets/hero.mp4");
 const methodImages: ImageSourcePropType[] = [
   require("@/assets/mari-card.png"),
@@ -562,6 +562,14 @@ function Hero({ onExplore, onOpenApp }: { onExplore: () => void; onOpenApp: () =
 function HeroMedia() {
   const videoSource = typeof heroVideoAsset === "string" ? heroVideoAsset : heroVideoAsset?.default;
 
+  // Inicializa o player para reprodução nativa (mobile iOS/Android).
+  // Na web o elemento <video> do browser é usado diretamente.
+  const player = useVideoPlayer(heroVideoAsset, (p) => {
+    p.loop = true;
+    p.muted = true;
+    p.play();
+  });
+
   return (
     <View
       accessibilityElementsHidden
@@ -569,7 +577,6 @@ function HeroMedia() {
       pointerEvents="none"
       style={styles.heroMedia}
     >
-      <Image source={heroFallbackImage} resizeMode="cover" style={styles.heroFallbackImage} />
       {Platform.OS === "web"
         ? createElement("video", {
             "aria-hidden": true,
@@ -580,7 +587,13 @@ function HeroMedia() {
             src: videoSource,
             style: styles.heroVideo
           })
-        : null}
+        : <VideoView
+            player={player}
+            allowsFullscreen={false}
+            allowsPictureInPicture={false}
+            nativeControls={false}
+            style={styles.heroVideoNative}
+          />}
     </View>
   );
 }
@@ -1255,7 +1268,12 @@ const styles = StyleSheet.create({
     right: 0,
     top: 0
   },
-  heroFallbackImage: {
+  heroVideo: {
+    height: "100%",
+    objectFit: "cover",
+    width: "100%"
+  } as unknown as TextStyle,
+  heroVideoNative: {
     bottom: 0,
     height: "100%",
     left: 0,
@@ -1264,11 +1282,6 @@ const styles = StyleSheet.create({
     top: 0,
     width: "100%"
   },
-  heroVideo: {
-    height: "100%",
-    objectFit: "cover",
-    width: "100%"
-  } as unknown as TextStyle,
   heroScrim: {
     backgroundColor: "rgba(5,5,7,0.34)",
     bottom: 0,
