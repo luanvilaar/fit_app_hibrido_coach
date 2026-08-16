@@ -46,7 +46,7 @@ const navigationItems: NavigationItem[] = [
   { id: "perfil", label: "Perfil", href: "/app/perfil", icon: "person-outline" },
   {
     id: "coach",
-    label: "Prescrever",
+    label: "Agenda",
     href: "/app/coach/calendario",
     icon: "barbell-outline",
     requiredRole: "coach"
@@ -60,7 +60,7 @@ const navigationItems: NavigationItem[] = [
   },
   {
     id: "coach-treinos",
-    label: "Treinos",
+    label: "Biblioteca",
     href: "/app/coach/treinos",
     icon: "library-outline",
     requiredRole: "coach"
@@ -169,7 +169,12 @@ function Sidebar({
       {editorial || !isTrainingContext ? <FitblockTrainingBrand /> : <TrainingBrand />}
       <View style={styles.sidebarDivider} />
       <Text style={styles.sidebarEyebrow}>ÁREA DO ATLETA</Text>
-      <View style={styles.sidebarNav}>
+      <ScrollView
+        style={styles.sidebarNavScroll}
+        contentContainerStyle={styles.sidebarNav}
+        showsVerticalScrollIndicator={false}
+        testID="sidebar-nav-scroll"
+      >
         {items.map((item) => (
           <NavItem
             key={item.id}
@@ -178,8 +183,8 @@ function Sidebar({
             onPress={() => onNavigate(item.href)}
           />
         ))}
-      </View>
-      <View style={styles.sidebarBottom}>
+      </ScrollView>
+      <View style={styles.sidebarBottom} testID="sidebar-bottom">
         <View style={styles.sidebarHelp}>
           <View style={styles.sidebarSupportIcon}>
             <Ionicons name="help-outline" size={17} color={colors.white} />
@@ -600,6 +605,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing[3],
     textTransform: "uppercase"
   },
+  sidebarNavScroll: {
+    flex: 1
+  },
   sidebarNav: {
     gap: spacing[1]
   },
@@ -627,12 +635,9 @@ const styles = StyleSheet.create({
   sidebarBottom: {
     borderTopColor: colors.border,
     borderTopWidth: 1,
-    bottom: spacing[5],
     gap: spacing[3],
-    left: spacing[3],
-    paddingTop: spacing[4],
-    position: "absolute",
-    right: spacing[3]
+    marginTop: spacing[3],
+    paddingTop: spacing[4]
   },
   sidebarHelp: {
     alignItems: "center",

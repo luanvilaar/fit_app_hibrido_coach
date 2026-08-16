@@ -1,9 +1,11 @@
 import { fireEvent, render } from "@testing-library/react-native";
-import { Text } from "react-native";
+import { Dimensions, StyleSheet, Text } from "react-native";
 import { AthleteShell, getVisibleNavigationItems } from "@/components/athlete-shell";
 import { emptyUserRoles, type UserRoles } from "@/auth/roles";
 
 const mockUseUserRoles = jest.fn();
+const MOBILE_DIMENSIONS = { width: 390, height: 844, scale: 3, fontScale: 1 };
+const DESKTOP_DIMENSIONS = { width: 1280, height: 900, scale: 1, fontScale: 1 };
 
 jest.mock("expo-router", () => ({
   usePathname: () => "/app/hoje",
@@ -35,6 +37,7 @@ const athleteRoles: UserRoles = {
 describe("navegação por papel", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    jest.spyOn(Dimensions, "get").mockReturnValue(MOBILE_DIMENSIONS);
   });
 
   it("mantém os destinos comuns e esconde os restritos sem o papel", () => {
@@ -62,7 +65,7 @@ describe("navegação por papel", () => {
     expect(ids).not.toContain("coach-treinos");
   });
 
-  it("não renderiza o atalho Prescrever para o atleta", async () => {
+  it("não renderiza o atalho Agenda para o atleta", async () => {
     mockUseUserRoles.mockReturnValue({ userRoles: athleteRoles });
 
     const screen = await render(
@@ -76,7 +79,7 @@ describe("navegação por papel", () => {
     expect(screen.getByLabelText("Coach Híbrido by FitBlock")).toBeTruthy();
   });
 
-  it("renderiza o atalho Prescrever para o coach", async () => {
+  it("renderiza o atalho Agenda para o coach", async () => {
     mockUseUserRoles.mockReturnValue({ userRoles: coachRoles });
 
     const screen = await render(
@@ -93,6 +96,53 @@ describe("navegação por papel", () => {
     expect(screen.getByTestId("nav-coach")).toBeTruthy();
     expect(screen.getByTestId("nav-coach-equipes")).toBeTruthy();
     expect(screen.getByTestId("nav-coach-treinos")).toBeTruthy();
+  });
+
+  it("mostra os 11 itens de navegação do coach no sidebar desktop sem sobrepor o rodapé", async () => {
+    jest.spyOn(Dimensions, "get").mockReturnValue(DESKTOP_DIMENSIONS);
+    mockUseUserRoles.mockReturnValue({ userRoles: coachRoles });
+
+    const screen = await render(
+      <AthleteShell active="hoje">
+        <Text>Conteúdo</Text>
+      </AthleteShell>
+    );
+
+    // Sidebar desktop não usa o overflow "mais opções" do mobile: a lista inteira
+    // fica disponível de uma vez, dentro da área rolável.
+    expect(screen.queryByTestId("nav-more")).toBeNull();
+
+    const coachNavIds = [
+      "nav-hoje",
+      "nav-calendario",
+      "nav-progresso",
+      "nav-loja",
+      "nav-meus-treinos",
+      "nav-perfil",
+      "nav-coach",
+      "nav-coach-equipes",
+      "nav-coach-treinos",
+      "nav-coach-financeiro",
+      "nav-coach-produtos"
+    ];
+
+    for (const testId of coachNavIds) {
+      expect(screen.getByTestId(testId)).toBeTruthy();
+    }
+
+    // Regressão do bug relatado: com os 11 itens do coach presentes, o rodapé
+    // ("Precisa de ajuda?" + "Sair") precisa continuar montado e distinto deles,
+    // não sobreposto no meio da lista.
+    expect(screen.getByText("Precisa de ajuda?")).toBeTruthy();
+    expect(screen.getAllByTestId("sign-out").length).toBeGreaterThan(0);
+
+    // A lista precisa estar dentro da área rolável (não uma View solta que estoura
+    // a altura do sidebar), e o rodapé não pode voltar a usar position:"absolute"
+    // (causa raiz original da sobreposição) — presença na árvore não pega isso,
+    // então checamos o estilo resolvido de verdade.
+    expect(screen.getByTestId("sidebar-nav-scroll")).toBeTruthy();
+    const bottomStyle = StyleSheet.flatten(screen.getByTestId("sidebar-bottom").props.style);
+    expect(bottomStyle.position).not.toBe("absolute");
   });
 
   it("mantém a marca Fitblock fora das telas de treino", async () => {
