@@ -54,6 +54,8 @@ function AuthHarness({ onUpdateError }: { onUpdateError?: (error: Error) => void
 }
 
 describe("AuthProvider", () => {
+  const mockFetch = jest.fn();
+
   beforeEach(() => {
     jest.clearAllMocks();
     jest.clearAllTimers();
@@ -67,6 +69,8 @@ describe("AuthProvider", () => {
     mockSupabase.auth.updateUser.mockResolvedValue({ error: null });
     mockSupabase.auth.signOut.mockResolvedValue({ error: null });
     mockSupabase.auth.getUser.mockResolvedValue({ data: { user: mockSession.user }, error: null });
+    mockFetch.mockResolvedValue({ ok: true });
+    global.fetch = mockFetch as unknown as typeof fetch;
   });
 
   it("restores the session and exposes the production auth actions", async () => {
@@ -94,6 +98,54 @@ describe("AuthProvider", () => {
       expect(mockSupabase.auth.updateUser).toHaveBeenCalledWith({ password: "new-password" });
       expect(mockSupabase.auth.signOut).toHaveBeenCalled();
     });
+  });
+
+  it("dispara o e-mail de boas-vindas quando o cadastro já nasce com sessão (sem confirmação por e-mail)", async () => {
+    const screen = await render(
+      <AuthProvider>
+        <AuthHarness />
+      </AuthProvider>
+    );
+
+    await fireEvent.press(screen.getByTestId("sign-up"));
+
+    await waitFor(() => {
+      expect(mockFetch).toHaveBeenCalledWith("/api/emails/welcome", {
+        method: "POST",
+        headers: { authorization: `Bearer ${mockSession.access_token}` }
+      });
+    });
+  });
+
+  it("não deixa uma falha no envio do boas-vindas quebrar o cadastro", async () => {
+    mockFetch.mockRejectedValue(new Error("rede fora do ar"));
+
+    const screen = await render(
+      <AuthProvider>
+        <AuthHarness />
+      </AuthProvider>
+    );
+
+    await fireEvent.press(screen.getByTestId("sign-up"));
+
+    // Se a rejeição do fetch tivesse vazado do signUp(), este waitFor nunca teria a chance de
+    // rodar: a exceção não tratada teria derrubado o teste antes daqui.
+    await waitFor(() => expect(mockFetch).toHaveBeenCalled());
+  });
+
+  it("não dispara o e-mail de boas-vindas quando o cadastro exige confirmação por e-mail", async () => {
+    mockSupabase.auth.signUp.mockResolvedValue({ data: { session: null }, error: null });
+
+    const screen = await render(
+      <AuthProvider>
+        <AuthHarness />
+      </AuthProvider>
+    );
+
+    await fireEvent.press(screen.getByTestId("sign-up"));
+
+    await waitFor(() => expect(mockSupabase.auth.signUp).toHaveBeenCalled());
+    expect(mockFetch).not.toHaveBeenCalled();
   });
 
   it("updates the exposed user when Supabase emits an auth event", async () => {

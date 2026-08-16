@@ -135,6 +135,19 @@ export function AuthProvider({ children }: PropsWithChildren) {
         });
         if (error) throw new Error(getAuthErrorMessage(error));
 
+        // Confirmação por e-mail desligada: a sessão já nasce pronta, o Supabase não manda
+        // e-mail de confirmação e o Auth Hook de e-mail (que cobre o caso com confirmação ligada)
+        // não dispara. O boas-vindas sai por aqui — sem bloquear nem derrubar um cadastro que já
+        // foi concluído com sucesso se o envio falhar.
+        if (data.session) {
+          void fetch("/api/emails/welcome", {
+            method: "POST",
+            headers: { authorization: `Bearer ${data.session.access_token}` }
+          }).catch((welcomeError: unknown) => {
+            console.warn("FitBlock: falha ao enviar e-mail de boas-vindas", welcomeError);
+          });
+        }
+
         return { needsEmailConfirmation: !data.session };
       },
       async resetPassword(email) {

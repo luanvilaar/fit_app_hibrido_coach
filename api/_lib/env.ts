@@ -56,3 +56,29 @@ export function mercadoPagoWebhookSecret(): string {
 export function appOrigin(): string {
   return new URL(required("MERCADOPAGO_REDIRECT_URI")).origin;
 }
+
+export function resendConfig() {
+  return {
+    apiKey: required("RESEND_API_KEY"),
+    from: required("RESEND_FROM_EMAIL")
+  };
+}
+
+/**
+ * Domínio público do app, sem barra no final. Usado para montar URLs absolutas nos e-mails
+ * (imagens, links) — um e-mail não tem `window.location`, então precisa vir de configuração.
+ * Deliberadamente separada de `appOrigin()`: aquela exige `MERCADOPAGO_REDIRECT_URI`, e e-mail
+ * não pode depender de pagamento estar configurado para funcionar.
+ */
+export function publicAppUrl(): string {
+  return required("PUBLIC_APP_URL").replace(/\/+$/, "");
+}
+
+/**
+ * Segredo do "Send Email Hook" do Supabase, no formato bruto "v1,whsec_...". A biblioteca
+ * `standardwebhooks` espera só a parte depois de "v1,whsec_" — o prefixo some aqui, perto de onde
+ * a variável é lida, para o resto do código nunca precisar saber desse detalhe do formato.
+ */
+export function supabaseAuthHookSecret(): string {
+  return required("SUPABASE_AUTH_HOOK_SECRET").replace(/^v1,whsec_/, "");
+}
