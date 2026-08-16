@@ -18,7 +18,18 @@ export type StoreProgramSession = {
   week_number: number;
   day_number: number;
   session_template_id?: string;
+  session_instance_id?: string | null;
+  is_rest_day?: boolean;
   title: string;
+};
+
+export type StoreProgramScheduleDay = {
+  week_number: number;
+  day_number: number;
+  is_rest_day: boolean;
+  session_template_id: string | null;
+  session_title?: string | null;
+  session_status?: "draft" | "published" | null;
 };
 
 export type StoreProductRecord = {
@@ -45,7 +56,7 @@ export type StoreProductDetail = StoreProductRecord & {
 
 export type CoachStoreProductRecord = Omit<StoreProductRecord, "seller_display_name"> & {
   description: string;
-  session_template_id: string;
+  session_template_id: string | null;
   updated_at: string;
 };
 
@@ -105,6 +116,25 @@ export type CreateStoreTrainingProductRequest = {
   level: StoreProductLevel;
   durationWeeks?: number | null;
   sessionTemplateId: string;
+};
+
+export type CreateStoreTrainingProgramRequest = Omit<CreateStoreTrainingProductRequest, "sessionTemplateId"> & {
+  schedule: StoreProgramScheduleDay[];
+};
+
+export type UpdateStoreTrainingProgramRequest = CreateStoreTrainingProgramRequest & {
+  productId: string;
+};
+
+export type StoreProgramDeliveryRecord = {
+  id: string;
+  product_id: string;
+  version_id: string;
+  coach_id: string;
+  team_id: string;
+  athlete_id: string | null;
+  start_date: string;
+  status: "active" | "archived";
 };
 
 export type UpdateStoreTrainingProductRequest = CreateStoreTrainingProductRequest & {
@@ -203,6 +233,81 @@ export function createStoreRepository(client: FitBlockSupabaseClient) {
         .single();
       throwStoreError(error, "createTrainingProduct");
       return data as CoachStoreProductRecord;
+    },
+
+    async getCoachProductSchedule(productId: string): Promise<StoreProgramScheduleDay[]> {
+      const { data, error } = await client.rpc("get_coach_store_product_schedule", {
+        p_product_id: productId
+      });
+      throwStoreError(error, "getCoachProductSchedule");
+      return (data ?? []) as StoreProgramScheduleDay[];
+    },
+
+    async createTrainingProgram(input: CreateStoreTrainingProgramRequest): Promise<CoachStoreProductRecord> {
+      const { data, error } = await client
+        .rpc("create_store_training_program", {
+          p_title: input.title,
+          p_slug: input.slug,
+          p_description: input.description,
+          p_short_description: input.shortDescription,
+          p_cover_image_url: input.coverImageUrl ?? null,
+          p_price_cents: input.priceCents,
+          p_category: input.category,
+          p_level: input.level,
+          p_duration_weeks: input.durationWeeks ?? null,
+          p_schedule: input.schedule.map((day) => ({
+            week_number: day.week_number,
+            day_number: day.day_number,
+            is_rest_day: day.is_rest_day,
+            session_template_id: day.is_rest_day ? null : day.session_template_id
+          }))
+        })
+        .single();
+      throwStoreError(error, "createTrainingProgram");
+      return data as CoachStoreProductRecord;
+    },
+
+    async updateTrainingProgram(input: UpdateStoreTrainingProgramRequest): Promise<CoachStoreProductRecord> {
+      const { data, error } = await client
+        .rpc("update_store_training_program", {
+          p_product_id: input.productId,
+          p_title: input.title,
+          p_slug: input.slug,
+          p_description: input.description,
+          p_short_description: input.shortDescription,
+          p_cover_image_url: input.coverImageUrl ?? null,
+          p_price_cents: input.priceCents,
+          p_category: input.category,
+          p_level: input.level,
+          p_duration_weeks: input.durationWeeks ?? null,
+          p_schedule: input.schedule.map((day) => ({
+            week_number: day.week_number,
+            day_number: day.day_number,
+            is_rest_day: day.is_rest_day,
+            session_template_id: day.is_rest_day ? null : day.session_template_id
+          }))
+        })
+        .single();
+      throwStoreError(error, "updateTrainingProgram");
+      return data as CoachStoreProductRecord;
+    },
+
+    async createProgramDelivery(input: {
+      productId: string;
+      teamId?: string | null;
+      athleteId?: string | null;
+      startDate?: string;
+    }): Promise<StoreProgramDeliveryRecord> {
+      const { data, error } = await client
+        .rpc("create_training_program_delivery", {
+          p_product_id: input.productId,
+          p_team_id: input.teamId ?? null,
+          p_athlete_id: input.athleteId ?? null,
+          p_start_date: input.startDate ?? null
+        })
+        .single();
+      throwStoreError(error, "createProgramDelivery");
+      return data as StoreProgramDeliveryRecord;
     },
 
     async updateTrainingProduct(input: UpdateStoreTrainingProductRequest): Promise<CoachStoreProductRecord> {
