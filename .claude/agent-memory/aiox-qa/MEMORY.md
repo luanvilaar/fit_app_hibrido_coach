@@ -1,0 +1,1 @@
+- [Orçamento de funções da Vercel](project_vercel-function-budget.md) — plano Hobby: máx 12 funções; `api/` na raiz conta cada arquivo sem prefixo `_`; hoje em 8/12.

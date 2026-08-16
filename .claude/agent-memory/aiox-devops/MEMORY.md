@@ -1,0 +1,2 @@
+- [Push exige AIOX_ACTIVE_AGENT inline](git-push-requires-agent-env.md) — hook bloqueia `git push`/`gh pr` sem o env declarado na própria linha de comando.
+- [Stage seletivo de manifests compartilhados](selective-staging-shared-manifests.md) — como commitar só suas deps quando package.json/lock mistura duas frentes.
