@@ -209,6 +209,28 @@ export function renderWelcomeEmail(input: {
   };
 }
 
+/** Mensagem de marca para tipos de ação do Auth que ainda não têm um fluxo dedicado no app. */
+export function renderAccountActionEmail(input: {
+  email: string;
+  actionUrl: string;
+}): RenderedEmail {
+  const email = escapeHtml(input.email);
+  const actionUrl = escapeHtml(input.actionUrl);
+
+  return {
+    subject: "Uma ação é necessária na sua conta FitBlock",
+    html: renderTransactionalEmail({
+      preheader: "Confirme uma ação necessária na sua conta FitBlock.",
+      title: "Confirme esta ação.",
+      body: `Recebemos uma solicitação para a conta FitBlock associada a <strong style="color:${emailTheme.text};font-weight:700;">${email}</strong>.`,
+      actionLabel: "Confirmar",
+      actionUrl,
+      footer: "Se você não reconhece esta solicitação, ignore este e-mail. Nenhuma alteração será concluída.",
+      hero: { alt: "Treino FitBlock", fileName: "hero-reset.jpg", height: 180 }
+    })
+  };
+}
+
 export function renderPasswordResetEmail(input: {
   email: string;
   resetUrl: string;

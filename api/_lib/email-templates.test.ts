@@ -2,7 +2,7 @@ jest.mock("./env", () => ({
   publicAppUrl: () => "https://fitblock.test"
 }));
 
-import { renderPasswordResetEmail, renderWelcomeEmail } from "./email-templates";
+import { renderAccountActionEmail, renderPasswordResetEmail, renderWelcomeEmail } from "./email-templates";
 
 describe("renderWelcomeEmail", () => {
   it("deriva o primeiro nome do e-mail e usa o link de ação recebido", () => {
@@ -74,5 +74,20 @@ describe("renderPasswordResetEmail", () => {
     });
 
     expect(html).not.toContain("<img src=x onerror=alert(1)>");
+  });
+});
+
+describe("renderAccountActionEmail", () => {
+  it("mantém a composição transacional para ações de autenticação sem fluxo dedicado", () => {
+    const { subject, html } = renderAccountActionEmail({
+      email: "ana@fitblock.test",
+      actionUrl: "https://fitblock.test/auth/v1/verify?token=abc&type=email_change"
+    });
+
+    expect(subject).toBe("Uma ação é necessária na sua conta FitBlock");
+    expect(html).toContain("Confirme esta ação.");
+    expect(html).toContain("Confirmar");
+    expect(html).toContain("ana@fitblock.test");
+    expect(html).not.toContain("sua senha atual continua a mesma");
   });
 });

@@ -1,5 +1,10 @@
 import { Webhook, WebhookVerificationError } from "standardwebhooks";
-import { renderPasswordResetEmail, renderWelcomeEmail, type RenderedEmail } from "../_lib/email-templates.js";
+import {
+  renderAccountActionEmail,
+  renderPasswordResetEmail,
+  renderWelcomeEmail,
+  type RenderedEmail
+} from "../_lib/email-templates.js";
 import { supabaseAuthHookSecret, supabaseConfig } from "../_lib/env.js";
 import { failure, json, logAndFail, methodNotAllowed } from "../_lib/http.js";
 import { sendTransactionalEmail } from "../_lib/resend.js";
@@ -72,14 +77,7 @@ function buildVerifyUrl(emailData: SupabaseHookEmailData): string {
  * ficar sem confirmação por um tipo não previsto.
  */
 function renderFallbackEmail(email: string, actionUrl: string): RenderedEmail {
-  const reset = renderPasswordResetEmail({ email, resetUrl: actionUrl, expiresIn: RECOVERY_LINK_EXPIRY_COPY });
-  return {
-    subject: "Uma ação é necessária na sua conta FitBlock",
-    html: reset.html
-      .replace("RECUPERAÇÃO DE CONTA", "CONFIRMAÇÃO NECESSÁRIA")
-      .replace("Vamos trocar sua senha.", "Confirme esta ação.")
-      .replace("Definir nova senha", "Confirmar")
-  };
+  return renderAccountActionEmail({ email, actionUrl });
 }
 
 async function handler(request: Request): Promise<Response> {

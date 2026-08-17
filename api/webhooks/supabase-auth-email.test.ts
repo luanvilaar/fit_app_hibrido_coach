@@ -2,6 +2,7 @@ const mockVerify = jest.fn();
 const mockSendTransactionalEmail = jest.fn();
 const mockRenderWelcomeEmail = jest.fn();
 const mockRenderPasswordResetEmail = jest.fn();
+const mockRenderAccountActionEmail = jest.fn();
 
 jest.mock("standardwebhooks", () => {
   class WebhookVerificationError extends Error {}
@@ -26,7 +27,8 @@ jest.mock("../_lib/resend", () => ({
 
 jest.mock("../_lib/email-templates", () => ({
   renderWelcomeEmail: (...args: unknown[]) => mockRenderWelcomeEmail(...args),
-  renderPasswordResetEmail: (...args: unknown[]) => mockRenderPasswordResetEmail(...args)
+  renderPasswordResetEmail: (...args: unknown[]) => mockRenderPasswordResetEmail(...args),
+  renderAccountActionEmail: (...args: unknown[]) => mockRenderAccountActionEmail(...args)
 }));
 
 import { WebhookVerificationError } from "standardwebhooks";
@@ -38,6 +40,10 @@ beforeEach(() => {
   mockSendTransactionalEmail.mockResolvedValue(undefined);
   mockRenderWelcomeEmail.mockReturnValue({ subject: "Boas-vindas", html: "<p>welcome</p>" });
   mockRenderPasswordResetEmail.mockReturnValue({ subject: "Redefinir sua senha FitBlock", html: "<p>reset</p>" });
+  mockRenderAccountActionEmail.mockReturnValue({
+    subject: "Uma ação é necessária na sua conta FitBlock",
+    html: "<p>action</p>"
+  });
 });
 
 function request(body: unknown) {
@@ -133,6 +139,9 @@ describe("POST /api/webhooks/supabase-auth-email", () => {
     const response = await handler(request(payload));
 
     expect(response.status).toBe(200);
+    expect(mockRenderAccountActionEmail).toHaveBeenCalledWith(
+      expect.objectContaining({ email: "ana@fitblock.test" })
+    );
     expect(mockSendTransactionalEmail).toHaveBeenCalledWith(
       expect.objectContaining({ to: "ana@fitblock.test", subject: "Uma ação é necessária na sua conta FitBlock" })
     );
