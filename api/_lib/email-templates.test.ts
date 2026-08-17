@@ -23,6 +23,23 @@ describe("renderWelcomeEmail", () => {
     expect(html).toContain("https://fitblock.test/email/hero-welcome.jpg");
   });
 
+  it("mantém a composição Dark Performance e diferencia confirmação de boas-vindas", () => {
+    const confirmation = renderWelcomeEmail({ email: "ana@fitblock.test", actionUrl: "https://fitblock.test/x" });
+    const welcome = renderWelcomeEmail({
+      email: "ana@fitblock.test",
+      actionUrl: "https://fitblock.test/x",
+      purpose: "welcome"
+    });
+
+    expect(confirmation.html).toContain("Confirmar acesso");
+    expect(welcome.html).toContain("Abrir meu treino");
+    expect(confirmation.html).toContain("#050507");
+    expect(confirmation.html).toContain("#16161D");
+    expect(confirmation.html).toContain("#7132F5");
+    expect(confirmation.html).toContain("Barlow Condensed");
+    expect(confirmation.html).toContain("Inter");
+  });
+
   it("escapa HTML no e-mail para não injetar marcação a partir de dado do usuário", () => {
     const { html } = renderWelcomeEmail({
       email: '"><script>alert(1)</script>@fitblock.test',
@@ -45,6 +62,8 @@ describe("renderPasswordResetEmail", () => {
     expect(html).toContain("ana@fitblock.test");
     expect(html).toContain("https://fitblock.test/auth/v1/verify?token=xyz&amp;type=recovery");
     expect(html).toContain("Este link expira em 1 hora");
+    expect(html).toContain("Defina uma nova senha.");
+    expect(html).toContain("#292934");
   });
 
   it("escapa HTML no e-mail e no prazo para não injetar marcação a partir de dado do usuário", () => {

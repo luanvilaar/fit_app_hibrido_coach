@@ -24,7 +24,8 @@ async function handler(request: Request): Promise<Response> {
   try {
     const { subject, html } = renderWelcomeEmail({
       email: user.email,
-      actionUrl: `${publicAppUrl()}/app/hoje`
+      actionUrl: `${publicAppUrl()}/app/hoje`,
+      purpose: "welcome"
     });
 
     await sendTransactionalEmail({ to: user.email, subject, html });

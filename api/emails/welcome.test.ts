@@ -66,7 +66,8 @@ describe("POST /api/emails/welcome", () => {
     expect(response.status).toBe(200);
     expect(mockRenderWelcomeEmail).toHaveBeenCalledWith({
       email: "ana@fitblock.test",
-      actionUrl: "https://fitblock.test/app/hoje"
+      actionUrl: "https://fitblock.test/app/hoje",
+      purpose: "welcome"
     });
     expect(mockSendTransactionalEmail).toHaveBeenCalledWith({
       to: "ana@fitblock.test",
