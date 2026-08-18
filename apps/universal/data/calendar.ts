@@ -4,14 +4,14 @@
  * A leitura do conteúdo da sessão não mora aqui — ela é do Coach Híbrido,
  * em `@/data/coach-hibrido/session-snapshot`.
  */
-import type { CalendarSessionRecord } from "@fitblock/backend";
+import type { CalendarEntryRecord, CalendarSessionRecord } from "@fitblock/backend";
 
-export type CalendarDay = {
+export type CalendarDay<TEntry extends CalendarEntryRecord = CalendarEntryRecord> = {
   date: string;
   day: number;
   isCurrentMonth: boolean;
   isToday: boolean;
-  sessions: CalendarSessionRecord[];
+  sessions: TEntry[];
 };
 
 export function toCalendarDate(date: Date): string {
@@ -44,8 +44,8 @@ export function formatMonthLabel(anchor: Date): string {
   return new Intl.DateTimeFormat("pt-BR", { month: "long", year: "numeric" }).format(anchor);
 }
 
-function groupSessionsByDate(sessions: CalendarSessionRecord[]): Map<string, CalendarSessionRecord[]> {
-  const sessionsByDate = new Map<string, CalendarSessionRecord[]>();
+function groupSessionsByDate<TEntry extends CalendarEntryRecord>(sessions: TEntry[]): Map<string, TEntry[]> {
+  const sessionsByDate = new Map<string, TEntry[]>();
 
   sessions.forEach((session) => {
     const current = sessionsByDate.get(session.scheduled_date) ?? [];
@@ -55,7 +55,7 @@ function groupSessionsByDate(sessions: CalendarSessionRecord[]): Map<string, Cal
   return sessionsByDate;
 }
 
-export function createCalendarGrid(anchor: Date, sessions: CalendarSessionRecord[]): CalendarDay[] {
+export function createCalendarGrid<TEntry extends CalendarEntryRecord>(anchor: Date, sessions: TEntry[]): CalendarDay<TEntry>[] {
   const year = anchor.getFullYear();
   const month = anchor.getMonth();
   const firstDay = new Date(year, month, 1);
@@ -113,7 +113,7 @@ export function formatWeekLabel(anchor: Date): string {
 }
 
 /** Sempre 7 dias (segunda a domingo); não há noção de "fora do período" na visão semanal. */
-export function createWeekGrid(anchor: Date, sessions: CalendarSessionRecord[]): CalendarDay[] {
+export function createWeekGrid<TEntry extends CalendarEntryRecord>(anchor: Date, sessions: TEntry[]): CalendarDay<TEntry>[] {
   const start = getWeekStart(anchor);
   const today = toCalendarDate(new Date());
   const sessionsByDate = groupSessionsByDate(sessions);

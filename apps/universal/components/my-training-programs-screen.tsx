@@ -9,6 +9,7 @@ import {
 } from "@fitblock/backend";
 import { colors, fontFamilies, radius, spacing, typeScale } from "@fitblock/design-tokens";
 import { describeBackendError } from "@/data/backend-error";
+import { describeProgramDayType } from "@/data/program-builder";
 import { formatBRL } from "@/data/finance/money";
 import { getSupabaseConfigurationError, supabase } from "@/lib/supabase";
 
@@ -110,7 +111,7 @@ function ProgramCard({ program }: { program: TrainingProgramRecord }) {
       </View>
 
       <View style={styles.programFacts}>
-        <Fact icon="calendar-outline" label={program.duration_weeks ? `${program.duration_weeks} semanas` : "Flexível"} />
+        <Fact icon="calendar-outline" label={`${program.duration_weeks} semanas`} />
         <Fact icon="list-outline" label={`${program.sessions.length} ${program.sessions.length === 1 ? "sessão" : "sessões"}`} />
         <Fact icon="time-outline" label={`Liberado em ${formatDate(program.granted_at)}`} />
       </View>
@@ -120,20 +121,27 @@ function ProgramCard({ program }: { program: TrainingProgramRecord }) {
         {program.sessions.length === 0 ? (
           <Text style={styles.helperText}>O coach ainda não adicionou sessões a este programa.</Text>
         ) : (
-          program.sessions.map((session) => (
+          program.sessions.map((session) => {
+            const dayType = session.day_type ?? "training";
+            const canStart = dayType === "training" && Boolean(session.session_instance_id);
+            return (
             <Pressable
               key={session.id}
-              accessibilityRole={session.is_rest_day ? undefined : "button"}
-              accessibilityLabel={session.is_rest_day ? `${session.title}, descanso` : `Iniciar ${session.title}`}
-              disabled={session.is_rest_day || !session.session_instance_id}
+              accessibilityRole={canStart ? "button" : undefined}
+              accessibilityLabel={canStart ? `Iniciar ${session.title}` : `${session.title}, ${describeProgramDayType(dayType)}`}
+              disabled={!canStart}
               onPress={() => session.session_instance_id && router.push(`/app/treino?sessionId=${session.session_instance_id}`)}
               style={({ pressed }) => [styles.sessionRow, pressed && styles.pressed]}
             >
-              <Text style={styles.sessionNumber}>S{session.week_number} · D{session.day_number}</Text>
+              <View style={styles.sessionPosition}>
+                <Text style={styles.sessionNumber}>S{session.week_number} · D{session.day_number}</Text>
+                {session.scheduled_date && <Text style={styles.sessionDate}>{formatScheduledDate(session.scheduled_date)}</Text>}
+              </View>
               <Text style={styles.sessionTitle}>{session.title}</Text>
-              <Ionicons color={session.is_rest_day ? colors.textSecondary : colors.success} name={session.is_rest_day ? "moon-outline" : "play-circle-outline"} size={16} />
+              <Ionicons color={canStart ? colors.success : colors.textSecondary} name={canStart ? "play-circle-outline" : "calendar-outline"} size={16} />
             </Pressable>
-          ))
+            );
+          })
         )}
       </View>
     </View>
@@ -180,6 +188,12 @@ function formatDate(value: string): string {
   return new Intl.DateTimeFormat("pt-BR", { dateStyle: "medium" }).format(date);
 }
 
+function formatScheduledDate(value: string): string {
+  const date = new Date(`${value}T12:00:00`);
+  if (Number.isNaN(date.getTime())) return value;
+  return new Intl.DateTimeFormat("pt-BR", { weekday: "short", day: "2-digit", month: "short" }).format(date);
+}
+
 const styles = StyleSheet.create({
   page: { gap: spacing[5] },
   intro: { alignItems: "flex-end", flexDirection: "row", gap: spacing[5], justifyContent: "space-between" },
@@ -209,7 +223,9 @@ const styles = StyleSheet.create({
   sessions: { borderTopColor: colors.border, borderTopWidth: 1, gap: spacing[3], paddingTop: spacing[4] },
   sessionsTitle: { color: colors.textSecondary, fontFamily: fontFamilies.interfaceBold, fontSize: 10, letterSpacing: 1.1 },
   sessionRow: { alignItems: "center", borderBottomColor: colors.border, borderBottomWidth: 1, flexDirection: "row", gap: spacing[3], minHeight: 48, paddingVertical: spacing[2] },
-  sessionNumber: { color: colors.purple400, fontFamily: fontFamilies.interfaceBold, fontSize: 11, width: 68 },
+  sessionPosition: { gap: 2, width: 94 },
+  sessionNumber: { color: colors.purple400, fontFamily: fontFamilies.interfaceBold, fontSize: 11 },
+  sessionDate: { color: colors.textSecondary, fontFamily: fontFamilies.interface, fontSize: 10 },
   sessionTitle: { color: colors.textPrimary, flex: 1, fontFamily: fontFamilies.interface, fontSize: 14 },
   pressed: { opacity: 0.8 },
   helperText: { color: colors.textSecondary, fontFamily: fontFamilies.interface, fontSize: 13, lineHeight: 20 },

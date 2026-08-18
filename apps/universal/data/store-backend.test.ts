@@ -35,6 +35,7 @@ describe("store backend repository", () => {
       coverImageUrl: null,
       priceCents: 19900,
       category: "strength",
+      objective: "Construir força",
       level: "beginner",
       durationWeeks: 8,
       sessionTemplateId: "template-1"
@@ -98,6 +99,29 @@ describe("store backend repository", () => {
     });
   });
 
+  it("preserva os metadados comerciais completos para a moderação", async () => {
+    const { client } = createClient([{
+      id: "product-1",
+      seller_coach_id: "coach-1",
+      seller_display_name: "Coach",
+      title: "Base de Força",
+      slug: "base-de-forca",
+      description: "Programa completo de força.",
+      short_description: "Força em quatro semanas.",
+      price_cents: 19900,
+      category: "strength",
+      objective: "Construir força",
+      level: "beginner",
+      duration_weeks: 4,
+      status: "review",
+      updated_at: "2026-08-17T12:00:00.000Z"
+    }]);
+
+    await expect(createStoreRepository(client).listProductsForReview()).resolves.toMatchObject([
+      expect.objectContaining({ description: "Programa completo de força.", objective: "Construir força", duration_weeks: 4 })
+    ]);
+  });
+
   it("envia a agenda multi-semana sem campos internos da UI", async () => {
     const { client, rpc } = createClient({ id: "product-2" });
 
@@ -109,18 +133,19 @@ describe("store backend repository", () => {
       coverImageUrl: null,
       priceCents: 14900,
       category: "hybrid",
+      objective: "Evoluir no treino híbrido",
       level: "all",
       durationWeeks: 8,
       schedule: [
-        { week_number: 1, day_number: 1, is_rest_day: false, session_template_id: "template-1", session_title: "Treino A" },
-        { week_number: 1, day_number: 2, is_rest_day: true, session_template_id: null, session_title: "Descanso" }
+        { week_number: 1, day_number: 1, day_type: "training", session_template_id: "template-1", session_title: "Treino A" },
+        { week_number: 1, day_number: 2, day_type: "rest", session_template_id: null, session_title: "Descanso" }
       ]
     });
 
     expect(rpc).toHaveBeenCalledWith("create_store_training_program", expect.objectContaining({
       p_schedule: [
-        { week_number: 1, day_number: 1, is_rest_day: false, session_template_id: "template-1" },
-        { week_number: 1, day_number: 2, is_rest_day: true, session_template_id: null }
+        { week_number: 1, day_number: 1, day_type: "training", session_template_id: "template-1" },
+        { week_number: 1, day_number: 2, day_type: "rest", session_template_id: null }
       ]
     }));
   });

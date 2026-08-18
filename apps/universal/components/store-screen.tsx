@@ -31,6 +31,11 @@ import { getSupabaseConfigurationError, supabase } from "@/lib/supabase";
 const PAYMENT_POLL_INTERVAL_MS = 5_000;
 const PAYMENT_POLL_TIMEOUT_MS = 3 * 60_000;
 
+function todayCalendarDate(): string {
+  const date = new Date();
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
+
 type StorePayment = {
   order_id: string;
   payment_id: string;
@@ -51,6 +56,7 @@ export function StoreScreen() {
   const [category, setCategory] = useState<StoreProductCategory | null>(null);
   const [search, setSearch] = useState("");
   const [selectedProduct, setSelectedProduct] = useState<StoreProductDetail | null>(null);
+  const [programStartDate, setProgramStartDate] = useState(todayCalendarDate);
   const [activePayment, setActivePayment] = useState<StorePayment | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isOpeningProduct, setIsOpeningProduct] = useState(false);
@@ -126,7 +132,7 @@ export function StoreScreen() {
           authorization: `Bearer ${token}`,
           "content-type": "application/json"
         },
-        body: JSON.stringify({ product_id: selectedProduct.id, method: "pix" })
+        body: JSON.stringify({ product_id: selectedProduct.id, method: "pix", start_date: programStartDate })
       });
       const payload: unknown = await response.json().catch(() => null);
 
@@ -272,6 +278,18 @@ export function StoreScreen() {
         visible={selectedProduct !== null}
       >
         {selectedProduct && <ProductDetail product={selectedProduct} />}
+        <View style={styles.startDateField}>
+          <Text style={styles.fieldLabel}>Quando você quer começar?</Text>
+          <TextInput
+            accessibilityLabel="Data inicial do programa, no formato ano-mês-dia"
+            onChangeText={setProgramStartDate}
+            placeholder="2026-08-24"
+            placeholderTextColor={colors.textSecondary}
+            style={styles.startDateInput}
+            value={programStartDate}
+          />
+          <Text style={styles.helperText}>O Dia 1 será esta data; as próximas sessões seguem a sequência do programa.</Text>
+        </View>
         <View style={styles.dialogActions}>
           <DialogButton label="Fechar" onPress={() => setSelectedProduct(null)} testID="store-product-close" />
           <DialogButton
@@ -387,6 +405,7 @@ function ProductDetail({ product }: { product: StoreProductDetail }) {
       <View style={styles.detailFacts}>
         <Fact label="Coach" value={product.seller_display_name} />
         <Fact label="Nível" value={describeProductLevel(product.level)} />
+        <Fact label="Objetivo" value={product.objective} />
         <Fact label="Duração" value={product.duration_weeks ? `${product.duration_weeks} semanas` : "Flexível"} />
         <Fact label="Formato" value="Programa digital" />
       </View>
@@ -513,6 +532,8 @@ const styles = StyleSheet.create({
   qrCode: { alignSelf: "center", height: 220, width: 220 },
   paymentAmount: { color: colors.textPrimary, fontFamily: fontFamilies.display, fontSize: 32, textAlign: "center" },
   fieldLabel: { color: colors.textSecondary, fontFamily: fontFamilies.interfaceBold, fontSize: 12, marginTop: spacing[3] },
+  startDateField: { gap: spacing[2] },
+  startDateInput: { backgroundColor: colors.surface01, borderColor: colors.border, borderRadius: radius.md, borderWidth: 1, color: colors.textPrimary, fontFamily: fontFamilies.interface, fontSize: 14, minHeight: 44, paddingHorizontal: spacing[3] },
   pixCode: { backgroundColor: colors.surface01, borderColor: colors.border, borderRadius: radius.md, borderWidth: 1, color: colors.textPrimary, fontFamily: fontFamilies.interface, fontSize: 12, minHeight: 74, padding: spacing[3] },
   helperText: { color: colors.textSecondary, fontFamily: fontFamilies.interface, fontSize: 13, lineHeight: 19, marginTop: spacing[3] }
 });

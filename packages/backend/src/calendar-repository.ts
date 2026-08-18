@@ -26,6 +26,24 @@ export type CalendarSessionRecord = {
   updated_at: string;
 };
 
+export type CalendarProgramDayType = "rest" | "recovery" | "assessment" | "unprogrammed";
+
+/** Dia não executável de uma instância de programa. Não possui template nem sessão iniciável. */
+export type CalendarProgramDayRecord = {
+  id: string;
+  entry_type: "program_day";
+  scheduled_date: string;
+  day_type: CalendarProgramDayType;
+  title: string;
+  session_instance_id: null;
+};
+
+export type CalendarEntryRecord = CalendarSessionRecord | CalendarProgramDayRecord;
+
+export function isCalendarSessionEntry(entry: CalendarEntryRecord): entry is CalendarSessionRecord {
+  return !("entry_type" in entry && entry.entry_type === "program_day");
+}
+
 export type CalendarRangeRequest = {
   from: string;
   to: string;
@@ -51,6 +69,32 @@ export function createCalendarRepository(client: FitBlockSupabaseClient) {
       }
 
       return (data ?? []) as CalendarSessionRecord[];
+    },
+
+    async listCalendarEntries(input: CalendarRangeRequest): Promise<CalendarEntryRecord[]> {
+      const { data, error } = await client.rpc("list_athlete_calendar_entries", {
+        p_from: input.from,
+        p_to: input.to
+      });
+
+      if (error) {
+        throw new CalendarBackendError(error.message, "listCalendarEntries");
+      }
+
+      return ((data ?? []) as Array<Record<string, unknown>>).map((entry) => {
+        if (entry.entry_type === "program_day") {
+          return {
+            id: String(entry.id),
+            entry_type: "program_day",
+            scheduled_date: String(entry.scheduled_date),
+            day_type: entry.day_type as CalendarProgramDayType,
+            title: String(entry.title ?? "Sem programação"),
+            session_instance_id: null
+          };
+        }
+
+        return entry as unknown as CalendarSessionRecord;
+      });
     },
 
     async getPublishedSession(sessionId: string): Promise<CalendarSessionRecord> {

@@ -18,7 +18,13 @@ type PendingOrderRow = {
   seller_coach_id: string;
   total_amount_cents: number;
   status: "pending";
+  program_start_date: string;
+  program_version_id: string | null;
   store_order_items: Array<{ product_id: string }>;
+};
+
+type ProgramVersionRow = {
+  id: string;
 };
 
 type PaymentPayload = {
@@ -29,6 +35,21 @@ type PaymentPayload = {
     transaction_data?: { qr_code?: string; qr_code_base64?: string };
   };
 };
+
+function parseProgramStartDate(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value.trim());
+  if (!match) return null;
+
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const date = new Date(Date.UTC(year, month - 1, day));
+
+  return date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day
+    ? value.trim()
+    : null;
+}
 
 /**
  * Inicia o checkout PIX de um produto publicado.
@@ -49,9 +70,10 @@ async function handler(request: Request): Promise<Response> {
     const input = typeof body === "object" && body !== null ? (body as Record<string, unknown>) : {};
     const productId = typeof input.product_id === "string" ? input.product_id.trim() : null;
     const method = typeof input.method === "string" ? input.method : null;
+    const programStartDate = parseProgramStartDate(input.start_date);
 
-    if (!productId || method !== "pix") {
-      return failure('Informe um produto e o método de pagamento "pix".');
+    if (!productId || method !== "pix" || !programStartDate) {
+      return failure('Informe um produto, a data inicial (AAAA-MM-DD) e o método de pagamento "pix".');
     }
 
     const client = serviceRoleClient();
@@ -69,7 +91,7 @@ async function handler(request: Request): Promise<Response> {
 
     const { data: existingOrder, error: existingOrderError } = await client
       .from("store_orders")
-      .select("id, seller_coach_id, total_amount_cents, status, store_order_items!inner(product_id)")
+      .select("id, seller_coach_id, total_amount_cents, status, program_start_date, program_version_id, store_order_items!inner(product_id)")
       .eq("buyer_id", user.id)
       .eq("status", "pending")
       .eq("store_order_items.product_id", product.id)
@@ -80,6 +102,12 @@ async function handler(request: Request): Promise<Response> {
     if (existingOrderError) throw existingOrderError;
 
     if (existingOrder) {
+      if (!existingOrder.program_version_id) {
+        return failure("Este PIX pendente não possui uma versão segura do programa. Aguarde a expiração e inicie uma nova compra.", 409);
+      }
+      if (existingOrder.program_start_date !== programStartDate) {
+        return failure("Já existe um PIX pendente para este programa com outra data inicial. Conclua ou aguarde a expiração dele antes de escolher uma nova data.", 409);
+      }
       const { data: existingIntent, error: existingIntentError } = await client
         .from("store_payment_intents")
         .select("provider_payment_id, status, amount_cents, qr_code, qr_code_base64, expires_at")
@@ -102,6 +130,23 @@ async function handler(request: Request): Promise<Response> {
       }
     }
 
+    // A versão é congelada antes da criação do PIX. O webhook nunca recebe nem
+    // recalcula este identificador a partir do catálogo que pode ter sido editado.
+    const { data: currentVersion, error: currentVersionError } = existingOrder
+      ? { data: null, error: null }
+      : await client
+          .from("store_program_versions")
+          .select("id")
+          .eq("product_id", product.id)
+          .order("version_number", { ascending: false })
+          .limit(1)
+          .maybeSingle<ProgramVersionRow>();
+
+    if (currentVersionError) throw currentVersionError;
+    if (!existingOrder && !currentVersion) {
+      return failure("Este programa ainda não possui uma versão publicada para compra.", 409);
+    }
+
     let connection: Awaited<ReturnType<typeof getValidAccessToken>>;
 
     try {
@@ -122,7 +167,9 @@ async function handler(request: Request): Promise<Response> {
           buyerId: user.id,
           productId: product.id,
           sellerCoachId: product.seller_coach_id,
-          amountCents: product.price_cents
+          amountCents: product.price_cents,
+          programStartDate,
+          programVersionId: currentVersion!.id
         });
 
     const { count: previousAttempts, error: attemptsError } = await client
@@ -193,7 +240,14 @@ async function handler(request: Request): Promise<Response> {
 
 async function createOrder(
   client: ReturnType<typeof serviceRoleClient>,
-  input: { buyerId: string; productId: string; sellerCoachId: string; amountCents: number }
+  input: {
+    buyerId: string;
+    productId: string;
+    sellerCoachId: string;
+    amountCents: number;
+    programStartDate: string;
+    programVersionId: string;
+  }
 ) {
   const { data: order, error: orderError } = await client
     .from("store_orders")
@@ -201,9 +255,11 @@ async function createOrder(
       buyer_id: input.buyerId,
       seller_coach_id: input.sellerCoachId,
       total_amount_cents: input.amountCents,
+      program_start_date: input.programStartDate,
+      program_version_id: input.programVersionId,
       status: "pending"
     })
-    .select("id, seller_coach_id, total_amount_cents, status")
+    .select("id, seller_coach_id, total_amount_cents, status, program_start_date, program_version_id")
     .single();
 
   if (orderError) throw orderError;

@@ -27,7 +27,10 @@ describe("MyTrainingProgramsScreen", () => {
       seller_display_name: "Coach FitBlock",
       duration_weeks: 8,
       granted_at: "2026-08-13T12:00:00.000Z",
-      sessions: [{ id: "session-1", week_number: 1, day_number: 1, session_template_id: "template-1", title: "Treino A" }]
+      sessions: [
+        { id: "session-1", week_number: 1, day_number: 1, session_template_id: "template-1", session_instance_id: "instance-1", day_type: "training", scheduled_date: "2026-08-17", title: "Treino A" },
+        { id: "session-2", week_number: 1, day_number: 2, day_type: "recovery", scheduled_date: "2026-08-18", title: "Recuperação" }
+      ]
     }]);
     mockRepository.listMyOrders.mockResolvedValue([]);
   });
@@ -38,5 +41,7 @@ describe("MyTrainingProgramsScreen", () => {
     await waitFor(() => expect(screen.getByTestId("training-program-product-1")).toBeTruthy());
     expect(screen.getByText("PROGRAMA LIBERADO")).toBeTruthy();
     expect(screen.getByText("Treino A")).toBeTruthy();
+    expect(screen.getByText("Recuperação")).toBeTruthy();
+    expect(screen.getByText(/17 de ago/i)).toBeTruthy();
   });
 });

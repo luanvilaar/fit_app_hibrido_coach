@@ -12,6 +12,7 @@ export type StoreProductCategory =
   | "other";
 export type StoreProductLevel = "beginner" | "intermediate" | "advanced" | "all";
 export type StoreOrderStatus = "pending" | "paid" | "refunded" | "cancelled";
+export type StoreProgramDayType = "training" | "rest" | "recovery" | "assessment" | "unprogrammed";
 
 export type StoreProgramSession = {
   id: string;
@@ -19,14 +20,15 @@ export type StoreProgramSession = {
   day_number: number;
   session_template_id?: string;
   session_instance_id?: string | null;
-  is_rest_day?: boolean;
+  day_type?: StoreProgramDayType;
+  scheduled_date?: string | null;
   title: string;
 };
 
 export type StoreProgramScheduleDay = {
   week_number: number;
   day_number: number;
-  is_rest_day: boolean;
+  day_type: StoreProgramDayType;
   session_template_id: string | null;
   session_title?: string | null;
   session_status?: "draft" | "published" | null;
@@ -43,8 +45,9 @@ export type StoreProductRecord = {
   cover_image_url: string | null;
   price_cents: number;
   category: StoreProductCategory;
+  objective: string;
   level: StoreProductLevel;
-  duration_weeks: number | null;
+  duration_weeks: number;
   status: StoreProductStatus;
   created_at: string;
 };
@@ -66,9 +69,13 @@ export type StoreReviewProductRecord = {
   seller_display_name: string;
   title: string;
   slug: string;
+  description: string;
+  short_description: string;
   price_cents: number;
   category: StoreProductCategory;
+  objective: string;
   level: StoreProductLevel;
+  duration_weeks: number;
   status: "review";
   updated_at: string;
 };
@@ -92,7 +99,7 @@ export type TrainingProgramRecord = {
   title: string;
   seller_coach_id: string;
   seller_display_name: string;
-  duration_weeks: number | null;
+  duration_weeks: number;
   granted_at: string;
   sessions: StoreProgramSession[];
 };
@@ -113,8 +120,9 @@ export type CreateStoreTrainingProductRequest = {
   coverImageUrl?: string | null;
   priceCents: number;
   category: StoreProductCategory;
+  objective: string;
   level: StoreProductLevel;
-  durationWeeks?: number | null;
+  durationWeeks: number;
   sessionTemplateId: string;
 };
 
@@ -227,7 +235,7 @@ export function createStoreRepository(client: FitBlockSupabaseClient) {
           p_price_cents: input.priceCents,
           p_category: input.category,
           p_level: input.level,
-          p_duration_weeks: input.durationWeeks ?? null,
+          p_duration_weeks: input.durationWeeks,
           p_session_template_id: input.sessionTemplateId
         })
         .single();
@@ -253,13 +261,14 @@ export function createStoreRepository(client: FitBlockSupabaseClient) {
           p_cover_image_url: input.coverImageUrl ?? null,
           p_price_cents: input.priceCents,
           p_category: input.category,
+          p_objective: input.objective,
           p_level: input.level,
-          p_duration_weeks: input.durationWeeks ?? null,
+          p_duration_weeks: input.durationWeeks,
           p_schedule: input.schedule.map((day) => ({
             week_number: day.week_number,
             day_number: day.day_number,
-            is_rest_day: day.is_rest_day,
-            session_template_id: day.is_rest_day ? null : day.session_template_id
+            day_type: day.day_type,
+            session_template_id: day.day_type === "training" ? day.session_template_id : null
           }))
         })
         .single();
@@ -278,13 +287,14 @@ export function createStoreRepository(client: FitBlockSupabaseClient) {
           p_cover_image_url: input.coverImageUrl ?? null,
           p_price_cents: input.priceCents,
           p_category: input.category,
+          p_objective: input.objective,
           p_level: input.level,
-          p_duration_weeks: input.durationWeeks ?? null,
+          p_duration_weeks: input.durationWeeks,
           p_schedule: input.schedule.map((day) => ({
             week_number: day.week_number,
             day_number: day.day_number,
-            is_rest_day: day.is_rest_day,
-            session_template_id: day.is_rest_day ? null : day.session_template_id
+            day_type: day.day_type,
+            session_template_id: day.day_type === "training" ? day.session_template_id : null
           }))
         })
         .single();

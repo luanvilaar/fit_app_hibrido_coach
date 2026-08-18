@@ -1,4 +1,4 @@
-import { render, waitFor } from "@testing-library/react-native";
+import { fireEvent, render, waitFor } from "@testing-library/react-native";
 import { StoreScreen } from "@/components/store-screen";
 
 const mockRepository = {
@@ -29,6 +29,7 @@ const product = {
   cover_image_url: null,
   price_cents: 19900,
   category: "strength" as const,
+  objective: "Construir força",
   level: "beginner" as const,
   duration_weeks: 8,
   status: "published" as const,
@@ -48,5 +49,20 @@ describe("StoreScreen", () => {
     await waitFor(() => expect(screen.getByTestId("store-product-product-1")).toBeTruthy());
     expect(screen.getByText("Base de Força")).toBeTruthy();
     expect(screen.getByText("R$ 199,00")).toBeTruthy();
+  });
+
+  it("mostra o objetivo comercial no detalhe antes da compra", async () => {
+    mockRepository.getProduct.mockResolvedValue({
+      ...product,
+      description: "Um programa com progressão de força.",
+      sessions: []
+    });
+    const screen = render(<StoreScreen />);
+
+    await waitFor(() => expect(screen.getByTestId("store-product-product-1")).toBeTruthy());
+    fireEvent.press(screen.getByTestId("store-product-product-1"));
+
+    await waitFor(() => expect(screen.getByText("Objetivo")).toBeTruthy());
+    expect(screen.getByText("Construir força")).toBeTruthy();
   });
 });

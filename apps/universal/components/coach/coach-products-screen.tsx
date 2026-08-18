@@ -3,13 +3,16 @@ import { useCallback, useEffect, useState } from "react";
 import { Pressable, StyleSheet, Text, TextInput, View, useWindowDimensions } from "react-native";
 import type {
   CoachStoreProductRecord,
+  CreateExerciseRequest,
+  ExerciseRecord,
   SessionTemplateSummary,
   StoreProductCategory,
   StoreProductLevel,
   StoreProgramScheduleDay,
   StoreReviewProductRecord,
   StoreSaleRecord,
-  TeamMemberRecord
+  TeamMemberRecord,
+  TrainingGroupRecord
 } from "@fitblock/backend";
 import { createCoachFlowRepository, createStoreRepository } from "@fitblock/backend";
 import { colors, fontFamilies, radius, spacing, typeScale } from "@fitblock/design-tokens";
@@ -22,8 +25,18 @@ import {
   describeProductStatus,
   slugifyStoreTitle
 } from "@/data/store";
-import { createInitialProgramSchedule, validateProgramSchedule } from "@/data/program-builder";
+import {
+  createProgramSchedule,
+  describeProgramDayType,
+  programDayTypes,
+  validateProgramSchedule,
+  type ProgramDayType
+} from "@/data/program-builder";
 import { getSupabaseConfigurationError, supabase } from "@/lib/supabase";
+import { buildTemplatePayload } from "@/data/coach-hibrido/payload";
+import { withMovement } from "@/data/coach-hibrido/movement-bank";
+import { createInitialSessionForm, type SessionForm } from "@/data/coach-hibrido/session-form";
+import { SessionComposer } from "@/components/coach-hibrido/session-composer";
 
 type ProductForm = {
   title: string;
@@ -33,6 +46,7 @@ type ProductForm = {
   coverImageUrl: string;
   price: string;
   category: StoreProductCategory;
+  objective: string;
   level: StoreProductLevel;
   durationWeeks: string;
   schedule: StoreProgramScheduleDay[];
@@ -58,9 +72,10 @@ const initialForm: ProductForm = {
   coverImageUrl: "",
   price: "",
   category: "strength",
+  objective: "",
   level: "all",
   durationWeeks: "",
-  schedule: createInitialProgramSchedule()
+  schedule: []
 };
 
 export function CoachProductsScreen() {
@@ -73,7 +88,11 @@ export function CoachProductsScreen() {
   const [reviewProducts, setReviewProducts] = useState<StoreReviewProductRecord[]>([]);
   const [sales, setSales] = useState<StoreSaleRecord[]>([]);
   const [templates, setTemplates] = useState<SessionTemplateSummary[]>([]);
-  const [teams, setTeams] = useState<Array<{ id: string; name: string }>>([]);
+  const [teams, setTeams] = useState<TrainingGroupRecord[]>([]);
+  const [catalog, setCatalog] = useState<ExerciseRecord[]>([]);
+  const [composerForm, setComposerForm] = useState<SessionForm>(() => createInitialSessionForm());
+  const [composerDayIndex, setComposerDayIndex] = useState<number | null>(null);
+  const [isCreatingTemplate, setIsCreatingTemplate] = useState(false);
   const [deliveryMembers, setDeliveryMembers] = useState<TeamMemberRecord[]>([]);
   const [deliveryTarget, setDeliveryTarget] = useState<"team" | "athlete">("team");
   const [deliveryAthleteId, setDeliveryAthleteId] = useState<string>("");
@@ -102,17 +121,19 @@ export function CoachProductsScreen() {
     setIsLoading(true);
     try {
       const storeRepository = createStoreRepository(client);
-      const [nextProducts, nextSales, nextTemplates, nextTeams, nextReviewProducts] = await Promise.all([
+      const [nextProducts, nextSales, nextTemplates, nextTeams, nextReviewProducts, nextCatalog] = await Promise.all([
         storeRepository.listCoachProducts(),
         storeRepository.listCoachSales(),
         createCoachFlowRepository(client).listSessionTemplates(),
         createCoachFlowRepository(client).listCoachTeams(),
-        isOwner ? storeRepository.listProductsForReview() : Promise.resolve([])
+        isOwner ? storeRepository.listProductsForReview() : Promise.resolve([]),
+        createCoachFlowRepository(client).listExercises()
       ]);
       setProducts(nextProducts);
       setSales(nextSales);
       setTemplates(nextTemplates);
       setTeams(nextTeams);
+      setCatalog(nextCatalog);
       setDeliveryTeamId((current) => current || nextTeams[0]?.id || "");
       setDeliveryProductId((current) => current || nextProducts.find((product) => product.status === "published")?.id || "");
       setReviewProducts(nextReviewProducts);
@@ -181,9 +202,10 @@ export function CoachProductsScreen() {
         coverImageUrl: product.cover_image_url ?? "",
         price: formatAmountInput(product.price_cents),
         category: product.category,
+        objective: product.objective,
         level: product.level,
-        durationWeeks: product.duration_weeks ? String(product.duration_weeks) : "",
-        schedule: schedule.length > 0 ? schedule : createInitialProgramSchedule(product.session_template_id)
+        durationWeeks: String(product.duration_weeks),
+        schedule: createProgramSchedule(product.duration_weeks, schedule)
       });
       setErrorMessage(null);
       setSuccessMessage(null);
@@ -196,8 +218,7 @@ export function CoachProductsScreen() {
   function resetForm() {
     setEditingProductId(null);
     setForm({
-      ...initialForm,
-      schedule: createInitialProgramSchedule(templates.find((template) => template.status === "published")?.id ?? null)
+      ...initialForm
     });
     setErrorMessage(null);
     setSuccessMessage(null);
@@ -218,13 +239,13 @@ export function CoachProductsScreen() {
       return;
     }
 
-    const durationWeeks = form.durationWeeks.trim().length === 0 ? null : Number(form.durationWeeks);
-    const scheduleError = validateProgramSchedule(form.schedule);
-    if (!form.title.trim() || form.shortDescription.trim().length < 8 || scheduleError) {
-      setErrorMessage(scheduleError ?? "Preencha título, resumo, preço e o programa.");
+    const durationWeeks = Number(form.durationWeeks);
+    const scheduleError = validateProgramSchedule(form.schedule, durationWeeks);
+    if (!form.title.trim() || form.shortDescription.trim().length < 8 || form.objective.trim().length < 2 || scheduleError) {
+      setErrorMessage(scheduleError ?? "Preencha título, resumo, objetivo, preço e o programa.");
       return;
     }
-    if (!Number.isInteger(durationWeeks) && durationWeeks !== null) {
+    if (!Number.isInteger(durationWeeks) || durationWeeks < 1) {
       setErrorMessage("A duração precisa ser um número inteiro de semanas.");
       return;
     }
@@ -240,6 +261,7 @@ export function CoachProductsScreen() {
         coverImageUrl: form.coverImageUrl || null,
         priceCents,
         category: form.category,
+        objective: form.objective,
         level: form.level,
         durationWeeks,
         schedule: form.schedule
@@ -347,6 +369,40 @@ export function CoachProductsScreen() {
     }
   }
 
+  async function createProgramTemplate() {
+    const client = supabase;
+    if (!client || composerDayIndex === null || isCreatingTemplate) return;
+
+    setIsCreatingTemplate(true);
+    setErrorMessage(null);
+    try {
+      const repository = createCoachFlowRepository(client);
+      const created = await repository.createSessionTemplate(buildTemplatePayload(composerForm, catalog));
+      const nextTemplates = await repository.listSessionTemplates();
+      setTemplates(nextTemplates);
+      setForm((current) => ({
+        ...current,
+        schedule: current.schedule.map((day, index) => index === composerDayIndex
+          ? { ...day, day_type: "training", session_template_id: created.id, session_title: created.title }
+          : day)
+      }));
+      setComposerForm(createInitialSessionForm());
+      setComposerDayIndex(null);
+      setSuccessMessage("Treino criado com o mesmo construtor da Agenda e vinculado ao dia do programa.");
+    } catch (error: unknown) {
+      setErrorMessage(describeBackendError(error));
+    } finally {
+      setIsCreatingTemplate(false);
+    }
+  }
+
+  async function createMovementFromComposer(input: CreateExerciseRequest): Promise<ExerciseRecord> {
+    if (!supabase) throw new Error(getSupabaseConfigurationError() ?? "Cadastro de movimento indisponível.");
+    const created = await createCoachFlowRepository(supabase).createExercise(input);
+    setCatalog((current) => withMovement(current, created));
+    return created;
+  }
+
   const grossSales = sales.reduce((total, sale) => total + sale.gross_amount_cents, 0);
 
   return (
@@ -374,9 +430,48 @@ export function CoachProductsScreen() {
           templates={templates}
           onCancel={resetForm}
           onChange={updateForm}
+          onDurationChange={(value) => {
+            const durationWeeks = Number(value);
+            setForm((current) => ({
+              ...current,
+              durationWeeks: value,
+              schedule: Number.isInteger(durationWeeks) && durationWeeks > 0
+                ? createProgramSchedule(durationWeeks, current.schedule, templates.find((template) => template.status === "published")?.id ?? null)
+                : []
+            }));
+          }}
+          onCreateTemplateForDay={(index) => {
+            setComposerForm(createInitialSessionForm());
+            setComposerDayIndex(index);
+          }}
           onTitleChange={updateTitle}
           onSubmit={() => void saveProduct()}
         />
+
+        {composerDayIndex !== null && (
+          <View style={styles.composerPanel} testID="program-session-composer">
+            <View style={styles.composerHeader}>
+              <View style={styles.editorHeaderCopy}>
+                <Text style={styles.panelTitle}>Monte o treino do Dia {form.schedule[composerDayIndex]?.day_number}.</Text>
+                <Text style={styles.helperText}>Este é o mesmo construtor usado na Agenda. Ao salvar, o treino entra na sua biblioteca e fica ligado a este dia relativo.</Text>
+              </View>
+              <SmallButton label="Fechar" onPress={() => setComposerDayIndex(null)} />
+            </View>
+            <SessionComposer
+              catalog={catalog}
+              form={composerForm}
+              isDeleting={false}
+              isSaving={isCreatingTemplate}
+              mode="create"
+              onChange={setComposerForm}
+              onCreateMovement={createMovementFromComposer}
+              onSubmit={() => void createProgramTemplate()}
+              showSchedule={false}
+              submitLabel="Salvar treino no programa"
+              teams={teams}
+            />
+          </View>
+        )}
 
         <View style={styles.sideColumn}>
           <View style={styles.panel} testID="coach-products-list">
@@ -439,6 +534,8 @@ function ProductEditor({
   templates,
   onCancel,
   onChange,
+  onCreateTemplateForDay,
+  onDurationChange,
   onTitleChange,
   onSubmit
 }: {
@@ -448,6 +545,8 @@ function ProductEditor({
   templates: SessionTemplateSummary[];
   onCancel: () => void;
   onChange: <K extends keyof ProductForm>(key: K, value: ProductForm[K]) => void;
+  onCreateTemplateForDay: (index: number) => void;
+  onDurationChange: (value: string) => void;
   onTitleChange: (value: string) => void;
   onSubmit: () => void;
 }) {
@@ -479,8 +578,11 @@ function ProductEditor({
       <Field label="Preço">
         <TextInput keyboardType="decimal-pad" onChangeText={(value) => onChange("price", value)} placeholder="300,00" placeholderTextColor={colors.textSecondary} style={styles.input} value={form.price} />
       </Field>
-      <Field label="Duração em semanas · opcional">
-        <TextInput keyboardType="number-pad" onChangeText={(value) => onChange("durationWeeks", value.replace(/[^0-9]/g, ""))} placeholder="8" placeholderTextColor={colors.textSecondary} style={styles.input} value={form.durationWeeks} />
+      <Field label="Objetivo do programa">
+        <TextInput accessibilityLabel="Objetivo do programa" onChangeText={(value) => onChange("objective", value)} placeholder="Ex.: construir força e consistência" placeholderTextColor={colors.textSecondary} style={styles.input} value={form.objective} />
+      </Field>
+      <Field label="Duração em semanas">
+        <TextInput accessibilityLabel="Duração em semanas" keyboardType="number-pad" onChangeText={(value) => onDurationChange(value.replace(/[^0-9]/g, ""))} placeholder="Ex.: 4" placeholderTextColor={colors.textSecondary} style={styles.input} value={form.durationWeeks} />
       </Field>
 
       <OptionGroup label="Categoria" options={categories} selected={form.category} getLabel={describeProductCategory} onChange={(value) => onChange("category", value)} />
@@ -490,6 +592,7 @@ function ProductEditor({
         days={form.schedule}
         templates={templates.filter((template) => template.status === "published")}
         onChange={(schedule) => onChange("schedule", schedule)}
+        onCreateTemplateForDay={onCreateTemplateForDay}
       />
 
       <View style={styles.editorActions}>
@@ -503,79 +606,81 @@ function ProductEditor({
 function ProgramScheduleEditor({
   days,
   templates,
-  onChange
+  onChange,
+  onCreateTemplateForDay
 }: {
   days: StoreProgramScheduleDay[];
   templates: SessionTemplateSummary[];
   onChange: (days: StoreProgramScheduleDay[]) => void;
+  onCreateTemplateForDay: (index: number) => void;
 }) {
   function update(index: number, patch: Partial<StoreProgramScheduleDay>) {
     onChange(days.map((day, dayIndex) => dayIndex === index ? { ...day, ...patch } : day));
   }
 
-  function addDay() {
-    const last = days[days.length - 1];
-    const nextWeek = last && last.day_number >= 7 ? last.week_number + 1 : (last?.week_number ?? 1);
-    const nextDay = last && last.day_number >= 7 ? 1 : (last?.day_number ?? 0) + 1;
-    onChange([
-      ...days,
-      {
-        week_number: nextWeek,
-        day_number: nextDay,
-        is_rest_day: true,
-        session_template_id: null
-      }
-    ]);
+  function setDayType(index: number, dayType: ProgramDayType) {
+    const day = days[index];
+    const selectedTemplate = templates.find((template) => template.id === day.session_template_id) ?? templates[0];
+    update(index, {
+      day_type: dayType,
+      session_template_id: dayType === "training" ? selectedTemplate?.id ?? null : null,
+      session_title: dayType === "training" ? selectedTemplate?.title ?? null : null
+    });
   }
+
+  const weeks = days.reduce<Array<{ weekNumber: number; days: Array<{ day: StoreProgramScheduleDay; index: number }> }>>((result, day, index) => {
+    const current = result[result.length - 1];
+    if (!current || current.weekNumber !== day.week_number) result.push({ weekNumber: day.week_number, days: [{ day, index }] });
+    else current.days.push({ day, index });
+    return result;
+  }, []);
 
   return (
     <View style={styles.field} testID="program-schedule-editor">
       <Text style={styles.fieldLabel}>ESTRUTURA DO PROGRAMA</Text>
-      {templates.length === 0 && <Text style={styles.helperText}>Publique treinos na Biblioteca antes de montar o programa.</Text>}
-      {days.map((day, index) => (
-        <View key={`${day.week_number}-${day.day_number}-${index}`} style={styles.scheduleRow}>
-          <TextInput
-            accessibilityLabel={`Semana da sessão ${index + 1}`}
-            keyboardType="number-pad"
-            onChangeText={(value) => update(index, { week_number: Number(value.replace(/[^0-9]/g, "")) || 1 })}
-            style={styles.scheduleNumber}
-            value={String(day.week_number)}
-          />
-          <TextInput
-            accessibilityLabel={`Dia da sessão ${index + 1}`}
-            keyboardType="number-pad"
-            onChangeText={(value) => update(index, { day_number: Number(value.replace(/[^0-9]/g, "")) || 1 })}
-            style={styles.scheduleNumber}
-            value={String(day.day_number)}
-          />
-          <ChoiceRow
-            compact
-            label={day.is_rest_day ? "Descanso" : day.session_title || "Treino"}
-            selected={day.is_rest_day}
-            onPress={() => update(index, {
-              is_rest_day: !day.is_rest_day,
-              session_template_id: day.is_rest_day ? (templates[0]?.id ?? null) : null,
-              session_title: day.is_rest_day ? templates[0]?.title ?? null : null
-            })}
-          />
-          {!day.is_rest_day && (
-            <View style={styles.scheduleTemplates}>
-              {templates.map((template) => (
-                <ChoiceRow
-                  key={template.id}
-                  compact
-                  label={template.title}
-                  selected={day.session_template_id === template.id}
-                  onPress={() => update(index, { session_template_id: template.id, session_title: template.title })}
-                />
+      {days.length === 0 ? <Text style={styles.helperText}>Informe a duração para gerar o calendário relativo de semanas e dias.</Text> : (
+        <>
+          {templates.length === 0 && <Text style={styles.helperText}>Publique treinos na Biblioteca antes de atribuir dias do tipo Treino.</Text>}
+          {weeks.map((week) => (
+            <View key={week.weekNumber} style={styles.scheduleWeek}>
+              <Text style={styles.scheduleWeekTitle}>SEMANA {week.weekNumber}</Text>
+              {week.days.map(({ day, index }) => (
+                <View key={`${day.week_number}-${day.day_number}`} style={styles.scheduleRow}>
+                  <Text style={styles.scheduleDayLabel}>Dia {day.day_number}</Text>
+                  <View style={styles.scheduleTypes}>
+                    {programDayTypes.map((dayType) => (
+                      <ChoiceRow
+                        key={dayType}
+                        compact
+                        label={describeProgramDayType(dayType)}
+                        selected={day.day_type === dayType}
+                        onPress={() => setDayType(index, dayType)}
+                      />
+                    ))}
+                  </View>
+                  {day.day_type === "training" && (
+                    <>
+                      <View style={styles.scheduleTemplates}>
+                        {templates.map((template) => (
+                          <ChoiceRow
+                            key={template.id}
+                            compact
+                            label={template.title}
+                            selected={day.session_template_id === template.id}
+                            onPress={() => update(index, { session_template_id: template.id, session_title: template.title })}
+                          />
+                        ))}
+                      </View>
+                      <SmallButton label="Montar novo treino" onPress={() => onCreateTemplateForDay(index)} />
+                    </>
+                  )}
+                </View>
               ))}
             </View>
-          )}
-          {days.length > 1 && <SmallButton label="Remover" onPress={() => onChange(days.filter((_, dayIndex) => dayIndex !== index))} />}
-        </View>
-      ))}
-      <SmallButton label="Adicionar dia" onPress={addDay} primary />
-      <Text style={styles.helperText}>A publicação congela o conteúdo. Alterações futuras criam uma nova revisão.</Text>
+          ))}
+          <Text style={styles.helperText}>Dias são relativos: a data real é calculada para cada aluno a partir da data inicial. A publicação congela o conteúdo.</Text>
+        </>
+      )}
     </View>
   );
 }
@@ -607,15 +712,19 @@ function ReviewQueue({ products, busyProductId, rejectionReasons, schedules, sch
           <View style={styles.productRowCopy}>
             <Text style={styles.productRowTitle}>{product.title}</Text>
             <Text style={styles.productRowMeta}>por {product.seller_display_name} · {formatBRL(product.price_cents)}</Text>
+            <Text style={styles.productRowMeta}>
+              {describeProductCategory(product.category)} · Objetivo: {product.objective} · {describeProductLevel(product.level)} · {product.duration_weeks} semanas
+            </Text>
+            <Text style={styles.productRowMeta}>{product.description || product.short_description}</Text>
             {schedules[product.id] && (
               <Text style={styles.productRowMeta}>
-                {schedules[product.id].map((day) => `${day.is_rest_day ? "Descanso" : day.session_title ?? "Treino"} (S${day.week_number} · D${day.day_number})`).join(" · ")}
+                {schedules[product.id].map((day) => `${day.day_type === "training" ? day.session_title ?? "Treino" : describeProgramDayType(day.day_type)} (S${day.week_number} · D${day.day_number})`).join(" · ")}
               </Text>
             )}
           </View>
           <View style={styles.reviewActions}>
             <SmallButton disabled={scheduleLoadingProductId === product.id} label={schedules[product.id] ? "Atualizar estrutura" : "Ver estrutura"} onPress={() => onLoadSchedule(product.id)} />
-            <SmallButton disabled={busyProductId === product.id} label="Aprovar" onPress={() => onReview(product.id, "approve")} primary />
+            <SmallButton disabled={busyProductId === product.id || !schedules[product.id]} label={schedules[product.id] ? "Aprovar" : "Veja a estrutura primeiro"} onPress={() => onReview(product.id, "approve")} primary />
             <TextInput accessibilityLabel={`Motivo da rejeição de ${product.title}`} onChangeText={(value) => onReasonChange(product.id, value)} placeholder="Motivo para devolver" placeholderTextColor={colors.textSecondary} style={styles.reasonInput} value={rejectionReasons[product.id] ?? ""} />
             <SmallButton disabled={busyProductId === product.id} label="Devolver" onPress={() => onReview(product.id, "reject")} />
           </View>
@@ -753,7 +862,9 @@ const styles = StyleSheet.create({
   contentGrid: { alignItems: "flex-start", flexDirection: "row", gap: spacing[5] },
   contentGridNarrow: { flexDirection: "column" },
   editor: { backgroundColor: colors.surface02, borderColor: colors.borderPurple, borderRadius: radius.xl, borderWidth: 1, flex: 1, gap: spacing[4], minWidth: 300, padding: spacing[5] },
+  composerPanel: { backgroundColor: colors.surface02, borderColor: colors.borderPurple, borderRadius: radius.xl, borderWidth: 1, gap: spacing[4], padding: spacing[5] },
   editorHeader: { alignItems: "flex-start", flexDirection: "row", justifyContent: "space-between" },
+  composerHeader: { alignItems: "flex-start", flexDirection: "row", gap: spacing[3], justifyContent: "space-between" },
   editorHeaderCopy: { flex: 1, gap: spacing[2] },
   editorTitle: { color: colors.textPrimary, fontFamily: fontFamilies.display, fontSize: 25, lineHeight: 29 },
   sideColumn: { flex: 1, gap: spacing[4], minWidth: 300 },
@@ -776,8 +887,11 @@ const styles = StyleSheet.create({
   choiceText: { color: colors.textSecondary, fontFamily: fontFamilies.interface, fontSize: 12 },
   choiceTextSelected: { color: colors.white, fontFamily: fontFamilies.interfaceBold },
   editorActions: { alignItems: "center", flexDirection: "row", flexWrap: "wrap", gap: spacing[3], justifyContent: "flex-end", marginTop: spacing[2] },
-  scheduleRow: { alignItems: "flex-start", borderColor: colors.border, borderRadius: radius.md, borderWidth: 1, gap: spacing[2], padding: spacing[2] },
-  scheduleNumber: { backgroundColor: colors.surface01, borderColor: colors.border, borderRadius: radius.md, borderWidth: 1, color: colors.textPrimary, fontFamily: fontFamilies.interface, fontSize: 13, minHeight: 44, paddingHorizontal: spacing[2], width: 54 },
+  scheduleWeek: { borderTopColor: colors.border, borderTopWidth: 1, gap: spacing[2], paddingTop: spacing[3] },
+  scheduleWeekTitle: { color: colors.textPrimary, fontFamily: fontFamilies.interfaceBold, fontSize: 13, letterSpacing: 0.8 },
+  scheduleRow: { alignItems: "flex-start", borderColor: colors.border, borderRadius: radius.md, borderWidth: 1, gap: spacing[2], padding: spacing[3] },
+  scheduleDayLabel: { color: colors.purple400, fontFamily: fontFamilies.interfaceBold, fontSize: 12 },
+  scheduleTypes: { flexDirection: "row", flexWrap: "wrap", gap: spacing[2] },
   scheduleTemplates: { flexDirection: "row", flexWrap: "wrap", gap: spacing[2] },
   actionButton: { alignItems: "center", borderColor: colors.border, borderRadius: radius.pill, borderWidth: 1, justifyContent: "center", minHeight: 44, paddingHorizontal: spacing[4] },
   actionButtonPrimary: { backgroundColor: colors.purple500, borderColor: colors.purple500 },

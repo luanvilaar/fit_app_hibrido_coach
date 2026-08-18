@@ -178,7 +178,7 @@ function DayRow({
   onCopy,
   onPaste
 }: {
-  day: CalendarDay;
+  day: CalendarDay<CalendarSessionRecord>;
   weekday: string;
   selectedSessionId: string | null;
   copiedSessionId: string | null;

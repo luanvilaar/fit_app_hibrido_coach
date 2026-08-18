@@ -31,12 +31,14 @@ const product = {
 
 function createClient(options: {
   product?: typeof product | null;
-  existingOrder?: { id: string; seller_coach_id: string; total_amount_cents: number; status: "pending" } | null;
+  programVersion?: { id: string } | null;
+  existingOrder?: { id: string; seller_coach_id: string; total_amount_cents: number; status: "pending"; program_start_date: string; program_version_id?: string | null } | null;
   existingIntent?: { provider_payment_id: string; status: "pending"; amount_cents: number; qr_code: string; qr_code_base64: string; expires_at: string } | null;
   attempts?: number;
   paymentInsertError?: { code?: string } | null;
 }) {
   const productQuery = query({ data: options.product === undefined ? product : options.product });
+  const versionQuery = query({ data: options.programVersion === undefined ? { id: "version-1" } : options.programVersion });
   const orderQuery = query({ data: options.existingOrder ?? null });
   const intentQuery = query({ data: options.existingIntent ?? null });
   const attemptsQuery = query({ count: options.attempts ?? 0 });
@@ -45,6 +47,7 @@ function createClient(options: {
 
   const from = jest.fn((table: string) => {
     if (table === "store_products") return productQuery;
+    if (table === "store_program_versions") return versionQuery;
     if (table === "store_orders") return options.existingOrder === undefined ? orderQuery : orderQuery;
     if (table === "store_payment_intents") {
       return options.existingOrder && options.existingIntent ? intentQuery : attemptsQuery;
@@ -57,7 +60,7 @@ function createClient(options: {
   orderQuery.insert = jest.fn().mockReturnValue(orderQuery);
   orderQuery.select = jest.fn().mockReturnValue(orderQuery);
   orderQuery.single = jest.fn().mockResolvedValue({
-    data: { id: "order-1", seller_coach_id: product.seller_coach_id, total_amount_cents: product.price_cents, status: "pending" },
+    data: { id: "order-1", seller_coach_id: product.seller_coach_id, total_amount_cents: product.price_cents, status: "pending", program_start_date: "2026-08-17", program_version_id: "version-1" },
     error: null
   });
   orderQuery.update = jest.fn().mockReturnValue(orderQuery);
@@ -67,7 +70,7 @@ function createClient(options: {
     insert: jest.fn().mockResolvedValue({ error: options.paymentInsertError ?? null })
   };
   const client = { from } as unknown as SupabaseClient;
-  return { client, from, paymentIntents, attemptsQuery, orderQuery, orderItemInsert };
+  return { client, from, paymentIntents, attemptsQuery, orderQuery, orderItemInsert, versionQuery };
 }
 
 function query(result: { data?: unknown; error?: unknown; count?: number }) {
@@ -112,7 +115,7 @@ describe("POST /api/store/checkout", () => {
 
     const response = await handler(new Request("https://fitblock.app/api/store/checkout", {
       method: "POST",
-      body: JSON.stringify({ product_id: "product-1", method: "pix" })
+      body: JSON.stringify({ product_id: "product-1", method: "pix", start_date: "2026-08-17" })
     }));
 
     expect(response.status).toBe(200);
@@ -123,6 +126,10 @@ describe("POST /api/store/checkout", () => {
         body: expect.stringContaining('"transaction_amount":199')
       })
     );
+    expect(fake.orderQuery.insert).toHaveBeenCalledWith(expect.objectContaining({
+      program_start_date: "2026-08-17",
+      program_version_id: "version-1"
+    }));
     expect(await response.json()).toMatchObject({ payment_id: "987", amount_cents: 19900, qr_code: "000201..." });
   });
 
@@ -132,7 +139,7 @@ describe("POST /api/store/checkout", () => {
 
     const response = await handler(new Request("https://fitblock.app/api/store/checkout", {
       method: "POST",
-      body: JSON.stringify({ product_id: "product-1", method: "pix" })
+      body: JSON.stringify({ product_id: "product-1", method: "pix", start_date: "2026-08-17" })
     }));
 
     expect(response.status).toBe(404);
@@ -146,7 +153,7 @@ describe("POST /api/store/checkout", () => {
 
     const response = await handler(new Request("https://fitblock.app/api/store/checkout", {
       method: "POST",
-      body: JSON.stringify({ product_id: "product-1", method: "pix" })
+      body: JSON.stringify({ product_id: "product-1", method: "pix", start_date: "2026-08-17" })
     }));
 
     expect(response.status).toBe(409);
@@ -154,7 +161,7 @@ describe("POST /api/store/checkout", () => {
 
   it("reusa um PIX pendente sem criar outro pagamento", async () => {
     const fake = createClient({
-      existingOrder: { id: "order-1", seller_coach_id: "coach-1", total_amount_cents: 19900, status: "pending" },
+      existingOrder: { id: "order-1", seller_coach_id: "coach-1", total_amount_cents: 19900, status: "pending", program_start_date: "2026-08-17", program_version_id: "version-1" },
       existingIntent: {
         provider_payment_id: "123",
         status: "pending",
@@ -168,11 +175,69 @@ describe("POST /api/store/checkout", () => {
 
     const response = await handler(new Request("https://fitblock.app/api/store/checkout", {
       method: "POST",
-      body: JSON.stringify({ product_id: "product-1", method: "pix" })
+      body: JSON.stringify({ product_id: "product-1", method: "pix", start_date: "2026-08-17" })
     }));
 
     expect(response.status).toBe(200);
     expect(await response.json()).toMatchObject({ payment_id: "123", qr_code: "existing-code" });
     expect(global.fetch).not.toHaveBeenCalled();
+    expect(fake.from).not.toHaveBeenCalledWith("store_program_versions");
+  });
+
+  it("não troca a data de início de um PIX pendente", async () => {
+    const fake = createClient({
+      existingOrder: { id: "order-1", seller_coach_id: "coach-1", total_amount_cents: 19900, status: "pending", program_start_date: "2026-08-17", program_version_id: "version-1" }
+    });
+    mockServiceRoleClient.mockReturnValue(fake.client);
+
+    const response = await handler(new Request("https://fitblock.app/api/store/checkout", {
+      method: "POST",
+      body: JSON.stringify({ product_id: "product-1", method: "pix", start_date: "2026-08-20" })
+    }));
+
+    expect(response.status).toBe(409);
+    expect(mockGetValidAccessToken).not.toHaveBeenCalled();
+  });
+
+  it("rejeita data inicial inexistente antes de criar o PIX", async () => {
+    const fake = createClient({});
+    mockServiceRoleClient.mockReturnValue(fake.client);
+
+    const response = await handler(new Request("https://fitblock.app/api/store/checkout", {
+      method: "POST",
+      body: JSON.stringify({ product_id: "product-1", method: "pix", start_date: "2026-02-31" })
+    }));
+
+    expect(response.status).toBe(400);
+    expect(mockGetValidAccessToken).not.toHaveBeenCalled();
+  });
+
+  it("não inicia PIX para programa publicado sem versão congelada", async () => {
+    const fake = createClient({ programVersion: null });
+    mockServiceRoleClient.mockReturnValue(fake.client);
+
+    const response = await handler(new Request("https://fitblock.app/api/store/checkout", {
+      method: "POST",
+      body: JSON.stringify({ product_id: "product-1", method: "pix", start_date: "2026-08-17" })
+    }));
+
+    expect(response.status).toBe(409);
+    expect(mockGetValidAccessToken).not.toHaveBeenCalled();
+    expect(fake.orderQuery.insert).not.toHaveBeenCalled();
+  });
+
+  it("recusa PIX pendente legado sem versão em vez de escolher a versão atual", async () => {
+    const fake = createClient({
+      existingOrder: { id: "order-legacy", seller_coach_id: "coach-1", total_amount_cents: 19900, status: "pending", program_start_date: "2026-08-17", program_version_id: null }
+    });
+    mockServiceRoleClient.mockReturnValue(fake.client);
+
+    const response = await handler(new Request("https://fitblock.app/api/store/checkout", {
+      method: "POST",
+      body: JSON.stringify({ product_id: "product-1", method: "pix", start_date: "2026-08-17" })
+    }));
+
+    expect(response.status).toBe(409);
+    expect(fake.from).not.toHaveBeenCalledWith("store_program_versions");
   });
 });

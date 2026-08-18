@@ -13,6 +13,7 @@
     "lint": "eslint api packages && npm --workspace @fitblock/universal run lint",
     "typecheck": "tsc --noEmit",
     "test": "npm --workspace @fitblock/universal run test",
+    "test:training-program-migration:local": "node scripts/test-training-program-migration-local.mjs",
     "verify:schema": "node scripts/verify-schema.mjs",
     "build": "node scripts/with-root-env.cjs export --platform web"
   },

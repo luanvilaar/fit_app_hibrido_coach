@@ -4,7 +4,14 @@ import { useEffect, useMemo, useState } from "react";
 import type { ComponentProps } from "react";
 import { Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import { colors, fontFamilies, radius, spacing, typeScale } from "@fitblock/design-tokens";
-import { createCalendarRepository, createTodayRepository, type CalendarSessionRecord } from "@fitblock/backend";
+import {
+  createCalendarRepository,
+  createTodayRepository,
+  isCalendarSessionEntry,
+  type CalendarEntryRecord,
+  type CalendarProgramDayRecord,
+  type CalendarSessionRecord
+} from "@fitblock/backend";
 import { describeBackendError } from "@/data/backend-error";
 import {
   createCalendarGrid,
@@ -32,7 +39,7 @@ export function CalendarScreen() {
   const { width } = useWindowDimensions();
   const isCompact = width < 900;
   const [month, setMonth] = useState(() => new Date());
-  const [sessions, setSessions] = useState<CalendarSessionRecord[]>([]);
+  const [sessions, setSessions] = useState<CalendarEntryRecord[]>([]);
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -56,7 +63,7 @@ export function CalendarScreen() {
     }
 
     const repository = createCalendarRepository(supabase);
-    void repository.listPublishedSessions(range)
+    void repository.listCalendarEntries(range)
       .then((nextSessions) => {
         if (!mounted) return;
         setSessions(nextSessions);
@@ -127,7 +134,7 @@ export function CalendarScreen() {
               <Pressable
                 key={day.date}
                 accessibilityRole={session ? "button" : undefined}
-                accessibilityLabel={session ? `${day.day}, ${getSessionTitle(session)}` : `${day.day}`}
+                accessibilityLabel={session ? `${day.day}, ${getCalendarEntryTitle(session)}` : `${day.day}`}
                 disabled={!session}
                 onPress={() => session && setSelectedSessionId(session.id)}
                 onFocus={() => setFocusedDay(day.date)}
@@ -146,9 +153,9 @@ export function CalendarScreen() {
                 </Text>
                 {session && (
                   <View style={styles.daySessionMark}>
-                    <View style={styles.daySessionDot} />
+                    <View style={[styles.daySessionDot, !isCalendarSessionEntry(session) && styles.dayProgramDot]} />
                     <Text numberOfLines={1} style={styles.daySessionTitle}>
-                      {getSessionTitle(session)}
+                      {getCalendarEntryTitle(session)}
                     </Text>
                     {day.sessions.length > 1 && (
                       <Text style={styles.daySessionMore}>+{day.sessions.length - 1}</Text>
@@ -164,6 +171,10 @@ export function CalendarScreen() {
           <LegendItem icon="ellipse" color={colors.success} label="Disponível" />
           <LegendItem icon="play-circle-outline" color={colors.warning} label="Em andamento" />
           <LegendItem icon="checkmark-circle-outline" color={colors.success} label="Concluída" />
+          <LegendItem icon="moon-outline" color={colors.textSecondary} label="Descanso" />
+          <LegendItem icon="heart-outline" color={colors.purple400} label="Recuperação" />
+          <LegendItem icon="clipboard-outline" color={colors.warning} label="Avaliação" />
+          <LegendItem icon="remove-circle-outline" color={colors.textSecondary} label="Sem programação" />
         </View>
       </View>
 
@@ -173,10 +184,16 @@ export function CalendarScreen() {
         <CalendarMessage icon="calendar-outline" text="Nenhuma sessão publicada neste mês." empty />
       )}
       {!isLoading && !errorMessage && selectedSession && (
-        <SessionPrescriptionCard session={selectedSession} />
+        isCalendarSessionEntry(selectedSession)
+          ? <SessionPrescriptionCard session={selectedSession} />
+          : <ProgramDayCard day={selectedSession} />
       )}
     </View>
   );
+}
+
+function getCalendarEntryTitle(entry: CalendarEntryRecord): string {
+  return isCalendarSessionEntry(entry) ? getSessionTitle(entry) : entry.title;
 }
 
 function MonthButton({ icon, label, onPress }: { icon: IconName; label: string; onPress: () => void }) {
@@ -322,6 +339,36 @@ function SessionPrescriptionCard({ session }: { session: CalendarSessionRecord }
       </Pressable>
     </View>
   );
+}
+
+function ProgramDayCard({ day }: { day: CalendarProgramDayRecord }) {
+  const dayDate = new Intl.DateTimeFormat("pt-BR", {
+    weekday: "long",
+    day: "numeric",
+    month: "long"
+  }).format(new Date(`${day.scheduled_date}T12:00:00`));
+
+  return (
+    <View style={styles.programDayCard} testID="calendar-program-day">
+      <Text style={styles.programDayEyebrow}>PROGRAMA · {describeProgramDayType(day.day_type)}</Text>
+      <Text style={styles.programDayTitle}>{day.title}</Text>
+      <Text style={styles.sessionDate}>{dayDate}</Text>
+      <Text style={styles.programDayDescription}>
+        Este dia faz parte do seu programa e não possui sessão para iniciar.
+      </Text>
+    </View>
+  );
+}
+
+function describeProgramDayType(dayType: CalendarProgramDayRecord["day_type"]): string {
+  const labels: Record<CalendarProgramDayRecord["day_type"], string> = {
+    rest: "Descanso",
+    recovery: "Recuperação",
+    assessment: "Avaliação",
+    unprogrammed: "Sem programação"
+  };
+
+  return labels[dayType];
 }
 
 const styles = StyleSheet.create({
@@ -498,6 +545,9 @@ const styles = StyleSheet.create({
     marginBottom: spacing[2],
     width: 6
   },
+  dayProgramDot: {
+    backgroundColor: colors.purple400
+  },
   daySessionTitle: {
     color: colors.textPrimary,
     fontFamily: fontFamilies.interfaceBold,
@@ -556,6 +606,33 @@ const styles = StyleSheet.create({
     borderRadius: radius.xxl,
     overflow: "hidden",
     padding: spacing[5]
+  },
+  programDayCard: {
+    backgroundColor: colors.surface02,
+    borderColor: colors.borderPurple,
+    borderRadius: radius.xxl,
+    borderWidth: 1,
+    gap: spacing[2],
+    padding: spacing[5]
+  },
+  programDayEyebrow: {
+    color: colors.purple400,
+    fontFamily: fontFamilies.interfaceBold,
+    fontSize: 11,
+    letterSpacing: 1.1
+  },
+  programDayTitle: {
+    color: colors.textPrimary,
+    fontFamily: fontFamilies.display,
+    fontSize: 30,
+    lineHeight: 32
+  },
+  programDayDescription: {
+    color: colors.textSecondary,
+    fontFamily: fontFamilies.interface,
+    fontSize: 14,
+    lineHeight: 21,
+    marginTop: spacing[2]
   },
   sessionCardHeader: {
     alignItems: "flex-start",

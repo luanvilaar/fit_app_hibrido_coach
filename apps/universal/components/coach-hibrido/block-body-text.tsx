@@ -1,7 +1,28 @@
 import { Ionicons } from "@expo/vector-icons";
-import { Linking, Pressable, StyleSheet, Text, View } from "react-native";
+import { Linking, Platform, Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import { colors, fontFamilies, spacing } from "@fitblock/design-tokens";
 import { splitBody, type BlockMovement } from "@/data/coach-hibrido/mentions";
+
+const MOBILE_WIDTH_BREAKPOINT = 768;
+
+/**
+ * No mobile web, o link do YouTube costuma ser interceptado pelo SO (Universal/App Links),
+ * que abre o app nativo antes da aba nova carregar qualquer coisa — ela fica travada em
+ * branco quando o atleta volta ao navegador. Navegar na aba atual evita essa aba fantasma;
+ * no desktop não há esse handoff de app, então mantemos a nova aba.
+ */
+function openMovementVideo(url: string, isMobileWeb: boolean) {
+  if (Platform.OS === "web" && typeof window !== "undefined") {
+    if (isMobileWeb) {
+      window.open(url, "_self");
+    } else {
+      window.open(url, "_blank", "noopener,noreferrer");
+    }
+    return;
+  }
+
+  void Linking.openURL(url);
+}
 
 export type BodyTone = "light" | "dark";
 
@@ -56,6 +77,8 @@ function MovementMention({
   tone: BodyTone;
 }) {
   const palette = tone === "dark" ? dark : light;
+  const { width } = useWindowDimensions();
+  const isMobileWeb = width < MOBILE_WIDTH_BREAKPOINT;
 
   if (!movement.videoUrl) {
     return (
@@ -72,7 +95,7 @@ function MovementMention({
     <Text
       accessibilityRole="link"
       accessibilityLabel={`Ver vídeo de ${label}`}
-      onPress={() => void Linking.openURL(movement.videoUrl as string)}
+      onPress={() => openMovementVideo(movement.videoUrl as string, isMobileWeb)}
       style={[styles.line, styles.mention, palette.mention]}
       testID={`movement-${movement.slug}`}
     >
@@ -89,9 +112,11 @@ type MovementListProps = {
 
 /** Tira de movimentos vinculados, para o coach conferir o que o atleta vai conseguir abrir. */
 export function MovementList({ movements, tone = "light", testID }: MovementListProps) {
-  if (movements.length === 0) return null;
-
   const palette = tone === "dark" ? dark : light;
+  const { width } = useWindowDimensions();
+  const isMobileWeb = width < MOBILE_WIDTH_BREAKPOINT;
+
+  if (movements.length === 0) return null;
 
   return (
     <View style={styles.movementList} testID={testID}>
@@ -106,7 +131,7 @@ export function MovementList({ movements, tone = "light", testID }: MovementList
               hasVideo ? `Ver vídeo de ${movement.name}` : `${movement.name}. Vídeo não cadastrado.`
             }
             disabled={!hasVideo}
-            onPress={() => movement.videoUrl && void Linking.openURL(movement.videoUrl)}
+            onPress={() => movement.videoUrl && openMovementVideo(movement.videoUrl, isMobileWeb)}
             style={({ pressed }) => [
               styles.movementChip,
               palette.chip,
