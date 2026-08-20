@@ -63,6 +63,7 @@ export function AthleteSessionScreen({ sessionId }: SessionScreenProps) {
   const [isFinishing, setIsFinishing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [recentlyCompletedBlockId, setRecentlyCompletedBlockId] = useState<string | null>(null);
   const [focusedAction, setFocusedAction] = useState<"back" | "finish" | null>(null);
 
   const blocks: HybridBlock[] = useMemo(() => (session ? readSessionBlocks(session) : []), [session]);
@@ -119,6 +120,7 @@ export function AthleteSessionScreen({ sessionId }: SessionScreenProps) {
   useEffect(() => {
     // Acordeão: abre o primeiro bloco por padrão, como o atleta encontra ao entrar na sessão.
     setExpandedBlockId(session ? (readSessionBlocks(session)[0]?.id ?? null) : null);
+    setRecentlyCompletedBlockId(null);
   }, [session]);
 
   function handleToggleExpand(blockId: string) {
@@ -128,12 +130,14 @@ export function AthleteSessionScreen({ sessionId }: SessionScreenProps) {
   async function handleToggleBlock(blockId: string) {
     if (!supabase || !session || togglingBlockId) return;
 
+    const wasDone = completedBlockIds.includes(blockId);
     setTogglingBlockId(blockId);
     setActionError(null);
 
     try {
       const progress = await createTodayRepository(supabase).toggleBlock(session.id, blockId);
       setCompletedBlockIds(progress.completed_block_ids);
+      setRecentlyCompletedBlockId(wasDone ? null : blockId);
     } catch (error: unknown) {
       setActionError(describeBackendError(error));
     } finally {
@@ -141,15 +145,15 @@ export function AthleteSessionScreen({ sessionId }: SessionScreenProps) {
     }
   }
 
-  async function handleCommitLog(itemId: string) {
-    if (!supabase || !session) return;
+  async function handleCommitLog(itemId: string): Promise<boolean> {
+    if (!supabase || !session) return false;
 
     const log = logs[itemId];
-    if (!log) return;
+    if (!log) return false;
 
     const reps = toNumberOrNull(log.reps);
     const loadKg = toNumberOrNull(log.loadKg);
-    if (reps === null && loadKg === null) return;
+    if (reps === null && loadKg === null) return false;
 
     try {
       await createWorkoutRepository(supabase).saveSetResult({
@@ -160,10 +164,15 @@ export function AthleteSessionScreen({ sessionId }: SessionScreenProps) {
         loadKg,
         completed: true
       });
-      setActionError(null);
-    } catch (error: unknown) {
-      setActionError(describeBackendError(error));
+      return true;
+    } catch {
+      return false;
     }
+  }
+
+  function handleOpenNextBlock(blockId: string) {
+    setExpandedBlockId(blockId);
+    setRecentlyCompletedBlockId(null);
   }
 
   async function handleSubmitScore(
@@ -271,27 +280,37 @@ export function AthleteSessionScreen({ sessionId }: SessionScreenProps) {
             )}
 
             {blocks.map((block, index) => (
-              <BlockCard
-                block={block}
-                index={index}
-                isDone={completedBlockIds.includes(block.id)}
-                isExpanded={expandedBlockId === block.id}
-                isSubmittingScore={submittingBlockId === block.id}
-                isToggling={togglingBlockId === block.id}
-                key={block.id}
-                leaderboard={leaderboards[block.id] ?? []}
-                logs={logs}
-                onChangeLog={(itemId, patch) =>
-                  setLogs((current) => ({
-                    ...current,
-                    [itemId]: { ...(current[itemId] ?? { reps: "", loadKg: "" }), ...patch }
-                  }))
-                }
-                onCommitLog={(itemId) => void handleCommitLog(itemId)}
-                onSubmitScore={(score) => void handleSubmitScore(block.id, score)}
-                onToggleDone={() => void handleToggleBlock(block.id)}
-                onToggleExpand={() => handleToggleExpand(block.id)}
-              />
+              (() => {
+                const nextBlock = blocks.slice(index + 1).find((candidate) => !completedBlockIds.includes(candidate.id));
+
+                return (
+                  <BlockCard
+                    block={block}
+                    index={index}
+                    isDone={completedBlockIds.includes(block.id)}
+                    isExpanded={expandedBlockId === block.id}
+                    isRecentlyCompleted={recentlyCompletedBlockId === block.id}
+                    isSubmittingScore={submittingBlockId === block.id}
+                    isToggling={togglingBlockId === block.id}
+                    key={block.id}
+                    leaderboard={leaderboards[block.id] ?? []}
+                    logs={logs}
+                    nextBlockName={nextBlock?.name}
+                    onChangeLog={(itemId, patch) =>
+                      setLogs((current) => ({
+                        ...current,
+                        [itemId]: { ...(current[itemId] ?? { reps: "", loadKg: "" }), ...patch }
+                      }))
+                    }
+                    onCommitLog={handleCommitLog}
+                    onOpenNext={nextBlock ? () => handleOpenNextBlock(nextBlock.id) : undefined}
+                    onSubmitScore={(score) => void handleSubmitScore(block.id, score)}
+                    onToggleDone={() => void handleToggleBlock(block.id)}
+                    onToggleExpand={() => handleToggleExpand(block.id)}
+                    totalBlocks={blocks.length}
+                  />
+                );
+              })()
             ))}
 
             <Pressable

@@ -111,6 +111,9 @@ describe("AthleteSessionScreen", () => {
     expect(screen.getByText("Terça pesada")).toBeTruthy();
     expect(screen.getByTestId("session-coach-note")).toBeTruthy();
     expect(screen.getByTestId("session-progress")).toHaveTextContent("0 de 2 blocos");
+    expect(screen.getByTestId("athlete-block-state-block-strength")).toHaveTextContent(
+      "EM EXECUÇÃO · BLOCO 1 DE 2"
+    );
   });
 
   it("mostra o texto do treino como o coach escreveu", async () => {
@@ -142,6 +145,12 @@ describe("AthleteSessionScreen", () => {
       expect(mockTodayRepository.toggleBlock).toHaveBeenCalledWith("session-1", "block-strength")
     );
     await waitFor(() => expect(screen.getByTestId("session-progress")).toHaveTextContent("1 de 2 blocos"));
+    expect(screen.getByText("Bloco concluído.")).toBeTruthy();
+    expect(screen.getByTestId("athlete-block-next-block-strength")).toHaveTextContent("Abrir próximo: Metcon");
+
+    fireEvent.press(screen.getByTestId("athlete-block-next-block-strength"));
+
+    expect(screen.getByTestId("athlete-block-state-block-metcon")).toHaveTextContent("EM EXECUÇÃO · BLOCO 2 DE 2");
   });
 
   it("registra a carga usada por movimento no bloco de força", async () => {
@@ -160,6 +169,18 @@ describe("AthleteSessionScreen", () => {
         completed: true
       })
     );
+    await waitFor(() => expect(screen.getByText("Carga salva")).toBeTruthy());
+  });
+
+  it("mostra uma recuperação local quando não consegue salvar a carga", async () => {
+    mockWorkoutRepository.saveSetResult.mockRejectedValueOnce(new Error("rede indisponível"));
+    await renderScreen();
+
+    fireEvent.changeText(screen.getByTestId("log-load-item-front-squat"), "80");
+    fireEvent(screen.getByTestId("log-load-item-front-squat"), "blur");
+
+    await waitFor(() => expect(screen.getByText("Não foi possível salvar a carga.")).toBeTruthy());
+    expect(screen.getByLabelText("Tentar salvar carga de Front Squat novamente")).toBeTruthy();
   });
 
   it("não oferece registro de carga em bloco sem esse controle", async () => {
@@ -189,6 +210,9 @@ describe("AthleteSessionScreen", () => {
 
     fireEvent.press(screen.getByTestId("athlete-block-header-block-metcon"));
     fireEvent.press(screen.getByTestId("athlete-block-action-results-block-metcon"));
+
+    expect(screen.getByText(/Registrar resultado/)).toBeTruthy();
+    expect(screen.getByText("Ranking da equipe")).toBeTruthy();
 
     fireEvent.changeText(screen.getByTestId("score-block-metcon-minutes"), "12");
     fireEvent.changeText(screen.getByTestId("score-block-metcon-seconds"), "40");

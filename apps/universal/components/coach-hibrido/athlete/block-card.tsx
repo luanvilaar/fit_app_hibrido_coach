@@ -16,6 +16,7 @@ import { ScorePanel } from "@/components/coach-hibrido/athlete/score-panel";
 
 export type MovementLog = { reps: string; loadKg: string };
 type ActionPanel = "prepare" | "results" | null;
+type LogSaveState = "idle" | "saving" | "saved" | "error";
 type IconName = ComponentProps<typeof Ionicons>["name"];
 
 type BlockCardProps = {
@@ -23,7 +24,10 @@ type BlockCardProps = {
   index: number;
   isDone: boolean;
   isExpanded: boolean;
+  isRecentlyCompleted: boolean;
   isToggling: boolean;
+  totalBlocks: number;
+  nextBlockName?: string;
   /** Carga registrada por movimento, indexada pelo id do item no snapshot. */
   logs: Record<string, MovementLog>;
   leaderboard: LeaderboardEntry[];
@@ -31,7 +35,8 @@ type BlockCardProps = {
   onToggleExpand: () => void;
   onToggleDone: () => void;
   onChangeLog: (itemId: string, patch: Partial<MovementLog>) => void;
-  onCommitLog: (itemId: string) => void;
+  onCommitLog: (itemId: string) => Promise<boolean>;
+  onOpenNext?: () => void;
   onSubmitScore: (score: Omit<SubmitBlockScoreRequest, "sessionId" | "blockId">) => void;
 };
 
@@ -56,7 +61,10 @@ export function BlockCard({
   index,
   isDone,
   isExpanded,
+  isRecentlyCompleted,
   isToggling,
+  totalBlocks,
+  nextBlockName,
   logs,
   leaderboard,
   isSubmittingScore,
@@ -64,10 +72,12 @@ export function BlockCard({
   onToggleDone,
   onChangeLog,
   onCommitLog,
+  onOpenNext,
   onSubmitScore
 }: BlockCardProps) {
   const [activePanel, setActivePanel] = useState<ActionPanel>(null);
   const [isHeaderFocused, setIsHeaderFocused] = useState(false);
+  const [logSaveStates, setLogSaveStates] = useState<Record<string, LogSaveState>>({});
   const definition = blockDefinition(block.kind);
   const meta = [
     formatProtocol(block.protocol),
@@ -81,6 +91,15 @@ export function BlockCard({
 
   function togglePanel(panel: ActionPanel) {
     setActivePanel((current) => (current === panel ? null : panel));
+  }
+
+  async function commitLog(itemId: string) {
+    const log = logs[itemId];
+    if (!log || (!log.reps.trim() && !log.loadKg.trim())) return;
+
+    setLogSaveStates((current) => ({ ...current, [itemId]: "saving" }));
+    const wasSaved = await onCommitLog(itemId);
+    setLogSaveStates((current) => ({ ...current, [itemId]: wasSaved ? "saved" : "error" }));
   }
 
   return (
@@ -123,6 +142,12 @@ export function BlockCard({
 
       {isExpanded && (
         <View style={styles.body}>
+          <View style={[styles.executionState, isDone && styles.executionStateDone]} testID={`athlete-block-state-${block.id}`}>
+            <Ionicons color={isDone ? colors.success : colors.purple400} name={isDone ? "checkmark-circle" : "radio-button-on"} size={15} />
+            <Text style={[styles.executionStateText, isDone && styles.executionStateTextDone]}>
+              {isDone ? "BLOCO CONCLUÍDO" : `EM EXECUÇÃO · BLOCO ${index + 1} DE ${totalBlocks}`}
+            </Text>
+          </View>
           <BlockBodyText
             body={block.body}
             movements={block.movements}
@@ -146,7 +171,7 @@ export function BlockCard({
                   active={activePanel === "results"}
                   badge={leaderboard.length > 0 ? leaderboard.length : undefined}
                   icon="podium-outline"
-                  label="Resultados"
+                  label="Resultado"
                   onPress={() => togglePanel("results")}
                   testID={`athlete-block-action-results-${block.id}`}
                 />
@@ -179,38 +204,87 @@ export function BlockCard({
               {block.movements.map((movement) => {
                 const itemId = movement.itemId ?? movement.slug;
                 const log = logs[itemId] ?? { reps: "", loadKg: "" };
+                const saveState = logSaveStates[itemId] ?? "idle";
 
                 return (
-                  <View key={itemId} style={styles.logRow}>
-                    <Text numberOfLines={1} style={styles.logName}>
-                      {movement.name}
-                    </Text>
-                    <TextInput
-                      accessibilityLabel={`Repetições de ${movement.name}`}
-                      inputMode="numeric"
-                      onBlur={() => onCommitLog(itemId)}
-                      onChangeText={(reps) => onChangeLog(itemId, { reps })}
-                      placeholder="reps"
-                      placeholderTextColor={colors.textSecondary}
-                      style={styles.logInput}
-                      testID={`log-reps-${itemId}`}
-                      value={log.reps}
-                    />
-                    <TextInput
-                      accessibilityLabel={`Carga em quilos de ${movement.name}`}
-                      inputMode="numeric"
-                      onBlur={() => onCommitLog(itemId)}
-                      onChangeText={(loadKg) => onChangeLog(itemId, { loadKg })}
-                      placeholder="kg"
-                      placeholderTextColor={colors.textSecondary}
-                      style={styles.logInput}
-                      testID={`log-load-${itemId}`}
-                      value={log.loadKg}
-                    />
+                  <View key={itemId} style={styles.logEntry}>
+                    <View style={styles.logRow}>
+                      <Text numberOfLines={1} style={styles.logName}>
+                        {movement.name}
+                      </Text>
+                      <TextInput
+                        accessibilityLabel={`Repetições de ${movement.name}`}
+                        inputMode="numeric"
+                        onBlur={() => void commitLog(itemId)}
+                        onChangeText={(reps) => {
+                          onChangeLog(itemId, { reps });
+                          setLogSaveStates((current) => ({ ...current, [itemId]: "idle" }));
+                        }}
+                        placeholder="reps"
+                        placeholderTextColor={colors.textSecondary}
+                        style={styles.logInput}
+                        testID={`log-reps-${itemId}`}
+                        value={log.reps}
+                      />
+                      <TextInput
+                        accessibilityLabel={`Carga em quilos de ${movement.name}`}
+                        inputMode="numeric"
+                        onBlur={() => void commitLog(itemId)}
+                        onChangeText={(loadKg) => {
+                          onChangeLog(itemId, { loadKg });
+                          setLogSaveStates((current) => ({ ...current, [itemId]: "idle" }));
+                        }}
+                        placeholder="kg"
+                        placeholderTextColor={colors.textSecondary}
+                        style={styles.logInput}
+                        testID={`log-load-${itemId}`}
+                        value={log.loadKg}
+                      />
+                    </View>
+                    {saveState === "saving" && <Text style={styles.logSaving}>Salvando carga…</Text>}
+                    {saveState === "saved" && <Text style={styles.logSaved}>Carga salva</Text>}
+                    {saveState === "error" && (
+                      <View style={styles.logErrorRow}>
+                        <Text accessibilityRole="alert" style={styles.logError}>
+                          Não foi possível salvar a carga.
+                        </Text>
+                        <Pressable
+                          accessibilityLabel={`Tentar salvar carga de ${movement.name} novamente`}
+                          accessibilityRole="button"
+                          onPress={() => void commitLog(itemId)}
+                          style={({ pressed }) => [styles.retryButton, pressed && styles.pressed]}
+                        >
+                          <Text style={styles.retryText}>Tentar novamente</Text>
+                        </Pressable>
+                      </View>
+                    )}
                   </View>
                 );
               })}
               <Text style={styles.logsHint}>Opcional. Alimenta seu histórico de carga.</Text>
+            </View>
+          )}
+
+          {isRecentlyCompleted && isDone && (
+            <View style={styles.completion} testID={`athlete-block-completion-${block.id}`}>
+              <View style={styles.completionCopy}>
+                <Ionicons color={colors.success} name="checkmark-circle" size={20} />
+                <Text style={styles.completionText}>Bloco concluído.</Text>
+              </View>
+              {nextBlockName && onOpenNext && (
+                <Pressable
+                  accessibilityLabel={`Abrir próximo bloco: ${nextBlockName}`}
+                  accessibilityRole="button"
+                  onPress={onOpenNext}
+                  style={({ pressed }) => [styles.nextButton, pressed && styles.pressed]}
+                  testID={`athlete-block-next-${block.id}`}
+                >
+                  <Text style={styles.nextButtonText} numberOfLines={1}>
+                    Abrir próximo: {nextBlockName}
+                  </Text>
+                  <Ionicons color={colors.purple400} name="arrow-forward" size={16} />
+                </Pressable>
+              )}
             </View>
           )}
 
@@ -307,17 +381,20 @@ const styles = StyleSheet.create({
   },
   order: {
     alignItems: "center",
-    backgroundColor: colors.purple500,
+    backgroundColor: colors.surface04,
+    borderColor: colors.border,
     borderRadius: radius.md,
+    borderWidth: 1,
     height: 32,
     justifyContent: "center",
     width: 32
   },
   orderDone: {
-    backgroundColor: colors.success
+    backgroundColor: colors.success,
+    borderColor: colors.success
   },
   orderText: {
-    color: colors.white,
+    color: colors.textPrimary,
     fontFamily: fontFamilies.interfaceBold,
     fontSize: 14
   },
@@ -335,7 +412,7 @@ const styles = StyleSheet.create({
     fontSize: 12
   },
   meta: {
-    color: colors.purple400,
+    color: colors.textSecondary,
     fontFamily: fontFamilies.interfaceSemiBold,
     fontSize: 12,
     marginTop: 2
@@ -344,6 +421,19 @@ const styles = StyleSheet.create({
     gap: spacing[4],
     paddingBottom: spacing[4]
   },
+  executionState: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: spacing[2]
+  },
+  executionStateDone: { opacity: 0.88 },
+  executionStateText: {
+    color: colors.purple400,
+    fontFamily: fontFamilies.interfaceBold,
+    fontSize: 11,
+    letterSpacing: 0.6
+  },
+  executionStateTextDone: { color: colors.success },
   actionRow: {
     flexDirection: "row",
     gap: spacing[3]
@@ -380,7 +470,7 @@ const styles = StyleSheet.create({
   },
   actionBadge: {
     alignItems: "center",
-    backgroundColor: colors.purple500,
+    backgroundColor: colors.surface04,
     borderRadius: radius.pill,
     height: 18,
     justifyContent: "center",
@@ -391,7 +481,7 @@ const styles = StyleSheet.create({
     top: 6
   },
   actionBadgeText: {
-    color: colors.white,
+    color: colors.textPrimary,
     fontFamily: fontFamilies.interfaceBold,
     fontSize: 10
   },
@@ -421,6 +511,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.6,
     textTransform: "uppercase"
   },
+  logEntry: { gap: spacing[1] },
   logRow: { alignItems: "center", flexDirection: "row", gap: spacing[2] },
   logName: {
     color: colors.textPrimary,
@@ -447,6 +538,34 @@ const styles = StyleSheet.create({
     fontFamily: fontFamilies.interface,
     fontSize: 12
   },
+  logSaving: {
+    color: colors.textSecondary,
+    fontFamily: fontFamilies.interface,
+    fontSize: 12,
+    textAlign: "right"
+  },
+  logSaved: {
+    color: colors.success,
+    fontFamily: fontFamilies.interfaceSemiBold,
+    fontSize: 12,
+    textAlign: "right"
+  },
+  logErrorRow: { alignItems: "center", flexDirection: "row", gap: spacing[2], justifyContent: "space-between" },
+  logError: { color: colors.danger, flex: 1, fontFamily: fontFamilies.interface, fontSize: 12 },
+  retryButton: { minHeight: 44, justifyContent: "center", paddingHorizontal: spacing[2] },
+  retryText: { color: colors.purple400, fontFamily: fontFamilies.interfaceBold, fontSize: 12 },
+  completion: {
+    backgroundColor: colors.surface03,
+    borderColor: colors.border,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    gap: spacing[2],
+    padding: spacing[3]
+  },
+  completionCopy: { alignItems: "center", flexDirection: "row", gap: spacing[2] },
+  completionText: { color: colors.textPrimary, fontFamily: fontFamilies.interfaceBold, fontSize: 14 },
+  nextButton: { alignItems: "center", flexDirection: "row", gap: spacing[2], minHeight: 44 },
+  nextButtonText: { color: colors.purple400, flexShrink: 1, fontFamily: fontFamilies.interfaceBold, fontSize: 13 },
   doneButton: {
     alignItems: "center",
     borderColor: colors.border,

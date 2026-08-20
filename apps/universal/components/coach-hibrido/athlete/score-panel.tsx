@@ -116,7 +116,7 @@ export function ScorePanel({
 
   return (
     <View style={styles.panel} testID={`score-panel-${blockId}`}>
-      <Text style={styles.title}>Ranking · {scoreTypeLabels[scoreType]}</Text>
+      <Text style={styles.title}>Registrar resultado · {scoreTypeLabels[scoreType]}</Text>
 
       <View style={styles.inputs}>
         {scoreType === "time" && (
@@ -194,21 +194,24 @@ export function ScorePanel({
         </Text>
       )}
 
-      {leaderboard.length === 0 ? (
-        <Text style={styles.empty}>Ninguém da equipe registrou este bloco ainda.</Text>
-      ) : (
-        <View style={styles.leaderboard} testID={`leaderboard-${blockId}`}>
-          {leaderboard.map((entry) => (
-            <View key={entry.id} style={styles.entry}>
-              <Text style={styles.rank}>{entry.rank}º</Text>
-              <Text numberOfLines={1} style={styles.athlete}>
-                {entry.display_name}
-              </Text>
-              <Text style={styles.value}>{formatScore(entry)}</Text>
-            </View>
-          ))}
-        </View>
-      )}
+      <View style={styles.ranking}>
+        <Text style={styles.rankingTitle}>Ranking da equipe</Text>
+        {leaderboard.length === 0 ? (
+          <Text style={styles.empty}>Ninguém da equipe registrou este bloco ainda.</Text>
+        ) : (
+          <View style={styles.leaderboard} testID={`leaderboard-${blockId}`}>
+            {leaderboard.map((entry) => (
+              <View key={entry.id} style={styles.entry}>
+                <Text style={styles.rank}>{entry.rank}º</Text>
+                <Text numberOfLines={1} style={styles.athlete}>
+                  {entry.display_name}
+                </Text>
+                <Text style={styles.value}>{formatScore(entry)}</Text>
+              </View>
+            ))}
+          </View>
+        )}
+      </View>
     </View>
   );
 }
@@ -304,6 +307,14 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     fontFamily: fontFamilies.interface,
     fontSize: 13
+  },
+  ranking: { borderTopColor: colors.border, borderTopWidth: 1, gap: spacing[2], paddingTop: spacing[3] },
+  rankingTitle: {
+    color: colors.textSecondary,
+    fontFamily: fontFamilies.interfaceBold,
+    fontSize: 11,
+    letterSpacing: 0.6,
+    textTransform: "uppercase"
   },
   leaderboard: { gap: 0 },
   entry: {
