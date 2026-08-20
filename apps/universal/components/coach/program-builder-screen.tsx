@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -23,7 +23,7 @@ import type {
   TrainingGroupRecord
 } from "@fitblock/backend";
 import { createCoachFlowRepository, createStoreRepository } from "@fitblock/backend";
-import { colors, fontFamilies, radius, spacing } from "@fitblock/design-tokens";
+import { colors, fontFamilies, radius, spacing, type ThemeColors } from "@fitblock/design-tokens";
 import { useUserRoles } from "@/auth/roles-provider";
 import { describeBackendError } from "@/data/backend-error";
 import { MoneyParseError, formatAmountInput, parseBRL } from "@/data/finance/money";
@@ -43,6 +43,8 @@ import { withMovement } from "@/data/coach-hibrido/movement-bank";
 import { createInitialSessionForm, type SessionForm } from "@/data/coach-hibrido/session-form";
 import { SessionComposer } from "@/components/coach-hibrido/session-composer";
 import { ProgramWeekGrid } from "@/components/coach/program-week-grid";
+import { AnimatedTabBar, TabTransitionPanel } from "@/components/ui/tab-transition";
+import { useAppTheme } from "@/theme/theme-provider";
 
 export type ProgramBuilderForm = {
   title: string;
@@ -97,8 +99,36 @@ const builderStages: Array<{ id: BuilderStage; label: string }> = [
   { id: "plan", label: "Plano" }
 ];
 
+function createStageTabStyles(themeColors: ThemeColors) {
+  return StyleSheet.create({
+    active: { backgroundColor: themeColors.surface04 },
+    index: { color: themeColors.textMutedAccessible, fontFamily: fontFamilies.interfaceBold, fontSize: 12 },
+    navigation: {
+      alignSelf: "flex-start",
+      borderColor: themeColors.border,
+      borderRadius: radius.lg,
+      borderWidth: 1,
+      flexDirection: "row",
+      overflow: "hidden"
+    },
+    tab: {
+      alignItems: "center",
+      flexDirection: "row",
+      gap: spacing[2],
+      justifyContent: "center",
+      minHeight: 48,
+      minWidth: 104,
+      paddingHorizontal: spacing[3]
+    },
+    text: { color: themeColors.textSecondary, fontFamily: fontFamilies.interfaceSemiBold, fontSize: 13 },
+    textActive: { color: themeColors.textPrimary }
+  });
+}
+
 export function ProgramBuilderScreen({ guidedWorkspace = false, productId }: ProgramBuilderScreenProps) {
   const router = useRouter();
+  const { colors: themeColors } = useAppTheme();
+  const stageTabStyles = useMemo(() => createStageTabStyles(themeColors), [themeColors]);
   const { width } = useWindowDimensions();
   const { hasRole } = useUserRoles();
   const isNarrow = width < 980;
@@ -547,21 +577,28 @@ export function ProgramBuilderScreen({ guidedWorkspace = false, productId }: Pro
         </View>
       )}
 
-      {isGuidedWorkspace && <View accessibilityRole="tablist" style={styles.stageNav}>
-        {builderStages.map((stage, index) => (
-          <Pressable
-            key={stage.id}
-            accessibilityLabel={`Etapa ${index + 1}: ${stage.label}`}
-            accessibilityRole="tab"
-            accessibilityState={{ selected: activeStage === stage.id }}
-            onPress={() => setActiveStage(stage.id)}
-            style={[styles.stageTab, activeStage === stage.id && styles.stageTabActive]}
-          >
-            <Text style={[styles.stageTabIndex, activeStage === stage.id && styles.stageTabTextActive]}>{index + 1}</Text>
-            <Text style={[styles.stageTabText, activeStage === stage.id && styles.stageTabTextActive]}>{stage.label}</Text>
-          </Pressable>
-        ))}
-      </View>}
+      {isGuidedWorkspace && (
+        <AnimatedTabBar
+          activeTabStyle={stageTabStyles.active}
+          containerStyle={stageTabStyles.navigation}
+          label="Etapas de criação do programa"
+          onChange={setActiveStage}
+          options={builderStages.map((stage, index) => ({
+            ...stage,
+            accessibilityLabel: `Etapa ${index + 1}: ${stage.label}`,
+            value: stage.id
+          }))}
+          renderTabContent={(stage, active, index) => (
+            <>
+              <Text style={[stageTabStyles.index, active && stageTabStyles.textActive]}>{index + 1}</Text>
+              <Text style={[stageTabStyles.text, active && stageTabStyles.textActive]}>{stage.label}</Text>
+            </>
+          )}
+          tabStyle={stageTabStyles.tab}
+          testID="program-builder-stages"
+          value={activeStage}
+        />
+      )}
 
       {/* Modal / Composer de Montagem de Dia (caso rascunho novo) */}
       {composerDayIndex !== null && (
@@ -601,6 +638,12 @@ export function ProgramBuilderScreen({ guidedWorkspace = false, productId }: Pro
       )}
 
       <View style={isGuidedWorkspace ? [styles.workspace, isNarrow && styles.workspaceNarrow] : undefined}>
+      <TabTransitionPanel
+        activeKey={activeStage}
+        enabled={isGuidedWorkspace}
+        order={builderStages.map((stage) => stage.id)}
+        testID="program-builder-stage-panel"
+      >
       {(!isGuidedWorkspace || activeStage !== "plan") && (
       <View style={styles.sectionCard} testID="coach-product-editor">
         <View style={styles.sectionHeader}>
@@ -772,6 +815,7 @@ export function ProgramBuilderScreen({ guidedWorkspace = false, productId }: Pro
         </Pressable>}
       </View>
       }
+      </TabTransitionPanel>
       </View>
       </View>
     </KeyboardAvoidingView>

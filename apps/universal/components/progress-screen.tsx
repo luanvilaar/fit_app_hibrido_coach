@@ -1,8 +1,8 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { ComponentProps } from "react";
 import { StyleSheet, Text, View, useWindowDimensions } from "react-native";
-import { colors, fontFamilies, radius, spacing, typeScale } from "@fitblock/design-tokens";
+import { fontFamilies, radius, spacing, typeScale, type ThemeColors } from "@fitblock/design-tokens";
 import {
   createProgressRepository,
   type AthleteProgressRecord,
@@ -24,12 +24,15 @@ import {
 } from "@/data/progress";
 import { getSizeClass, isCompactSizeClass } from "@/lib/layout";
 import { getSupabaseConfigurationError, supabase } from "@/lib/supabase";
+import { useAppTheme } from "@/theme/theme-provider";
 
 type IconName = ComponentProps<typeof Ionicons>["name"];
 
 const WEEK_CHART_HEIGHT = 96;
 
 export function ProgressScreen() {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { width } = useWindowDimensions();
   const sizeClass = getSizeClass(width);
   const isCompact = isCompactSizeClass(sizeClass);
@@ -124,6 +127,8 @@ export function ProgressScreen() {
 }
 
 function SectionHeader({ eyebrow, title }: { eyebrow: string; title: string }) {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   return (
     <View style={styles.sectionHeader}>
       <Text style={styles.sectionEyebrow}>{eyebrow}</Text>
@@ -133,6 +138,8 @@ function SectionHeader({ eyebrow, title }: { eyebrow: string; title: string }) {
 }
 
 function StateMessage({ icon, text, error = false }: { icon: IconName; text: string; error?: boolean }) {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   return (
     <View
       accessibilityRole={error ? "alert" : undefined}
@@ -146,6 +153,8 @@ function StateMessage({ icon, text, error = false }: { icon: IconName; text: str
 }
 
 function EmptyState({ icon, text }: { icon: IconName; text: string }) {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   return (
     <View style={styles.emptyStateCard}>
       <Ionicons name={icon} size={22} color={colors.textSecondary} />
@@ -161,6 +170,8 @@ function ConsistencyCard({
   streakDays: number;
   weeklyHistory: WeeklyHistoryEntry[];
 }) {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   return (
     <View style={styles.consistencyCard} testID="progress-consistency">
       <View style={styles.consistencyTopline}>
@@ -190,6 +201,8 @@ function ConsistencyCard({
 }
 
 function PersonalRecordCard({ record }: { record: PersonalRecordEntry }) {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   return (
     <View style={styles.recordCard} testID="progress-record-card">
       <Text style={styles.recordExercise} numberOfLines={2}>
@@ -205,6 +218,8 @@ function PersonalRecordCard({ record }: { record: PersonalRecordEntry }) {
 }
 
 function SessionHistoryRow({ entry, isFirst }: { entry: SessionHistoryEntry; isFirst: boolean }) {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const isCompleted = entry.progress.state === "completed";
 
   return (
@@ -225,7 +240,8 @@ function SessionHistoryRow({ entry, isFirst }: { entry: SessionHistoryEntry; isF
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   page: {
     gap: spacing[8]
   },
@@ -443,4 +459,5 @@ const styles = StyleSheet.create({
     fontFamily: fontFamilies.interfaceBold,
     fontSize: 12
   }
-});
+  });
+}

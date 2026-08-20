@@ -1,8 +1,8 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ComponentProps } from "react";
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
-import { colors, fontFamilies, radius, spacing, typeScale } from "@fitblock/design-tokens";
+import { fontFamilies, radius, spacing, typeScale, type ThemeColors } from "@fitblock/design-tokens";
 import { createTeamDiscoveryRepository, type DiscoverableTeamRecord } from "@fitblock/backend";
 import { describeTeamDiscoveryBackendError, validateDisplayName } from "@/data/team-discovery";
 import { AthleteChargesCard } from "@/components/athlete-charges-card";
@@ -10,10 +10,13 @@ import { AthleteShell } from "@/components/athlete-shell";
 import { GroupSelectModal } from "@/components/group-select-modal";
 import { useAuth } from "@/auth/auth-provider";
 import { getSupabaseConfigurationError, supabase } from "@/lib/supabase";
+import { useAppTheme } from "@/theme/theme-provider";
 
 type IconName = ComponentProps<typeof Ionicons>["name"];
 
 export function AthleteProfileScreen() {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { user } = useAuth();
   const [displayName, setDisplayName] = useState("");
   const [isLoadingProfile, setIsLoadingProfile] = useState(true);
@@ -292,6 +295,8 @@ function ProfileMessage({
   error?: boolean;
   success?: boolean;
 }) {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   return (
     <View
       accessibilityRole="alert"
@@ -304,7 +309,8 @@ function ProfileMessage({
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   page: { gap: spacing[5] },
   pageTitle: { color: colors.textPrimary, fontFamily: fontFamilies.displayBold, fontSize: typeScale.displayHero, letterSpacing: -0.8, lineHeight: typeScale.displayHero * 0.88, textTransform: "uppercase" },
   messageCard: {
@@ -399,4 +405,5 @@ const styles = StyleSheet.create({
   focusedControl: { borderColor: colors.purple400, borderWidth: 2 },
   focusedControlOnColor: { borderColor: colors.white, borderWidth: 2 },
   pressed: { opacity: 0.72 }
-});
+  });
+}

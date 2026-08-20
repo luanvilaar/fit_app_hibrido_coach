@@ -1,7 +1,9 @@
 import { Ionicons } from "@expo/vector-icons";
+import { useMemo } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import { colors, fontFamilies, radius, spacing } from "@fitblock/design-tokens";
+import { fontFamilies, radius, spacing, type ThemeColors } from "@fitblock/design-tokens";
 import type { CalendarDay } from "@/data/calendar";
+import { useAppTheme } from "@/theme/theme-provider";
 
 const weekdayLetters = ["S", "T", "Q", "Q", "S", "S", "D"];
 
@@ -15,6 +17,8 @@ type WeekStripProps = {
 
 /** Faixa semanal compacta: navegação por semana e atalho para qualquer dia com sessão. */
 export function WeekStrip({ label, days, selectedDate, onSelectDate, onShiftWeek }: WeekStripProps) {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   return (
     <View style={styles.card} testID="week-strip">
       <View style={styles.toolbar}>
@@ -58,6 +62,8 @@ function WeekNavButton({
   label: string;
   onPress: () => void;
 }) {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   return (
     <Pressable
       accessibilityLabel={label}
@@ -70,7 +76,8 @@ function WeekNavButton({
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   card: {
     backgroundColor: colors.surface02,
     borderRadius: radius.xl,
@@ -94,9 +101,9 @@ const styles = StyleSheet.create({
   navButton: {
     alignItems: "center",
     borderRadius: radius.pill,
-    height: 32,
+    height: 44,
     justifyContent: "center",
-    width: 32
+    width: 44
   },
   row: {
     flexDirection: "row",
@@ -105,9 +112,10 @@ const styles = StyleSheet.create({
   },
   dayColumn: {
     alignItems: "center",
+    flex: 1,
     gap: spacing[2],
     minHeight: 44,
-    minWidth: 32
+    minWidth: 44
   },
   weekdayLetter: {
     color: colors.textSecondary,
@@ -148,4 +156,5 @@ const styles = StyleSheet.create({
   pressed: {
     opacity: 0.72
   }
-});
+  });
+}

@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Pressable,
   StyleSheet,
@@ -15,7 +15,7 @@ import type {
   FinanceSummaryRecord
 } from "@fitblock/backend";
 import { createBillingRepository } from "@fitblock/backend";
-import { colors, fontFamilies, radius, spacing, typeScale } from "@fitblock/design-tokens";
+import { colors, fontFamilies, radius, spacing, type ThemeColors, typeScale } from "@fitblock/design-tokens";
 import { describeBackendError } from "@/data/backend-error";
 import {
   chargeFilterOptions,
@@ -35,7 +35,9 @@ import { MoneyParseError, formatAmountInput, formatBRL, parseBRL } from "@/data/
 import { Chip } from "@/components/coach-hibrido/block-fields";
 import { MercadoPagoConnectionCard } from "@/components/coach/mercadopago-connection-card";
 import { Dialog, DialogActions, DialogButton } from "@/components/ui/dialog";
+import { GlassSurface } from "@/components/ui/glass-surface";
 import { getSupabaseConfigurationError, supabase } from "@/lib/supabase";
+import { useAppTheme } from "@/theme/theme-provider";
 
 type BillingRepository = ReturnType<typeof createBillingRepository>;
 
@@ -208,17 +210,7 @@ export function FinanceScreen() {
           <SummaryCards isNarrow={isNarrow} summary={summary} />
 
           <View style={styles.toolbar}>
-            <View style={styles.filters}>
-              {chargeFilterOptions.map((option) => (
-                <Chip
-                  key={option.value}
-                  label={option.label}
-                  onPress={() => setFilter(option.value)}
-                  selected={filter === option.value}
-                  testID={`finance-filter-${option.value}`}
-                />
-              ))}
-            </View>
+            <FinanceFilters filter={filter} onChange={setFilter} />
 
             <TextInput
               accessibilityLabel="Buscar aluno"
@@ -341,6 +333,55 @@ export function FinanceScreen() {
       />
     </View>
   );
+}
+
+/** Filtros pertencem à camada de comando, não à lista financeira. */
+function FinanceFilters({ filter, onChange }: { filter: ChargeFilter; onChange: (next: ChargeFilter) => void }) {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createFilterStyles(colors), [colors]);
+
+  return (
+    <GlassSurface style={styles.surface} testID="finance-filters">
+      <View accessibilityLabel="Filtrar cobranças" accessibilityRole="radiogroup" style={styles.filters}>
+        {chargeFilterOptions.map((option) => {
+          const selected = filter === option.value;
+          return (
+            <Pressable
+              accessibilityLabel={option.label}
+              accessibilityRole="radio"
+              accessibilityState={{ selected }}
+              key={option.value}
+              onPress={() => onChange(option.value)}
+              style={({ pressed }) => [styles.option, selected && styles.optionSelected, pressed && styles.pressed]}
+              testID={`finance-filter-${option.value}`}
+            >
+              <Text style={[styles.optionLabel, selected && styles.optionLabelSelected]}>{option.label}</Text>
+            </Pressable>
+          );
+        })}
+      </View>
+    </GlassSurface>
+  );
+}
+
+function createFilterStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    surface: { borderRadius: radius.lg, padding: spacing[2] },
+    filters: { flexDirection: "row", flexWrap: "wrap", gap: spacing[2] },
+    option: {
+      alignItems: "center",
+      borderColor: colors.border,
+      borderRadius: radius.pill,
+      borderWidth: 1,
+      justifyContent: "center",
+      minHeight: 44,
+      paddingHorizontal: spacing[3]
+    },
+    optionSelected: { backgroundColor: colors.purple500, borderColor: colors.purple500 },
+    optionLabel: { color: colors.textPrimary, fontFamily: fontFamilies.interfaceBold, fontSize: 12 },
+    optionLabelSelected: { color: colors.white },
+    pressed: { opacity: 0.72 }
+  });
 }
 
 function MonthStepper({

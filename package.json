@@ -33,8 +33,10 @@
   "dependencies": {
     "@expo/vector-icons": "15.1.1",
     "@radix-ui/react-slot": "1.2.0",
+    "@react-native-async-storage/async-storage": "2.2.0",
     "expo": "~54.0.36",
     "expo-asset": "~12.0.13",
+    "expo-blur": "~15.0.8",
     "expo-font": "~14.0.12",
     "expo-router": "~6.0.24",
     "expo-video": "~3.0.16",

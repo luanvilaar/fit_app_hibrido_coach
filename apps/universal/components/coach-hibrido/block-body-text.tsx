@@ -1,7 +1,9 @@
 import { Ionicons } from "@expo/vector-icons";
+import { useMemo } from "react";
 import { Linking, Platform, Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
-import { colors, fontFamilies, spacing } from "@fitblock/design-tokens";
+import { fontFamilies, spacing, type ThemeColors } from "@fitblock/design-tokens";
 import { splitBody, type BlockMovement } from "@/data/coach-hibrido/mentions";
+import { useAppTheme } from "@/theme/theme-provider";
 
 const MOBILE_WIDTH_BREAKPOINT = 768;
 
@@ -39,8 +41,10 @@ type BlockBodyTextProps = {
  * para o atleta não tocar num alvo que não responde.
  */
 export function BlockBodyText({ body, movements, tone = "light", testID }: BlockBodyTextProps) {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const lines = splitBody(body, movements);
-  const palette = tone === "dark" ? dark : light;
+  const palette = paletteFor(styles, tone);
 
   return (
     <View style={styles.body} testID={testID}>
@@ -76,7 +80,9 @@ function MovementMention({
   label: string;
   tone: BodyTone;
 }) {
-  const palette = tone === "dark" ? dark : light;
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+  const palette = paletteFor(styles, tone);
   const { width } = useWindowDimensions();
   const isMobileWeb = width < MOBILE_WIDTH_BREAKPOINT;
 
@@ -112,7 +118,9 @@ type MovementListProps = {
 
 /** Tira de movimentos vinculados, para o coach conferir o que o atleta vai conseguir abrir. */
 export function MovementList({ movements, tone = "light", testID }: MovementListProps) {
-  const palette = tone === "dark" ? dark : light;
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+  const palette = paletteFor(styles, tone);
   const { width } = useWindowDimensions();
   const isMobileWeb = width < MOBILE_WIDTH_BREAKPOINT;
 
@@ -152,57 +160,41 @@ export function MovementList({ movements, tone = "light", testID }: MovementList
   );
 }
 
-const styles = StyleSheet.create({
-  body: { gap: 2 },
-  line: {
-    fontFamily: fontFamilies.mono,
-    fontSize: 14,
-    lineHeight: 22
-  },
-  mention: { fontWeight: "700" },
-  movementList: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: spacing[2]
-  },
-  movementChip: {
-    alignItems: "center",
-    borderWidth: 1,
-    flexDirection: "row",
-    gap: spacing[1],
-    minHeight: 34,
-    paddingHorizontal: spacing[2]
-  },
-  movementChipText: {
-    fontFamily: fontFamilies.interface,
-    fontSize: 12,
-    fontWeight: "700"
-  },
-  pressed: { opacity: 0.72 }
-});
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    body: { gap: 2 },
+    line: { fontFamily: fontFamilies.mono, fontSize: 14, lineHeight: 22 },
+    mention: { fontWeight: "700" },
+    movementList: { flexDirection: "row", flexWrap: "wrap", gap: spacing[2] },
+    movementChip: { alignItems: "center", borderWidth: 1, flexDirection: "row", gap: spacing[1], minHeight: 34, paddingHorizontal: spacing[2] },
+    movementChipText: { fontFamily: fontFamilies.interface, fontSize: 12, fontWeight: "700" },
+    pressed: { opacity: 0.72 },
+    lineLight: { color: colors.textPrimary },
+    mentionLight: { color: colors.mentionLink, textDecorationLine: "underline" },
+    mentionMutedLight: { color: colors.textMutedAccessible, textDecorationLine: "underline", textDecorationStyle: "dotted" },
+    chipLight: { backgroundColor: colors.bgDeep, borderColor: colors.border },
+    chipTextLight: { color: colors.textPrimary },
+    chipIconLight: { color: colors.mentionLink },
+    chipMutedIconLight: { color: colors.textMutedAccessible },
+    lineDark: { color: colors.textPrimary },
+    mentionDark: { color: colors.mentionLink, textDecorationLine: "underline" },
+    mentionMutedDark: { color: colors.textMutedAccessible, textDecorationLine: "underline", textDecorationStyle: "dotted" },
+    chipDark: { backgroundColor: colors.bg, borderColor: colors.border },
+    chipTextDark: { color: colors.textPrimary },
+    chipIconDark: { color: colors.mentionLink },
+    chipMutedIconDark: { color: colors.textMutedAccessible }
+  });
+}
 
-/**
- * O link usa `mentionLink` e não o roxo de ação: sobre graphite o #7132F5 rende 3.0:1, e o
- * nome do movimento é corpo de 14px, que a AA cobra em 4.5:1. Sublinhado e ícone continuam
- * marcando o link para quem não distingue a cor.
- */
-const light = StyleSheet.create({
-  line: { color: colors.textPrimary },
-  mention: { color: colors.mentionLink, textDecorationLine: "underline" },
-  mentionMuted: { color: colors.textMutedAccessible, textDecorationLine: "underline", textDecorationStyle: "dotted" },
-  chip: { backgroundColor: colors.bgDeep, borderColor: colors.border },
-  chipText: { color: colors.textPrimary },
-  chipIcon: { color: colors.mentionLink },
-  chipMutedIcon: { color: colors.textMutedAccessible }
-});
-
-/** Sobre `colors.bgDeep` (ex: painel de execução do atleta). */
-const dark = StyleSheet.create({
-  line: { color: colors.textPrimary },
-  mention: { color: colors.mentionLink, textDecorationLine: "underline" },
-  mentionMuted: { color: colors.textMutedAccessible, textDecorationLine: "underline", textDecorationStyle: "dotted" },
-  chip: { backgroundColor: colors.bg, borderColor: colors.border },
-  chipText: { color: colors.textPrimary },
-  chipIcon: { color: colors.mentionLink },
-  chipMutedIcon: { color: colors.textMutedAccessible }
-});
+function paletteFor(styles: ReturnType<typeof createStyles>, tone: BodyTone) {
+  const suffix = tone === "dark" ? "Dark" : "Light";
+  return {
+    line: styles[`line${suffix}`],
+    mention: styles[`mention${suffix}`],
+    mentionMuted: styles[`mentionMuted${suffix}`],
+    chip: styles[`chip${suffix}`],
+    chipText: styles[`chipText${suffix}`],
+    chipIcon: styles[`chipIcon${suffix}`],
+    chipMutedIcon: styles[`chipMutedIcon${suffix}`]
+  };
+}

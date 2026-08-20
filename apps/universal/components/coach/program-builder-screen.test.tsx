@@ -2,6 +2,8 @@ import { fireEvent, render, waitFor } from "@testing-library/react-native";
 import type { CoachStoreProductRecord } from "@fitblock/backend";
 import { ProgramBuilderScreen } from "@/components/coach/program-builder-screen";
 
+jest.mock("@/hooks/use-reduced-motion", () => ({ useReducedMotion: () => true }));
+
 const mockPush = jest.fn();
 const mockReplace = jest.fn();
 
@@ -88,6 +90,8 @@ describe("ProgramBuilderScreen", () => {
 
     await waitFor(() => expect(screen.getByTestId("program-builder-screen")).toBeTruthy());
     expect(screen.getByText("Crie um programa que dá direção.")).toBeTruthy();
+    expect(screen.getByTestId("program-builder-stages")).toBeTruthy();
+    expect(screen.getByTestId("program-builder-stage-panel")).toBeTruthy();
     expect(screen.getByLabelText("Etapa 1: Base").props.accessibilityState).toEqual({ selected: true });
     fireEvent.changeText(screen.getByLabelText("Título do produto"), "Força Essencial");
     fireEvent.press(screen.getByLabelText("Etapa 2: Público"));

@@ -10,10 +10,14 @@ import {
   View,
   useWindowDimensions
 } from "react-native";
-import { colors, fontFamilies, radius, spacing } from "@fitblock/design-tokens";
+import { fontFamilies, radius, spacing, type ThemeColors } from "@fitblock/design-tokens";
 import { useAuth } from "@/auth/auth-provider";
 import { useUserRoles } from "@/auth/roles-provider";
 import { hasRole, type AppRole, type UserRoles } from "@/auth/roles";
+import { ThemeSettingsSheet } from "@/components/theme-settings-sheet";
+import { GlassSurface } from "@/components/ui/glass-surface";
+import { TabSelectionMotion, TabTransitionPanel } from "@/components/ui/tab-transition";
+import { useAppTheme } from "@/theme/theme-provider";
 
 type IconName = ComponentProps<typeof Ionicons>["name"];
 export type NavigationId =
@@ -101,6 +105,7 @@ type AthleteShellProps = PropsWithChildren<{
 }>;
 
 export function AthleteShell({ children, active, editorial = false }: AthleteShellProps) {
+  const { styles } = useShellStyles();
   const { width } = useWindowDimensions();
   const isMobile = width < 768;
   const router = useRouter();
@@ -150,7 +155,14 @@ export function AthleteShell({ children, active, editorial = false }: AthleteShe
           ]}
           showsVerticalScrollIndicator={false}
         >
-          {children}
+          <TabTransitionPanel
+            activeKey={active}
+            enabled={isMobile}
+            order={items.map((item) => item.id)}
+            testID="mobile-route-panel"
+          >
+            {children}
+          </TabTransitionPanel>
         </ScrollView>
         {isMobile && <BottomNavigation active={active} items={items} onNavigate={navigate} />}
       </View>
@@ -172,6 +184,7 @@ function Sidebar({
   editorial,
   onSignOut
 }: NavigationProps & { isTrainingContext: boolean; editorial: boolean; onSignOut: () => void }) {
+  const { colors, styles } = useShellStyles();
   return (
     <View style={styles.sidebar}>
       {editorial || !isTrainingContext ? <FitblockTrainingBrand /> : <TrainingBrand />}
@@ -239,10 +252,16 @@ function TopBar({
   userEmail?: string;
   onSignOut: () => void;
 }) {
+  const { colors, styles } = useShellStyles();
   const initials = deriveInitials(userEmail);
+  const [isAppearanceOpen, setIsAppearanceOpen] = useState(false);
 
   return (
-    <View style={[styles.topBar, isMobile && styles.mobileTopBar]}>
+    <GlassSurface
+      strong={!isMobile}
+      style={[styles.topBar, isMobile && styles.mobileTopBar]}
+      testID="app-top-bar"
+    >
       {editorial ? (
         <Text style={styles.topBarGreeting} testID="topbar-greeting">
           Olá, {deriveDisplayName(userEmail)}!
@@ -256,6 +275,13 @@ function TopBar({
         </View>
       )}
       <View style={styles.topBarActions}>
+        <HeaderIconButton
+          accessibilityLabel="Abrir aparência"
+          testID="open-theme-settings"
+          onPress={() => setIsAppearanceOpen(true)}
+        >
+          <Ionicons name="color-palette-outline" size={20} color={colors.textPrimary} />
+        </HeaderIconButton>
         <HeaderIconButton
           accessibilityLabel="Abrir notificações"
         >
@@ -274,7 +300,8 @@ function TopBar({
           <Ionicons name="log-out-outline" size={18} color={colors.textSecondary} />
         </HeaderIconButton>
       </View>
-    </View>
+      <ThemeSettingsSheet visible={isAppearanceOpen} onDismiss={() => setIsAppearanceOpen(false)} />
+    </GlassSurface>
   );
 }
 
@@ -288,6 +315,7 @@ function HeaderIconButton({
   onPress?: () => void;
   testID?: string;
 }>) {
+  const { styles } = useShellStyles();
   const [isFocused, setIsFocused] = useState(false);
 
   return (
@@ -306,6 +334,7 @@ function HeaderIconButton({
 }
 
 function SidebarSignOut({ onSignOut }: { onSignOut: () => void }) {
+  const { colors, styles } = useShellStyles();
   const [isFocused, setIsFocused] = useState(false);
 
   return (
@@ -325,6 +354,7 @@ function SidebarSignOut({ onSignOut }: { onSignOut: () => void }) {
 }
 
 function TrainingBrand({ compact = false }: { compact?: boolean }) {
+  const { styles } = useShellStyles();
   return (
     <View
       accessible
@@ -342,6 +372,7 @@ function TrainingBrand({ compact = false }: { compact?: boolean }) {
 }
 
 function FitblockTrainingBrand({ compact = false }: { compact?: boolean }) {
+  const { styles } = useShellStyles();
   return (
     <View
       accessible
@@ -356,6 +387,7 @@ function FitblockTrainingBrand({ compact = false }: { compact?: boolean }) {
 }
 
 function BottomNavigation({ active, items, onNavigate }: NavigationProps) {
+  const { styles } = useShellStyles();
   const [isOverflowOpen, setIsOverflowOpen] = useState(false);
   const primaryItems = items.slice(0, 4);
   const overflowItems = items.slice(4);
@@ -364,7 +396,7 @@ function BottomNavigation({ active, items, onNavigate }: NavigationProps) {
   return (
     <>
       {isOverflowOpen && overflowItems.length > 0 && (
-        <View style={styles.bottomOverflowPanel} testID="bottom-nav-overflow">
+        <GlassSurface strong style={styles.bottomOverflowPanel} testID="bottom-nav-overflow">
           <Text style={styles.bottomOverflowTitle}>MAIS OPÇÕES</Text>
           {overflowItems.map((item) => (
             <OverflowNavItem
@@ -377,9 +409,9 @@ function BottomNavigation({ active, items, onNavigate }: NavigationProps) {
               }}
             />
           ))}
-        </View>
+        </GlassSurface>
       )}
-      <View style={styles.bottomNavigation}>
+      <GlassSurface strong style={styles.bottomNavigation} testID="bottom-navigation">
         {primaryItems.map((item) => (
           <NavItem
             key={item.id}
@@ -396,12 +428,13 @@ function BottomNavigation({ active, items, onNavigate }: NavigationProps) {
             onPress={() => setIsOverflowOpen((open) => !open)}
           />
         )}
-      </View>
+      </GlassSurface>
     </>
   );
 }
 
 function OverflowButton({ active, expanded, onPress }: { active: boolean; expanded: boolean; onPress: () => void }) {
+  const { colors, styles } = useShellStyles();
   const [isFocused, setIsFocused] = useState(false);
 
   return (
@@ -435,6 +468,7 @@ function OverflowNavItem({
   active: boolean;
   onPress: () => void;
 }) {
+  const { colors, styles } = useShellStyles();
   const [isFocused, setIsFocused] = useState(false);
 
   return (
@@ -471,7 +505,25 @@ function NavItem({
   onPress: () => void;
   compact?: boolean;
 }) {
+  const { colors, styles } = useShellStyles();
   const [isFocused, setIsFocused] = useState(false);
+  const content = (
+    <>
+      <Ionicons
+        name={item.icon}
+        size={compact ? 21 : 20}
+        color={active ? colors.purple400 : colors.textSecondary}
+      />
+      <Text
+        style={[
+          compact ? styles.bottomNavLabel : styles.sidebarNavLabel,
+          active && (compact ? styles.bottomNavLabelActive : styles.sidebarNavLabelActive)
+        ]}
+      >
+        {item.label}
+      </Text>
+    </>
+  );
 
   return (
     <Pressable
@@ -489,24 +541,19 @@ function NavItem({
         pressed && styles.pressed
       ]}
     >
-      <Ionicons
-        name={item.icon}
-        size={compact ? 21 : 20}
-        color={active ? colors.purple400 : colors.textSecondary}
-      />
-      <Text
-        style={[
-          compact ? styles.bottomNavLabel : styles.sidebarNavLabel,
-          active && (compact ? styles.bottomNavLabelActive : styles.sidebarNavLabelActive)
-        ]}
-      >
-        {item.label}
-      </Text>
+      {compact ? <TabSelectionMotion active={active}>{content}</TabSelectionMotion> : content}
     </Pressable>
   );
 }
 
-const styles = StyleSheet.create({
+function useShellStyles() {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+  return { colors, styles };
+}
+
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   appRoot: {
     backgroundColor: colors.bgDeep,
     flex: 1,
@@ -692,16 +739,12 @@ const styles = StyleSheet.create({
   },
   topBar: {
     alignItems: "center",
-    backgroundColor: colors.bg,
-    borderBottomColor: colors.border,
-    borderBottomWidth: 1,
     flexDirection: "row",
     justifyContent: "space-between",
     minHeight: 82,
     paddingHorizontal: spacing[8]
   },
   mobileTopBar: {
-    backgroundColor: colors.bgDeep,
     minHeight: 70,
     paddingHorizontal: spacing[4]
   },
@@ -789,9 +832,6 @@ const styles = StyleSheet.create({
   },
   bottomNavigation: {
     alignItems: "stretch",
-    backgroundColor: colors.bgDeep,
-    borderTopColor: colors.border,
-    borderTopWidth: 1,
     bottom: 0,
     flexDirection: "row",
     justifyContent: "space-around",
@@ -826,10 +866,7 @@ const styles = StyleSheet.create({
     color: colors.purple500
   },
   bottomOverflowPanel: {
-    backgroundColor: colors.bg,
-    borderColor: colors.border,
     borderRadius: radius.lg,
-    borderWidth: 1,
     bottom: Platform.OS === "ios" ? 88 : 76,
     gap: spacing[1],
     left: spacing[4],
@@ -876,4 +913,5 @@ const styles = StyleSheet.create({
   pressed: {
     opacity: 0.72
   }
-});
+  });
+}

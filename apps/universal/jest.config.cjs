@@ -3,6 +3,7 @@ module.exports = {
   // `api/` fica fora do app mas é código de pagamento: precisa dos mesmos testes e do mesmo gate.
   // Sem esta raiz extra, os testes ao lado das funções simplesmente não seriam coletados.
   roots: ["<rootDir>", "<rootDir>/../../api"],
+  setupFilesAfterEnv: ["<rootDir>/jest.setup.cjs"],
   testMatch: ["**/*.(test|spec).(ts|tsx)"],
   moduleNameMapper: {
     "^@/(.*)$": "<rootDir>/$1",

@@ -15,7 +15,7 @@ import {
   useWindowDimensions
 } from "react-native";
 import type { StyleProp, ViewStyle } from "react-native";
-import { colors, fontFamilies, radius, shadows, spacing } from "@fitblock/design-tokens";
+import { fontFamilies, radius, shadows, spacing, type ThemeColors } from "@fitblock/design-tokens";
 import {
   createCalendarRepository,
   createTodayRepository,
@@ -45,6 +45,7 @@ import {
 } from "@/data/today";
 import { getSupabaseConfigurationError, supabase } from "@/lib/supabase";
 import { WeekStrip } from "@/components/coach-hibrido/athlete/week-strip";
+import { useAppTheme } from "@/theme/theme-provider";
 
 const coverImage = require("@/assets/today-cover.png");
 
@@ -109,6 +110,8 @@ function formatEmptySessionDate(date: Date): string {
 }
 
 export function TodayScreen() {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const router = useRouter();
   const { width } = useWindowDimensions();
   const isCompact = width < 420;
@@ -331,6 +334,7 @@ export function TodayScreen() {
 }
 
 function CoverCard({ eyebrow, title }: { eyebrow: string; title: string }) {
+  const { styles } = useTodayStyles();
   return (
     <View style={styles.cover} testID="today-cover">
       <Image source={coverImage} resizeMode="contain" accessible={false} style={styles.coverImage} />
@@ -362,6 +366,7 @@ function SessionActionCard({
   onStart: () => void;
   onOpenCalendar: () => void;
 }) {
+  const { colors, styles } = useTodayStyles();
   const [isStartFocused, setIsStartFocused] = useState(false);
   const [isCalendarFocused, setIsCalendarFocused] = useState(false);
 
@@ -424,6 +429,7 @@ function SessionActionCard({
 }
 
 function CoachNoteCard({ note, time }: { note: string; time: string }) {
+  const { colors, styles } = useTodayStyles();
   return (
     <View style={styles.coachCard} testID="coach-note">
       <View style={styles.coachCardHeader}>
@@ -451,6 +457,7 @@ function BlockChecklistCard({
   onFocusBlock: (blockId: string) => void;
   onBlurBlock: () => void;
 }) {
+  const { styles } = useTodayStyles();
   return (
     <View style={styles.checklistCard} testID="today-block-list">
       <Text style={styles.checklistTitle}>O QUE VEM HOJE</Text>
@@ -487,6 +494,7 @@ function ChecklistRow({
   onFocusBlock: (blockId: string) => void;
   onBlurBlock: () => void;
 }) {
+  const { colors, styles } = useTodayStyles();
   const reduceMotion = useReduceMotion();
   const iconScale = useRef(new Animated.Value(1)).current;
   const hasMounted = useRef(false);
@@ -544,6 +552,7 @@ function ChecklistRow({
 }
 
 function StripMetric({ label, value, accent = false }: { label: string; value: string; accent?: boolean }) {
+  const { styles } = useTodayStyles();
   return (
     <View style={styles.stripMetric}>
       <Text style={[styles.stripMetricLabel, accent && styles.stripMetricLabelAccent]}>{label}</Text>
@@ -553,6 +562,7 @@ function StripMetric({ label, value, accent = false }: { label: string; value: s
 }
 
 function StateMessage({ icon, text, error = false }: { icon: IconName; text: string; error?: boolean }) {
+  const { colors, styles } = useTodayStyles();
   return (
     <View
       accessibilityRole={error ? "alert" : undefined}
@@ -574,6 +584,7 @@ function EmptySessionCard({
   hasNext: boolean;
   onOpenCalendar: () => void;
 }) {
+  const { colors, styles } = useTodayStyles();
   const [isFocused, setIsFocused] = useState(false);
 
   return (
@@ -613,7 +624,8 @@ function ReadinessCard({
   onOpen: () => void;
   isToday: boolean;
 }) {
-  const tone = readiness ? readinessToneColors[readiness.tone] : colors.textSecondary;
+  const { colors, styles } = useTodayStyles();
+  const tone = readiness ? readinessToneColor(colors, readiness.tone) : colors.textSecondary;
   const [isFocused, setIsFocused] = useState(false);
 
   return (
@@ -671,6 +683,7 @@ function ReadinessCard({
 }
 
 function WeekCard({ week, streakDays }: { week: TodayDashboardRecord["week"]; streakDays: number }) {
+  const { colors, styles } = useTodayStyles();
   const progress = getWeeklyProgress(week.completed, week.planned);
 
   return (
@@ -701,6 +714,7 @@ function WeekCard({ week, streakDays }: { week: TodayDashboardRecord["week"]; st
 }
 
 function NextSessionCard({ session }: { session: CalendarSessionRecord }) {
+  const { colors, styles } = useTodayStyles();
   return (
     <View style={styles.nextCard} testID="next-session">
       <View style={styles.nextCardTopline}>
@@ -715,7 +729,14 @@ function NextSessionCard({ session }: { session: CalendarSessionRecord }) {
   );
 }
 
-const styles = StyleSheet.create({
+function useTodayStyles() {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+  return { colors, styles };
+}
+
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   page: {
     gap: spacing[4]
   },
@@ -751,14 +772,14 @@ const styles = StyleSheet.create({
     gap: spacing[1]
   },
   coverEyebrow: {
-    color: colors.purple400,
+    color: "#E9DDFF",
     fontFamily: fontFamilies.interfaceBold,
     fontSize: 11,
     letterSpacing: 1.1,
     textTransform: "uppercase"
   },
   coverTitle: {
-    color: colors.textPrimary,
+    color: "#FFFFFF",
     fontFamily: fontFamilies.display,
     fontSize: 34,
     lineHeight: 35
@@ -1182,11 +1203,10 @@ const styles = StyleSheet.create({
     lineHeight: 24,
     marginTop: spacing[2]
   }
-});
+  });
+}
 
 /** Semáforo da prontidão: verde >= 4,0 · amarelo 3,0-3,9 · vermelho < 3,0. */
-const readinessToneColors: Record<ReadinessTone, string> = {
-  ready: colors.success,
-  caution: colors.warning,
-  risk: colors.danger
-};
+function readinessToneColor(colors: ThemeColors, tone: ReadinessTone): string {
+  return tone === "ready" ? colors.success : tone === "caution" ? colors.warning : colors.danger;
+}

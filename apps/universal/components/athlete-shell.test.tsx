@@ -4,8 +4,9 @@ import { AthleteShell, getVisibleNavigationItems } from "@/components/athlete-sh
 import { emptyUserRoles, type UserRoles } from "@/auth/roles";
 
 const mockUseUserRoles = jest.fn();
-const MOBILE_DIMENSIONS = { width: 390, height: 844, scale: 3, fontScale: 1 };
-const DESKTOP_DIMENSIONS = { width: 1280, height: 900, scale: 1, fontScale: 1 };
+const MOBILE_DIMENSIONS = { width: 375, height: 812, scale: 3, fontScale: 1 };
+const TABLET_DIMENSIONS = { width: 768, height: 1024, scale: 2, fontScale: 1 };
+const DESKTOP_DIMENSIONS = { width: 1440, height: 900, scale: 1, fontScale: 1 };
 
 jest.mock("expo-router", () => ({
   usePathname: () => "/app/hoje",
@@ -75,8 +76,31 @@ describe("navegação por papel", () => {
     );
 
     expect(screen.getByTestId("nav-hoje")).toBeTruthy();
+    expect(screen.getByTestId("app-top-bar")).toBeTruthy();
+    expect(screen.getByTestId("bottom-navigation")).toBeTruthy();
+    expect(screen.getByTestId("mobile-route-panel")).toBeTruthy();
+    expect(screen.getByTestId("open-theme-settings")).toBeTruthy();
     expect(screen.queryByTestId("nav-coach")).toBeNull();
     expect(screen.getByLabelText("Coach Híbrido by FitBlock")).toBeTruthy();
+
+    // 375 px é a prioridade: comandos ainda têm os 44 px mínimos e a navegação
+    // preserva alvos maiores que o requisito, sem reduzir a hierarquia.
+    expect(StyleSheet.flatten(screen.getByTestId("open-theme-settings").props.style).height).toBe(44);
+    expect(StyleSheet.flatten(screen.getByTestId("nav-hoje").props.style).minHeight).toBe(52);
+  });
+
+  it("troca para sidebar em 768 px sem deixar a navegação mobile sobre o conteúdo", async () => {
+    jest.spyOn(Dimensions, "get").mockReturnValue(TABLET_DIMENSIONS);
+    mockUseUserRoles.mockReturnValue({ userRoles: athleteRoles });
+
+    const screen = await render(
+      <AthleteShell active="hoje">
+        <Text>Conteúdo</Text>
+      </AthleteShell>
+    );
+
+    expect(screen.getByTestId("sidebar-nav-scroll")).toBeTruthy();
+    expect(screen.queryByTestId("bottom-navigation")).toBeNull();
   });
 
   it("renderiza o atalho Agenda para o coach", async () => {

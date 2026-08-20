@@ -3,7 +3,7 @@ import { useRouter } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
 import type { ComponentProps } from "react";
 import { Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
-import { colors, fontFamilies, radius, spacing, typeScale } from "@fitblock/design-tokens";
+import { fontFamilies, radius, spacing, typeScale, type ThemeColors } from "@fitblock/design-tokens";
 import {
   createCalendarRepository,
   createTodayRepository,
@@ -30,12 +30,15 @@ import {
 } from "@/data/coach-hibrido/session-snapshot";
 import { BlockBodyText } from "@/components/coach-hibrido/block-body-text";
 import { getSupabaseConfigurationError, supabase } from "@/lib/supabase";
+import { useAppTheme } from "@/theme/theme-provider";
 
 type IconName = ComponentProps<typeof Ionicons>["name"];
 
 const weekdays = ["SEG", "TER", "QUA", "QUI", "SEX", "SÁB", "DOM"];
 
 export function CalendarScreen() {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { width } = useWindowDimensions();
   const isCompact = width < 900;
   const [month, setMonth] = useState(() => new Date());
@@ -197,6 +200,8 @@ function getCalendarEntryTitle(entry: CalendarEntryRecord): string {
 }
 
 function MonthButton({ icon, label, onPress }: { icon: IconName; label: string; onPress: () => void }) {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [isFocused, setIsFocused] = useState(false);
 
   return (
@@ -214,6 +219,8 @@ function MonthButton({ icon, label, onPress }: { icon: IconName; label: string; 
 }
 
 function LegendItem({ icon, color, label }: { icon: IconName; color: string; label: string }) {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   return (
     <View style={styles.legendItem}>
       <Ionicons name={icon} size={13} color={color} />
@@ -223,6 +230,8 @@ function LegendItem({ icon, color, label }: { icon: IconName; color: string; lab
 }
 
 function CalendarMessage({ icon, text, error = false, empty = false }: { icon: IconName; text: string; error?: boolean; empty?: boolean }) {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   return (
     <View style={[styles.messageCard, error && styles.messageCardError, empty && styles.messageCardEmpty]}>
       <Ionicons name={icon} size={20} color={error ? colors.danger : colors.purple500} />
@@ -232,6 +241,8 @@ function CalendarMessage({ icon, text, error = false, empty = false }: { icon: I
 }
 
 function SessionPrescriptionCard({ session }: { session: CalendarSessionRecord }) {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const router = useRouter();
   const [isStarting, setIsStarting] = useState(false);
   const [startError, setStartError] = useState<string | null>(null);
@@ -342,6 +353,8 @@ function SessionPrescriptionCard({ session }: { session: CalendarSessionRecord }
 }
 
 function ProgramDayCard({ day }: { day: CalendarProgramDayRecord }) {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const dayDate = new Intl.DateTimeFormat("pt-BR", {
     weekday: "long",
     day: "numeric",
@@ -371,7 +384,8 @@ function describeProgramDayType(dayType: CalendarProgramDayRecord["day_type"]): 
   return labels[dayType];
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   page: {
     gap: spacing[6]
   },
@@ -740,4 +754,5 @@ const styles = StyleSheet.create({
   pressed: {
     opacity: 0.72
   }
-});
+  });
+}

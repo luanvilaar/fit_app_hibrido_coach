@@ -1,6 +1,8 @@
 import { fireEvent, render, waitFor } from "@testing-library/react-native";
 import { CoachSupervisionScreen, CoachSupervisionSessionScreen } from "@/components/coach/coach-supervision-screen";
 
+jest.mock("@/hooks/use-reduced-motion", () => ({ useReducedMotion: () => true }));
+
 const mockPush = jest.fn();
 const mockListRoster = jest.fn();
 const mockGetAthleteSession = jest.fn();
@@ -36,6 +38,8 @@ describe("seletor de acompanhamento", () => {
     expect(screen.queryByText("Maria")).toBeNull();
 
     fireEvent.press(screen.getByLabelText("Ver Equipes"));
+    expect(screen.getByTestId("coach-supervision-tab-teams").props.accessibilityState.selected).toBe(true);
+    expect(screen.getByTestId("coach-supervision-tab-panel")).toBeTruthy();
     fireEvent.changeText(screen.getByLabelText("Buscar atletas e equipes"), "");
     expect(screen.getByText("Força")).toBeTruthy();
     fireEvent.press(screen.getByLabelText("Abrir equipe Força"));

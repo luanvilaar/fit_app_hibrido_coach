@@ -96,6 +96,11 @@ export const colors = {
   inkOnLight: fb.white,
   inkOnLightPress: fb.white,
   focusRing: "rgba(162,124,255,0.82)",
+  glassSubtle: "rgba(16,16,20,0.78)",
+  glassStrong: "rgba(5,5,7,0.88)",
+  glassBorder: "rgba(248,248,250,0.16)",
+  glassFallback: fb.surface02,
+  glassStrongFallback: fb.bgDeep,
 
   // Menção de movimento (@Front Squat) no texto do treino. O roxo de ação (#7132F5)
   // rende só 3.0:1 sobre surface02 — abaixo de AA para os 14px do corpo do bloco —
@@ -139,6 +144,106 @@ export const colors = {
   authPhotoOverlay: fb.bgDeep,
   sale: fb.error
 } as const;
+
+/** A aparência escolhida pelo usuário; `system` respeita o esquema do dispositivo. */
+export type ThemePreference = "system" | "light" | "dark";
+export type ThemeMode = Exclude<ThemePreference, "system">;
+
+/**
+ * Paleta clara do FitBlock. Ela mantém os mesmos papéis semânticos da Dark
+ * Performance — não é uma inversão literal de preto e branco.
+ */
+export const lightColors = {
+  bgDeep: "#ECECF1",
+  bg: "#F7F7F9",
+  surface01: "#FFFFFF",
+  surface02: "#FFFFFF",
+  surface03: "#F0F0F5",
+  surface04: "#E7E7EE",
+
+  purple400: "#8350F7",
+  purple500: "#7132F5",
+  purple600: "#5C22D6",
+  purple700: "#4817AC",
+
+  textPrimary: "#17161C",
+  textSecondary: "#565461",
+  textMuted: "#706E7A",
+  textMutedAccessible: "#5B5965",
+  white: "#FFFFFF",
+
+  border: "#D8D7E0",
+  borderHover: "#BDBBC9",
+  borderPurple: "rgba(113,50,245,0.42)",
+
+  success: "#15803D",
+  warning: "#B45309",
+  danger: "#C6283D",
+  error: "#C6283D",
+  info: "#2563EB",
+
+  canvas: "#F7F7F9",
+  canvasDeep: "#ECECF1",
+  canvasLight: "#FFFFFF",
+  canvasPressLight: "#F0F0F5",
+  canvasPressStronger: "#E7E7EE",
+  ink: "#17161C",
+  inkMuted: "#565461",
+  inkFaint: "rgba(23,22,28,0.16)",
+  inkOnLight: "#FFFFFF",
+  inkOnLightPress: "#FFFFFF",
+  focusRing: "rgba(92,34,214,0.72)",
+  glassSubtle: "rgba(255,255,255,0.76)",
+  glassStrong: "rgba(255,255,255,0.9)",
+  glassBorder: "rgba(23,22,28,0.12)",
+  glassFallback: "#FFFFFF",
+  glassStrongFallback: "#F0F0F5",
+
+  mentionLink: "#5B1ECF",
+  mentionDraft: "#5B5965",
+
+  black: "#17161C",
+  softCloud: "#FFFFFF",
+  surfaceMuted: "#F0F0F5",
+  graphite: "#E7E7EE",
+  charcoal: "#565461",
+  ash: "#35333D",
+  textMutedLegacy: "#706E7A",
+  stone: "#5B5965",
+  lime: "#7132F5",
+  pink: "#8350F7",
+  violet: "#8350F7",
+  violetDeep: "#4817AC",
+  violetMid: "#5C22D6",
+  fitblockPurple: "#7132F5",
+  fitblockPurpleDark: "#4817AC",
+  fitblockPurpleDeep: "#5C22D6",
+  fitblockPurpleLight: "#8350F7",
+  hairline: "#D8D7E0",
+  hairlineSoft: "#E7E7EE",
+  hairlineOnLight: "#BDBBC9",
+  hairlineCloud: "#BDBBC9",
+  authBackdrop: "#ECECF1",
+  authSurface: "#FFFFFF",
+  authInput: "#F0F0F5",
+  authInputBorder: "#BDBBC9",
+  authTextSecondary: "#565461",
+  authTextMuted: "#5B5965",
+  authControlHighlight: "#4817AC",
+  authSuccess: "#15803D",
+  authDanger: "#C6283D",
+  authPhotoOverlay: "rgba(23,22,28,0.78)",
+  sale: "#C6283D"
+} as const;
+
+/** Keys shared by all theme variants; values stay strings so each mode can differ. */
+export type ThemeColors = { [Key in keyof typeof colors]: string };
+
+/** Todas as superfícies autenticadas devem usar esta seleção por papel, nunca hex avulso. */
+export const themes: Record<ThemeMode, ThemeColors> = {
+  dark: colors,
+  light: lightColors
+};
 
 /** 4px base rhythm; sections expand on the platform breakpoint, not per screen. */
 export const spacing = {
@@ -235,5 +340,12 @@ export const motion = {
   standard: 220,
   slow: 450,
   modal: 300,
-  ease: "cubic-bezier(.2,.8,.2,1)"
+  ease: "cubic-bezier(.2,.8,.2,1)",
+  tab: {
+    enterMs: 220,
+    exitMs: 140,
+    offset: 8,
+    pressMs: 120,
+    easing: [0.16, 1, 0.3, 1] as const
+  }
 } as const;

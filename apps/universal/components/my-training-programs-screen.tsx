@@ -1,19 +1,22 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import {
   createStoreRepository,
   type StoreOrderRecord,
   type TrainingProgramRecord
 } from "@fitblock/backend";
-import { colors, fontFamilies, radius, spacing, typeScale } from "@fitblock/design-tokens";
+import { fontFamilies, radius, spacing, typeScale, type ThemeColors } from "@fitblock/design-tokens";
 import { describeBackendError } from "@/data/backend-error";
 import { describeProgramDayType } from "@/data/program-builder";
 import { formatBRL } from "@/data/finance/money";
 import { getSupabaseConfigurationError, supabase } from "@/lib/supabase";
+import { useAppTheme } from "@/theme/theme-provider";
 
 export function MyTrainingProgramsScreen() {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { width } = useWindowDimensions();
   const isNarrow = width < 860;
   const [programs, setPrograms] = useState<TrainingProgramRecord[]>([]);
@@ -95,6 +98,8 @@ export function MyTrainingProgramsScreen() {
 }
 
 function ProgramCard({ program }: { program: TrainingProgramRecord }) {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const router = useRouter();
   return (
     <View style={styles.programCard} testID={`training-program-${program.product_id}`}>
@@ -149,6 +154,8 @@ function ProgramCard({ program }: { program: TrainingProgramRecord }) {
 }
 
 function Fact({ icon, label }: { icon: keyof typeof Ionicons.glyphMap; label: string }) {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   return (
     <View style={styles.fact}>
       <Ionicons color={colors.purple400} name={icon} size={16} />
@@ -158,6 +165,8 @@ function Fact({ icon, label }: { icon: keyof typeof Ionicons.glyphMap; label: st
 }
 
 function OrderRow({ order }: { order: StoreOrderRecord }) {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const paid = order.status === "paid";
   return (
     <View style={styles.orderRow}>
@@ -173,6 +182,8 @@ function OrderRow({ order }: { order: StoreOrderRecord }) {
 }
 
 function Message({ text, tone }: { text: string; tone: "error" | "success" }) {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const isError = tone === "error";
   return (
     <View accessibilityRole="alert" style={[styles.message, isError ? styles.messageError : styles.messageSuccess]}>
@@ -194,7 +205,8 @@ function formatScheduledDate(value: string): string {
   return new Intl.DateTimeFormat("pt-BR", { weekday: "short", day: "2-digit", month: "short" }).format(date);
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   page: { gap: spacing[5] },
   intro: { alignItems: "flex-end", flexDirection: "row", gap: spacing[5], justifyContent: "space-between" },
   introNarrow: { alignItems: "flex-start", flexDirection: "column" },
@@ -242,4 +254,5 @@ const styles = StyleSheet.create({
   emptyTitle: { color: colors.textPrimary, fontFamily: fontFamilies.display, fontSize: 27 },
   emptyText: { color: colors.textSecondary, fontFamily: fontFamilies.interface, fontSize: 15, lineHeight: 22, maxWidth: 570 },
   muted: { color: colors.textSecondary, fontFamily: fontFamilies.interface, fontSize: 14 }
-});
+  });
+}
