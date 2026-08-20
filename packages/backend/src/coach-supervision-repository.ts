@@ -25,7 +25,11 @@ export type CoachSupervisionWorkout = {
 };
 
 export class CoachSupervisionBackendError extends Error {
-  constructor(message: string, public readonly operation: string) {
+  constructor(
+    message: string,
+    public readonly operation: string,
+    public readonly code?: string
+  ) {
     super(message);
     this.name = "CoachSupervisionBackendError";
   }
@@ -35,7 +39,7 @@ export function createCoachSupervisionRepository(client: FitBlockSupabaseClient)
   return {
     async listRoster(): Promise<CoachSupervisionRosterRecord[]> {
       const { data, error } = await client.rpc("list_coach_supervision_roster");
-      if (error) throw new CoachSupervisionBackendError(error.message, "listRoster");
+      if (error) throw new CoachSupervisionBackendError(error.message, "listRoster", error.code);
       return (data ?? []) as CoachSupervisionRosterRecord[];
     },
 
@@ -45,7 +49,7 @@ export function createCoachSupervisionRepository(client: FitBlockSupabaseClient)
         p_from: from,
         p_to: to
       });
-      if (error) throw new CoachSupervisionBackendError(error.message, "listAthleteSessions");
+      if (error) throw new CoachSupervisionBackendError(error.message, "listAthleteSessions", error.code);
       return (data ?? []) as CoachSupervisionSessionRecord[];
     },
 
@@ -54,7 +58,7 @@ export function createCoachSupervisionRepository(client: FitBlockSupabaseClient)
         p_athlete_id: athleteId,
         p_session_id: sessionId
       });
-      if (error) throw new CoachSupervisionBackendError(error.message, "getAthleteSession");
+      if (error) throw new CoachSupervisionBackendError(error.message, "getAthleteSession", error.code);
       return data as CoachSupervisionWorkout;
     }
   };

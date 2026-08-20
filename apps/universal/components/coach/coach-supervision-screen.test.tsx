@@ -50,6 +50,17 @@ describe("seletor de acompanhamento", () => {
     expect(screen.getByLabelText("Tentar carregar acompanhamento novamente")).toBeTruthy();
   });
 
+  it("explica schema drift e tenta novamente sem mascará-lo como erro transitório", async () => {
+    mockListRoster
+      .mockRejectedValueOnce({ message: "função ausente", operation: "listRoster", code: "PGRST202" })
+      .mockResolvedValueOnce([]);
+    const screen = render(<CoachSupervisionScreen />);
+    await waitFor(() => expect(screen.getByText("O acompanhamento ainda não foi disponibilizado no servidor. A atualização do banco precisa ser aplicada antes de continuar.")).toBeTruthy());
+    fireEvent.press(screen.getByLabelText("Tentar carregar acompanhamento novamente"));
+    await waitFor(() => expect(mockListRoster).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(screen.getByTestId("coach-supervision-empty")).toBeTruthy());
+  });
+
   it("consulta resultados sem renderizar controles de execução do atleta", async () => {
     mockParams.mockReturnValue({ athleteId: "athlete-1", sessionId: "session-1" });
     mockGetAthleteSession.mockResolvedValue({
@@ -63,5 +74,50 @@ describe("seletor de acompanhamento", () => {
     await waitFor(() => expect(screen.getByText("Resultados registrados")).toBeTruthy());
     expect(screen.getByText("Série 1: 8 reps · 40 kg · concluída")).toBeTruthy();
     expect(screen.queryByText(/Iniciar|Concluir|Salvar|Marcar bloco/i)).toBeNull();
+  });
+
+  it("mostra cada movimento apenas dentro da prescrição, sem resumo duplicado", async () => {
+    mockParams.mockReturnValue({ athleteId: "athlete-1", sessionId: "session-1" });
+    mockGetAthleteSession.mockResolvedValue({
+      session: {
+        id: "session-1", template_id: "template-1", team_id: "team-1", scheduled_date: "2026-08-20", status: "published", state: "available", snapshot: {
+          title: "Força",
+          blocks: [{
+            id: "block-1", name: "Skill Ginástico", kind: "gymnastics-skill",
+            details: { body: "SKILL GINÁSTICO\n@Back Against Wall Shoulder Taps\n5 x 8-10\n@Handstand Pirouettes\n5 x 2" },
+            items: [
+              { id: "item-1", exercise_slug: "wall-taps", exercise_name: "Back Against Wall Shoulder Taps", prescription: { kind: "reference" } },
+              { id: "item-2", exercise_slug: "pirouettes", exercise_name: "Handstand Pirouettes", prescription: { kind: "reference" } }
+            ]
+          }]
+        }, coach_note: null, created_by: "coach-1", created_at: "2026-08-01", updated_at: "2026-08-01"
+      },
+      progress: null,
+      results: []
+    });
+
+    const screen = render(<CoachSupervisionSessionScreen />);
+    await waitFor(() => expect(screen.getByTestId("coach-supervision-block-body-block-1")).toBeTruthy());
+    expect(screen.getAllByText("Back Against Wall Shoulder Taps")).toHaveLength(1);
+    expect(screen.getAllByText("Handstand Pirouettes")).toHaveLength(1);
+    expect(screen.queryByText("Back Against Wall Shoulder Taps · Handstand Pirouettes")).toBeNull();
+    expect(screen.queryByText("Resultados registrados")).toBeTruthy();
+    expect(screen.queryByText(/Iniciar|Concluir|Salvar|Marcar bloco/i)).toBeNull();
+  });
+
+  it("explica quando uma sessão publicada não contém blocos", async () => {
+    mockParams.mockReturnValue({ athleteId: "athlete-1", sessionId: "session-1" });
+    mockGetAthleteSession.mockResolvedValue({
+      session: {
+        id: "session-1", template_id: "template-1", team_id: "team-1", scheduled_date: "2026-08-20", status: "published", state: "available", snapshot: { title: "Força", blocks: [] }, coach_note: null, created_by: "coach-1", created_at: "2026-08-01", updated_at: "2026-08-01"
+      },
+      progress: null,
+      results: []
+    });
+
+    const screen = render(<CoachSupervisionSessionScreen />);
+    await waitFor(() => expect(screen.getByTestId("coach-supervision-blocks-empty")).toBeTruthy());
+    expect(screen.getByText("Esta sessão não possui blocos prescritos.")).toBeTruthy();
+    expect(screen.getByText("Resultados registrados")).toBeTruthy();
   });
 });

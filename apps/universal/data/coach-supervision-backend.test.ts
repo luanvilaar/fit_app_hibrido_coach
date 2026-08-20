@@ -1,7 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { CoachSupervisionBackendError, createCoachSupervisionRepository } from "../../../packages/backend/src/coach-supervision-repository";
 
-function clientWith(data: unknown, error: { message: string } | null = null) {
+function clientWith(data: unknown, error: { message: string; code?: string } | null = null) {
   return { rpc: jest.fn().mockResolvedValue({ data, error }) } as unknown as SupabaseClient;
 }
 
@@ -14,7 +14,7 @@ describe("contrato de acompanhamento", () => {
     expect(client.rpc).toHaveBeenNthCalledWith(3, "get_coach_supervision_session", { p_athlete_id: "athlete-1", p_session_id: "session-1" });
   });
 
-  it("anexa a operação a erros do Supabase", async () => {
-    await expect(createCoachSupervisionRepository(clientWith(null, { message: "negado" })).listRoster()).rejects.toMatchObject<Partial<CoachSupervisionBackendError>>({ operation: "listRoster", message: "negado" });
+  it("preserva operação e código de erros do Supabase", async () => {
+    await expect(createCoachSupervisionRepository(clientWith(null, { message: "função ausente", code: "PGRST202" })).listRoster()).rejects.toMatchObject<Partial<CoachSupervisionBackendError>>({ operation: "listRoster", message: "função ausente", code: "PGRST202" });
   });
 });

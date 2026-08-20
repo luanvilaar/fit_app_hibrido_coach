@@ -1,6 +1,6 @@
 import { fireEvent, render } from "@testing-library/react-native";
 import { Linking, Platform } from "react-native";
-import { MovementList } from "@/components/coach-hibrido/block-body-text";
+import { BlockBodyText, MovementList } from "@/components/coach-hibrido/block-body-text";
 import type { BlockMovement } from "@/data/coach-hibrido/mentions";
 
 const mockUseWindowDimensions = jest.fn(() => ({
@@ -15,12 +15,26 @@ jest.mock("react-native/Libraries/Utilities/useWindowDimensions", () => ({
   default: () => mockUseWindowDimensions()
 }));
 
+jest.mock("@expo/vector-icons", () => {
+  const React = require("react");
+  const { Text } = require("react-native");
+  return { Ionicons: ({ name }: { name: string }) => React.createElement(Text, null, name) };
+});
+
 const squatMovement: BlockMovement = {
   slug: "back-squat",
   name: "Back Squat",
   videoUrl: "https://youtube.com/watch?v=abc",
   category: null,
   itemId: "item-1"
+};
+
+const noVideoMovement: BlockMovement = {
+  slug: "air-squat",
+  name: "Air Squat",
+  videoUrl: null,
+  category: null,
+  itemId: "item-2"
 };
 
 describe("MovementList video links", () => {
@@ -67,5 +81,20 @@ describe("MovementList video links", () => {
 
     expect(openURLSpy).toHaveBeenCalledWith(squatMovement.videoUrl);
     expect(windowOpenSpy).not.toHaveBeenCalled();
+  });
+
+  it("preserva as menções no texto com semântica acessível de vídeo", () => {
+    const screen = render(
+      <BlockBodyText
+        body="@Back Squat\n@Air Squat"
+        movements={[squatMovement, noVideoMovement]}
+        testID="prescription"
+        tone="dark"
+      />
+    );
+
+    expect(screen.getByTestId("prescription")).toBeTruthy();
+    expect(screen.getByLabelText("Ver vídeo de Back Squat")).toBeTruthy();
+    expect(screen.getByLabelText("Air Squat. Vídeo não cadastrado.")).toBeTruthy();
   });
 });
