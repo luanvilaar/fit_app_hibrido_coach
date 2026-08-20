@@ -2,6 +2,14 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "buildCommand": "npm run build",
   "outputDirectory": "apps/universal/dist",
+  "rewrites": [
+    { "source": "/app/coach/equipes/:teamId", "destination": "/app/coach/equipes/[teamId].html" },
+    { "source": "/app/coach/produtos/:productId", "destination": "/app/coach/produtos/[productId].html" },
+    { "source": "/app/coach/produtos/:productId/semana/:week/dia/:day", "destination": "/app/coach/produtos/[productId]/semana/[week]/dia/[day].html" },
+    { "source": "/app/coach/acompanhamento/equipes/:teamId", "destination": "/app/coach/acompanhamento/equipes/[teamId].html" },
+    { "source": "/app/coach/acompanhamento/atletas/:athleteId", "destination": "/app/coach/acompanhamento/atletas/[athleteId].html" },
+    { "source": "/app/coach/acompanhamento/atletas/:athleteId/sessoes/:sessionId", "destination": "/app/coach/acompanhamento/atletas/[athleteId]/sessoes/[sessionId].html" }
+  ],
   "headers": [
     {
       "source": "/(.*)",
