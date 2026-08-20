@@ -24,6 +24,7 @@ export type NavigationId =
   | "meus-treinos"
   | "perfil"
   | "coach"
+  | "coach-acompanhamento"
   | "coach-equipes"
   | "coach-treinos"
   | "coach-financeiro"
@@ -38,12 +39,12 @@ type NavigationItem = {
 };
 
 const navigationItems: NavigationItem[] = [
-  { id: "hoje", label: "Hoje", href: "/app/hoje", icon: "today-outline" },
-  { id: "calendario", label: "Calendário", href: "/app/calendario", icon: "calendar-outline" },
-  { id: "progresso", label: "Progresso", href: "/app/progresso", icon: "stats-chart-outline" },
-  { id: "loja", label: "Loja", href: "/app/loja", icon: "bag-handle-outline" },
-  { id: "meus-treinos", label: "Meus Treinos", href: "/app/meus-treinos", icon: "barbell-outline" },
-  { id: "perfil", label: "Perfil", href: "/app/perfil", icon: "person-outline" },
+  { id: "hoje", label: "Hoje", href: "/app/hoje", icon: "today-outline", requiredRole: "athlete" },
+  { id: "calendario", label: "Calendário", href: "/app/calendario", icon: "calendar-outline", requiredRole: "athlete" },
+  { id: "progresso", label: "Progresso", href: "/app/progresso", icon: "stats-chart-outline", requiredRole: "athlete" },
+  { id: "loja", label: "Loja", href: "/app/loja", icon: "bag-handle-outline", requiredRole: "athlete" },
+  { id: "meus-treinos", label: "Meus Treinos", href: "/app/meus-treinos", icon: "barbell-outline", requiredRole: "athlete" },
+  { id: "perfil", label: "Perfil", href: "/app/perfil", icon: "person-outline", requiredRole: "athlete" },
   {
     id: "coach",
     label: "Agenda",
@@ -56,6 +57,13 @@ const navigationItems: NavigationItem[] = [
     label: "Equipes",
     href: "/app/coach/equipes",
     icon: "people-outline",
+    requiredRole: "coach"
+  },
+  {
+    id: "coach-acompanhamento",
+    label: "Acompanhamento",
+    href: "/app/coach/acompanhamento",
+    icon: "eye-outline",
     requiredRole: "coach"
   },
   {

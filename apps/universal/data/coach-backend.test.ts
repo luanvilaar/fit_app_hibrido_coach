@@ -18,13 +18,15 @@ function createMockClient(options?: {
   rpcError?: { message: string };
 }) {
   const insertSingle = jest.fn().mockResolvedValue({ data: options?.team, error: null });
-  const rpcSingle = jest.fn().mockImplementation((rpcName: string) =>
-    Promise.resolve(
-      rpcName === "create_session_template_with_content"
-        ? { data: options?.template, error: null }
-        : { data: options?.instance, error: options?.rpcError ?? null }
-    )
-  );
+  const rpcSingle = jest.fn().mockImplementation((rpcName: string) => {
+    if (rpcName === "create_training_group") {
+      return Promise.resolve({ data: options?.team, error: null });
+    }
+    if (rpcName === "create_session_template_with_content") {
+      return Promise.resolve({ data: options?.template, error: null });
+    }
+    return Promise.resolve({ data: options?.instance, error: options?.rpcError ?? null });
+  });
   const query: MockQuery = { single: insertSingle };
   const client = {
     from: jest.fn().mockReturnValue({
@@ -112,8 +114,14 @@ describe("coach flow backend repository", () => {
       })
     ).resolves.toEqual(instance);
 
-    expect(insertSingle).toHaveBeenCalledTimes(1);
-    expect(rpcSingle).toHaveBeenCalledTimes(2);
+    expect(insertSingle).not.toHaveBeenCalled();
+    expect(rpcSingle).toHaveBeenCalledTimes(3);
+    expect(client.rpc).toHaveBeenCalledWith("create_training_group", {
+      p_name: "Strength Base",
+      p_description: "Equipe de força.",
+      p_level: "intermediário",
+      p_objective: "Aumentar força."
+    });
     expect(client.rpc).toHaveBeenCalledWith("create_session_template_with_content", {
       p_title: "Lower Strength",
       p_blocks: [

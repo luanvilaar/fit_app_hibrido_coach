@@ -101,6 +101,13 @@ function AnimatedProgressFill({ progress, style }: { progress: number; style?: S
 
 type IconName = ComponentProps<typeof Ionicons>["name"];
 
+/** "22 AGO" — usado no card vazio quando o dia selecionado não é hoje. */
+function formatEmptySessionDate(date: Date): string {
+  const day = String(date.getDate()).padStart(2, "0");
+  const month = new Intl.DateTimeFormat("pt-BR", { month: "short" }).format(date).replace(".", "");
+  return `${day} ${month}`.toUpperCase();
+}
+
 export function TodayScreen() {
   const router = useRouter();
   const { width } = useWindowDimensions();
@@ -178,6 +185,7 @@ export function TodayScreen() {
   );
   const todayString = useMemo(() => toCalendarDate(new Date()), []);
   const selectedDate = dashboard?.reference_date ?? todayString;
+  const isViewingToday = selectedDate === todayString;
   const weekDays = useMemo(() => createWeekGrid(weekAnchor, weekSessions), [weekAnchor, weekSessions]);
   const snapshotBlocks = useMemo(() => (session ? readSessionBlocks(session) : []), [session]);
   const todayBlocks = useMemo(() => (session ? buildTodayBlocks(session, progress) : []), [session, progress]);
@@ -231,9 +239,22 @@ export function TodayScreen() {
     }
   }
 
-  function handleSelectDate(date: string) {
-    if (date === selectedDate) return;
-    router.push("/app/calendario");
+  async function handleSelectDate(date: string) {
+    if (date === selectedDate || !supabase) return;
+
+    setActionError(null);
+    setFocusedBlockId(null);
+    setIsLoading(true);
+    setErrorMessage(null);
+
+    try {
+      setDashboard(await createTodayRepository(supabase).getToday(date));
+    } catch (error: unknown) {
+      setErrorMessage(describeBackendError(error));
+      setDashboard(null);
+    } finally {
+      setIsLoading(false);
+    }
   }
 
   return (
@@ -241,17 +262,18 @@ export function TodayScreen() {
       <WeekStrip
         days={weekDays}
         label={formatWeekLabel(weekAnchor)}
-        onSelectDate={handleSelectDate}
+        onSelectDate={(date) => void handleSelectDate(date)}
         onShiftWeek={(amount) => setWeekAnchor((current) => shiftWeek(current, amount))}
         selectedDate={selectedDate}
       />
 
-      {isLoading && <StateMessage icon="sync-outline" text="Buscando o treino de hoje..." />}
+      {isLoading && <StateMessage icon="sync-outline" text="Buscando sua sessão..." />}
       {!isLoading && errorMessage && <StateMessage icon="alert-circle-outline" text={errorMessage} error />}
       {actionError && <StateMessage icon="alert-circle-outline" text={actionError} error />}
 
       {!isLoading && !errorMessage && !session && (
         <EmptySessionCard
+          eyebrow={isViewingToday ? "SEM SESSÃO HOJE" : `SEM SESSÃO · ${formatEmptySessionDate(referenceDate)}`}
           hasNext={Boolean(dashboard?.next_session)}
           onOpenCalendar={() => router.push("/app/calendario")}
         />
@@ -299,7 +321,7 @@ export function TodayScreen() {
           </View>
 
           <View style={[styles.lowerGrid, isCompact && styles.lowerGridCompact]}>
-            <ReadinessCard readiness={readiness} onOpen={() => router.push("/app/prontidao")} />
+            <ReadinessCard isToday={isViewingToday} readiness={readiness} onOpen={() => router.push("/app/prontidao")} />
             <WeekCard streakDays={dashboard.streak_days} week={dashboard.week} />
           </View>
         </>
@@ -543,12 +565,20 @@ function StateMessage({ icon, text, error = false }: { icon: IconName; text: str
   );
 }
 
-function EmptySessionCard({ hasNext, onOpenCalendar }: { hasNext: boolean; onOpenCalendar: () => void }) {
+function EmptySessionCard({
+  eyebrow,
+  hasNext,
+  onOpenCalendar
+}: {
+  eyebrow: string;
+  hasNext: boolean;
+  onOpenCalendar: () => void;
+}) {
   const [isFocused, setIsFocused] = useState(false);
 
   return (
     <View style={styles.emptyCard} testID="today-empty">
-      <Text style={styles.emptyEyebrow}>SEM SESSÃO HOJE</Text>
+      <Text style={styles.emptyEyebrow}>{eyebrow}</Text>
       <Text style={styles.emptyTitle}>Dia sem sessão publicada.</Text>
       <Text style={styles.emptyDescription}>
         {hasNext
@@ -574,7 +604,15 @@ function EmptySessionCard({ hasNext, onOpenCalendar }: { hasNext: boolean; onOpe
  * Resumo da prontidão do dia. O questionário completo vive em `/app/prontidao`:
  * sete perguntas e o seletor de dor não cabem neste card.
  */
-function ReadinessCard({ readiness, onOpen }: { readiness: ReadinessView | null; onOpen: () => void }) {
+function ReadinessCard({
+  readiness,
+  onOpen,
+  isToday
+}: {
+  readiness: ReadinessView | null;
+  onOpen: () => void;
+  isToday: boolean;
+}) {
   const tone = readiness ? readinessToneColors[readiness.tone] : colors.textSecondary;
   const [isFocused, setIsFocused] = useState(false);
 
@@ -588,9 +626,15 @@ function ReadinessCard({ readiness, onOpen }: { readiness: ReadinessView | null;
         <Text style={styles.readinessScore}>{readiness ? readiness.score : "—"}</Text>
         <Text style={styles.readinessOutOf}>/ 5</Text>
       </View>
-      <Text style={styles.infoCardTitle}>{readiness ? readiness.label : "Check-in do dia pendente"}</Text>
+      <Text style={styles.infoCardTitle}>
+        {readiness ? readiness.label : isToday ? "Check-in do dia pendente" : "Sem check-in neste dia"}
+      </Text>
       <Text style={styles.infoCardDetail}>
-        {readiness ? readiness.detail : "Leva menos de um minuto e orienta o treino de hoje."}
+        {readiness
+          ? readiness.detail
+          : isToday
+            ? "Leva menos de um minuto e orienta o treino de hoje."
+            : "O check-in só pode ser feito no dia."}
       </Text>
       {readiness?.pain && (
         <Text style={styles.readinessPain} testID="readiness-pain">
@@ -603,23 +647,25 @@ function ReadinessCard({ readiness, onOpen }: { readiness: ReadinessView | null;
           style={[styles.progressFill, { backgroundColor: tone }]}
         />
       </View>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={readiness ? "Editar check-in" : "Fazer check-in"}
-        testID={readiness ? "edit-checkin" : "open-checkin"}
-        onPress={onOpen}
-        onFocus={() => setIsFocused(true)}
-        onBlur={() => setIsFocused(false)}
-        style={({ pressed }) => [
-          readiness ? styles.readinessLink : styles.readinessCta,
-          isFocused && (readiness ? styles.focusedControl : styles.focusedControlOnColor),
-          pressed && styles.buttonPressed
-        ]}
-      >
-        <Text style={readiness ? styles.readinessLinkText : styles.readinessCtaText}>
-          {readiness ? "Editar check-in" : "Fazer check-in"}
-        </Text>
-      </Pressable>
+      {isToday && (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={readiness ? "Editar check-in" : "Fazer check-in"}
+          testID={readiness ? "edit-checkin" : "open-checkin"}
+          onPress={onOpen}
+          onFocus={() => setIsFocused(true)}
+          onBlur={() => setIsFocused(false)}
+          style={({ pressed }) => [
+            readiness ? styles.readinessLink : styles.readinessCta,
+            isFocused && (readiness ? styles.focusedControl : styles.focusedControlOnColor),
+            pressed && styles.buttonPressed
+          ]}
+        >
+          <Text style={readiness ? styles.readinessLinkText : styles.readinessCtaText}>
+            {readiness ? "Editar check-in" : "Fazer check-in"}
+          </Text>
+        </Pressable>
+      )}
     </View>
   );
 }

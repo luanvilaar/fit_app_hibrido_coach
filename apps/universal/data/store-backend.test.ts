@@ -150,6 +150,48 @@ describe("store backend repository", () => {
     }));
   });
 
+  it("atualiza o programa sem enviar status: a edição não decide publicação", async () => {
+    const { client, rpc } = createClient({ id: "product-1" });
+
+    await createStoreRepository(client).updateTrainingProgram({
+      productId: "product-1",
+      title: "Base Híbrida",
+      slug: "base-hibrida",
+      description: "Ciclo completo",
+      shortDescription: "Para evoluir",
+      coverImageUrl: null,
+      priceCents: 14900,
+      category: "hybrid",
+      objective: "Evoluir no treino híbrido",
+      level: "all",
+      durationWeeks: 1,
+      schedule: [{ week_number: 1, day_number: 1, day_type: "training", session_template_id: "template-1" }]
+    });
+
+    expect(rpc).toHaveBeenCalledWith("update_store_training_program", expect.objectContaining({ p_product_id: "product-1" }));
+    expect(rpc).toHaveBeenCalledWith("update_store_training_program", expect.not.objectContaining({ p_status: expect.anything() }));
+  });
+
+  it("exclui um produto por uma única chamada, sem conceito de arquivar", async () => {
+    const { client, rpc } = createClient(null);
+    const repository = createStoreRepository(client);
+
+    await repository.deleteProduct("product-1");
+
+    expect(rpc).toHaveBeenCalledWith("delete_store_product", { p_product_id: "product-1" });
+    expect(repository).not.toHaveProperty("archiveProduct");
+  });
+
+  it("propaga o erro do banco na exclusão com a operação identificada", async () => {
+    const rpc = jest.fn().mockResolvedValue({ data: null, error: { message: "Produto não encontrado ou não autorizado." } });
+    const client = { rpc } as unknown as SupabaseClient;
+
+    await expect(createStoreRepository(client).deleteProduct("product-9")).rejects.toMatchObject({
+      message: "Produto não encontrado ou não autorizado.",
+      operation: "deleteProduct"
+    });
+  });
+
   it("cria uma entrega para equipe sem aceitar preço, coach ou conteúdo do cliente", async () => {
     const { client, rpc } = createClient({ id: "delivery-1" });
 

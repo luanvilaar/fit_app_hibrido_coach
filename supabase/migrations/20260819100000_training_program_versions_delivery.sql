@@ -1194,11 +1194,12 @@ set snapshot = jsonb_set(
   normalized.sessions,
   true
 )
-from public.store_products product_row
--- O alias-alvo do UPDATE não é visível dentro de LATERAL aninhado (42P10);
--- um join explícito na mesma linha reexpõe o snapshot atual como range table normal.
-join public.store_program_versions source_version on source_version.id = version_row.id
-cross join lateral (
+from public.store_products product_row,
+  -- O alias-alvo do UPDATE não é visível dentro de um JOIN...ON no FROM (42P01)
+  -- nem dentro de LATERAL aninhado (42P10); um item separado por vírgula,
+  -- correlacionado apenas no WHERE, reexpõe o snapshot atual como range table normal.
+  public.store_program_versions source_version,
+  lateral (
   select coalesce(jsonb_agg(
     case
       when legacy.item is null then jsonb_build_object(
@@ -1246,7 +1247,8 @@ cross join lateral (
     limit 1
   ) legacy on true
 ) normalized
-where product_row.id = version_row.product_id;
+where product_row.id = version_row.product_id
+  and source_version.id = version_row.id;
 
 -- Entregas já instanciadas recebem a mesma grade W×7 sem reescrever sessões ou
 -- snapshots existentes. As datas continuam derivadas exclusivamente da data de

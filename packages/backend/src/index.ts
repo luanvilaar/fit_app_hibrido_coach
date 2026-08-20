@@ -1,4 +1,5 @@
 export * from "./coach-flow-repository";
+export * from "./coach-supervision-repository";
 export * from "./calendar-repository";
 export * from "./roles-repository";
 export * from "./today-repository";

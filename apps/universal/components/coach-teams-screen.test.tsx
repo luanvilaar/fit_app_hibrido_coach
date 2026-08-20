@@ -3,6 +3,7 @@ import type { TrainingGroupRecord, TrainingGroupSummary } from "@fitblock/backen
 import { CoachTeamsScreen } from "@/components/coach-teams-screen";
 
 const mockPush = jest.fn();
+const mockGetSession = jest.fn();
 
 const mockRepository = {
   listCoachTeamsWithMemberCounts: jest.fn(),
@@ -14,7 +15,7 @@ jest.mock("expo-router", () => ({
 }));
 
 jest.mock("@/lib/supabase", () => ({
-  supabase: { rpc: jest.fn() },
+  supabase: { rpc: jest.fn(), auth: { getSession: () => mockGetSession() } },
   getSupabaseConfigurationError: () => null
 }));
 
@@ -53,6 +54,7 @@ async function renderScreen() {
 describe("CoachTeamsScreen", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockGetSession.mockResolvedValue({ data: { session: { access_token: "token" } }, error: null });
     mockRepository.listCoachTeamsWithMemberCounts.mockResolvedValue([team]);
     mockRepository.createTrainingGroup.mockResolvedValue(createdTeam);
   });
@@ -95,6 +97,22 @@ describe("CoachTeamsScreen", () => {
     await fireEvent.press(screen.getByTestId("submit-team"));
 
     await waitFor(() => expect(screen.getByText("Nome da equipe é obrigatório.")).toBeTruthy());
+    expect(mockRepository.createTrainingGroup).not.toHaveBeenCalled();
+  });
+
+  it("impede a criação e avisa quando a sessão expirou", async () => {
+    mockGetSession.mockResolvedValue({ data: { session: null }, error: null });
+
+    const screen = await renderScreen();
+
+    await fireEvent.changeText(screen.getByTestId("team-name"), "Power Squad");
+    await fireEvent.press(screen.getByTestId("team-level-iniciante"));
+    await fireEvent.changeText(screen.getByTestId("team-objective"), "Ganhar potência.");
+    await fireEvent.press(screen.getByTestId("submit-team"));
+
+    await waitFor(() =>
+      expect(screen.getByText("Sua sessão expirou. Atualize a página e faça login novamente.")).toBeTruthy()
+    );
     expect(mockRepository.createTrainingGroup).not.toHaveBeenCalled();
   });
 });

@@ -43,6 +43,14 @@ function renderGate() {
   );
 }
 
+function renderAthleteGate() {
+  return render(
+    <RequireRole role="athlete">
+      <Text>Área do atleta</Text>
+    </RequireRole>
+  );
+}
+
 describe("RequireRole", () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -88,6 +96,20 @@ describe("RequireRole", () => {
 
     await waitFor(() => expect(mockRouter.replace).toHaveBeenCalledWith("/app/hoje"));
     expect(screen.queryByText("Área do coach")).toBeNull();
+  });
+
+  it("redireciona owner sem athlete da rota atleta para a área do coach", async () => {
+    mockUseUserRoles.mockReturnValue({
+      userRoles: ownerRoles,
+      isLoading: false,
+      error: null,
+      refresh: jest.fn()
+    });
+
+    const screen = await renderAthleteGate();
+
+    await waitFor(() => expect(mockRouter.replace).toHaveBeenCalledWith("/app/coach/acompanhamento"));
+    expect(screen.queryByText("Área do atleta")).toBeNull();
   });
 
   it("aguarda a leitura dos papéis antes de decidir o acesso", async () => {

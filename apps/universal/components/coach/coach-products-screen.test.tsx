@@ -1,16 +1,24 @@
 import { fireEvent, render, waitFor } from "@testing-library/react-native";
+import type { CoachStoreProductRecord } from "@fitblock/backend";
 import { CoachProductsScreen } from "@/components/coach/coach-products-screen";
+
+const mockPush = jest.fn();
+
+jest.mock("expo-router", () => ({
+  useRouter: () => ({ push: mockPush })
+}));
 
 const mockStoreRepository = {
   listCoachProducts: jest.fn(),
   listCoachSales: jest.fn(),
   listProductsForReview: jest.fn(),
-  getCoachProductSchedule: jest.fn()
+  getCoachProductSchedule: jest.fn(),
+  deleteProduct: jest.fn(),
+  submitProductReview: jest.fn()
 };
 const mockCoachRepository = {
-  listSessionTemplates: jest.fn(),
   listCoachTeams: jest.fn(),
-  listExercises: jest.fn()
+  listTeamMembers: jest.fn()
 };
 let mockIsOwner = false;
 
@@ -28,6 +36,30 @@ jest.mock("@/lib/supabase", () => ({
   supabase: {}
 }));
 
+function coachProduct(overrides: Partial<CoachStoreProductRecord> = {}): CoachStoreProductRecord {
+  return {
+    id: "product-1",
+    seller_coach_id: "coach-1",
+    type: "training_program",
+    title: "Base de Força",
+    slug: "base-de-forca",
+    description: "Programa completo de força.",
+    short_description: "Força em quatro semanas.",
+    cover_image_url: null,
+    session_template_id: "template-1",
+    price_cents: 19900,
+    category: "strength",
+    objective: "Ganhar força",
+    level: "beginner",
+    duration_weeks: 1,
+    status: "draft",
+    has_history: false,
+    created_at: "2026-08-17T12:00:00.000Z",
+    updated_at: "2026-08-17T12:00:00.000Z",
+    ...overrides
+  };
+}
+
 describe("CoachProductsScreen", () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -35,29 +67,92 @@ describe("CoachProductsScreen", () => {
     mockStoreRepository.listCoachProducts.mockResolvedValue([]);
     mockStoreRepository.listCoachSales.mockResolvedValue([]);
     mockStoreRepository.getCoachProductSchedule.mockResolvedValue([]);
-    mockCoachRepository.listSessionTemplates.mockResolvedValue([]);
+    mockStoreRepository.deleteProduct.mockResolvedValue(undefined);
     mockCoachRepository.listCoachTeams.mockResolvedValue([]);
-    mockCoachRepository.listExercises.mockResolvedValue([]);
+    mockCoachRepository.listTeamMembers.mockResolvedValue([]);
   });
 
-  it("apresenta o editor e o estado vazio dos produtos do coach", async () => {
+  it("apresenta o hub de produtos sem duplicar o editor", async () => {
     const screen = render(<CoachProductsScreen />);
 
-    await waitFor(() => expect(screen.getByTestId("coach-product-editor")).toBeTruthy());
-    expect(screen.getByText("Transforme um treino em programa.")).toBeTruthy();
+    await waitFor(() => expect(screen.getByTestId("coach-products-list")).toBeTruthy());
+    expect(screen.queryByTestId("coach-product-editor")).toBeNull();
+    expect(screen.queryByTestId("program-week-grid")).toBeNull();
+    expect(screen.queryByTestId("program-session-composer")).toBeNull();
     expect(screen.getByText("Crie o primeiro produto usando um treino da biblioteca.")).toBeTruthy();
   });
 
-  it("gera os sete dias relativos para cada semana definida", async () => {
+  it("direciona a criação para o workspace dedicado", async () => {
     const screen = render(<CoachProductsScreen />);
 
-    await waitFor(() => expect(screen.getByLabelText("Duração em semanas")).toBeTruthy());
-    fireEvent.changeText(screen.getByLabelText("Duração em semanas"), "2");
+    await waitFor(() => expect(screen.getByTestId("create-new-program-btn")).toBeTruthy());
+    fireEvent.press(screen.getByTestId("create-new-program-btn"));
+    expect(mockPush).toHaveBeenCalledWith("/app/coach/produtos/novo");
+  });
 
-    expect(screen.getByText("SEMANA 1")).toBeTruthy();
-    expect(screen.getByText("SEMANA 2")).toBeTruthy();
-    expect(screen.getAllByText("Dia 7")).toHaveLength(2);
-    expect(screen.getAllByText("Sem programação")).toHaveLength(14);
+  it("oferece uma única ação Excluir e nenhuma ação de arquivar, em qualquer status", async () => {
+    mockStoreRepository.listCoachProducts.mockResolvedValue([
+      coachProduct(),
+      coachProduct({ id: "product-2", title: "Corrida Base", slug: "corrida-base", status: "published", has_history: true }),
+      // Produto legado que ficou como 'archived' antes da migration desta entrega.
+      coachProduct({ id: "product-3", title: "Programa Antigo", slug: "programa-antigo", status: "archived", has_history: true })
+    ]);
+
+    const screen = render(<CoachProductsScreen />);
+
+    await waitFor(() => expect(screen.getByTestId("coach-product-product-1")).toBeTruthy());
+    expect(screen.queryByText("Arquivar")).toBeNull();
+    expect(screen.getAllByText("Excluir")).toHaveLength(3);
+    expect(screen.getAllByText("Abrir produto")).toHaveLength(3);
+    // O produto legado continua legível e acionável, sem estado travado.
+    expect(screen.getByText(/Arquivado/)).toBeTruthy();
+  });
+
+  it("avisa sobre o histórico apenas quando o produto tem vendas, entregas ou versões", async () => {
+    mockStoreRepository.listCoachProducts.mockResolvedValue([
+      coachProduct(),
+      coachProduct({ id: "product-2", title: "Corrida Base", slug: "corrida-base", status: "published", has_history: true })
+    ]);
+
+    const screen = render(<CoachProductsScreen />);
+
+    await waitFor(() => expect(screen.getByTestId("coach-product-product-1")).toBeTruthy());
+
+    fireEvent.press(screen.getAllByText("Excluir")[0]);
+    expect(screen.getByTestId("delete-confirm-product-1")).toBeTruthy();
+    expect(screen.queryByTestId("delete-history-warning-product-1")).toBeNull();
+
+    fireEvent.press(screen.getByText("Manter"));
+    expect(screen.queryByTestId("delete-confirm-product-1")).toBeNull();
+
+    fireEvent.press(screen.getAllByText("Excluir")[1]);
+    expect(screen.getByTestId("delete-history-warning-product-2")).toBeTruthy();
+  });
+
+  it("exclui o produto por uma única chamada depois da confirmação", async () => {
+    mockStoreRepository.listCoachProducts.mockResolvedValue([coachProduct()]);
+
+    const screen = render(<CoachProductsScreen />);
+
+    await waitFor(() => expect(screen.getByTestId("coach-product-product-1")).toBeTruthy());
+    fireEvent.press(screen.getByText("Excluir"));
+    fireEvent.press(screen.getByText("Sim, excluir"));
+
+    await waitFor(() => expect(mockStoreRepository.deleteProduct).toHaveBeenCalledWith("product-1"));
+    await waitFor(() => expect(screen.getByText("Produto excluído.")).toBeTruthy());
+  });
+
+  it("direciona a edição para a página dedicada", async () => {
+    const published = coachProduct({ status: "published", has_history: true });
+    mockStoreRepository.listCoachProducts.mockResolvedValue([published]);
+
+    const screen = render(<CoachProductsScreen />);
+
+    await waitFor(() => expect(screen.getByTestId("coach-product-product-1")).toBeTruthy());
+    fireEvent.press(screen.getByText("Abrir produto"));
+
+    expect(mockPush).toHaveBeenCalledWith("/app/coach/produtos/product-1");
+    expect(mockStoreRepository.getCoachProductSchedule).not.toHaveBeenCalled();
   });
 
   it("dá ao moderador os dados comerciais e a estrutura antes da aprovação", async () => {

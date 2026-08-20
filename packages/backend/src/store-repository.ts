@@ -60,8 +60,19 @@ export type StoreProductDetail = StoreProductRecord & {
 export type CoachStoreProductRecord = Omit<StoreProductRecord, "seller_display_name"> & {
   description: string;
   session_template_id: string | null;
+  /**
+   * True quando o produto já é referenciado por pedido, acesso, versão publicada ou entrega.
+   * Excluí-lo preserva o histórico em vez de apagar o registro.
+   */
+  has_history: boolean;
   updated_at: string;
 };
+
+/**
+ * Os RPCs de escrita devolvem a linha crua de `store_products`; os campos derivados só
+ * existem na listagem do coach, que os calcula por produto.
+ */
+export type StoreProductWriteResult = Omit<CoachStoreProductRecord, "has_history" | "session_template_id">;
 
 export type StoreReviewProductRecord = {
   id: string;
@@ -224,7 +235,7 @@ export function createStoreRepository(client: FitBlockSupabaseClient) {
       return (data ?? []) as StoreSaleRecord[];
     },
 
-    async createTrainingProduct(input: CreateStoreTrainingProductRequest): Promise<CoachStoreProductRecord> {
+    async createTrainingProduct(input: CreateStoreTrainingProductRequest): Promise<StoreProductWriteResult> {
       const { data, error } = await client
         .rpc("create_store_training_product", {
           p_title: input.title,
@@ -240,7 +251,7 @@ export function createStoreRepository(client: FitBlockSupabaseClient) {
         })
         .single();
       throwStoreError(error, "createTrainingProduct");
-      return data as CoachStoreProductRecord;
+      return data as StoreProductWriteResult;
     },
 
     async getCoachProductSchedule(productId: string): Promise<StoreProgramScheduleDay[]> {
@@ -251,7 +262,7 @@ export function createStoreRepository(client: FitBlockSupabaseClient) {
       return (data ?? []) as StoreProgramScheduleDay[];
     },
 
-    async createTrainingProgram(input: CreateStoreTrainingProgramRequest): Promise<CoachStoreProductRecord> {
+    async createTrainingProgram(input: CreateStoreTrainingProgramRequest): Promise<StoreProductWriteResult> {
       const { data, error } = await client
         .rpc("create_store_training_program", {
           p_title: input.title,
@@ -273,10 +284,10 @@ export function createStoreRepository(client: FitBlockSupabaseClient) {
         })
         .single();
       throwStoreError(error, "createTrainingProgram");
-      return data as CoachStoreProductRecord;
+      return data as StoreProductWriteResult;
     },
 
-    async updateTrainingProgram(input: UpdateStoreTrainingProgramRequest): Promise<CoachStoreProductRecord> {
+    async updateTrainingProgram(input: UpdateStoreTrainingProgramRequest): Promise<StoreProductWriteResult> {
       const { data, error } = await client
         .rpc("update_store_training_program", {
           p_product_id: input.productId,
@@ -299,7 +310,7 @@ export function createStoreRepository(client: FitBlockSupabaseClient) {
         })
         .single();
       throwStoreError(error, "updateTrainingProgram");
-      return data as CoachStoreProductRecord;
+      return data as StoreProductWriteResult;
     },
 
     async createProgramDelivery(input: {
@@ -320,7 +331,7 @@ export function createStoreRepository(client: FitBlockSupabaseClient) {
       return data as StoreProgramDeliveryRecord;
     },
 
-    async updateTrainingProduct(input: UpdateStoreTrainingProductRequest): Promise<CoachStoreProductRecord> {
+    async updateTrainingProduct(input: UpdateStoreTrainingProductRequest): Promise<StoreProductWriteResult> {
       const { data, error } = await client
         .rpc("update_store_training_product", {
           p_product_id: input.productId,
@@ -337,7 +348,7 @@ export function createStoreRepository(client: FitBlockSupabaseClient) {
         })
         .single();
       throwStoreError(error, "updateTrainingProduct");
-      return data as CoachStoreProductRecord;
+      return data as StoreProductWriteResult;
     },
 
     async submitProductReview(productId: string): Promise<void> {
@@ -358,9 +369,13 @@ export function createStoreRepository(client: FitBlockSupabaseClient) {
       throwStoreError(error, "rejectProduct");
     },
 
-    async archiveProduct(productId: string): Promise<void> {
-      const { error } = await client.rpc("archive_store_product", { p_product_id: productId });
-      throwStoreError(error, "archiveProduct");
+    /**
+     * Exclui um produto do coach. O banco decide entre DELETE físico (produto sem histórico) e
+     * soft-delete (produto com pedido, acesso, versão ou entrega); a UI só conhece "Excluir".
+     */
+    async deleteProduct(productId: string): Promise<void> {
+      const { error } = await client.rpc("delete_store_product", { p_product_id: productId });
+      throwStoreError(error, "deleteProduct");
     }
   };
 }

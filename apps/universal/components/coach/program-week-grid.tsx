@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import {
   Pressable,
   ScrollView,
@@ -21,6 +21,7 @@ type ProgramWeekGridProps = {
   templates: SessionTemplateSummary[];
   onChange: (days: StoreProgramScheduleDay[]) => void;
   onOpenDayComposer: (dayIndex: number, weekNumber: number, dayNumber: number) => void;
+  mobilePresentation?: "grid" | "weekly-planner";
   readOnly?: boolean;
 };
 
@@ -31,10 +32,13 @@ export function ProgramWeekGrid({
   templates,
   onChange,
   onOpenDayComposer,
+  mobilePresentation = "grid",
   readOnly = false
 }: ProgramWeekGridProps) {
   const { width } = useWindowDimensions();
   const isNarrow = width < 860;
+  const [mobileWeekIndex, setMobileWeekIndex] = useState(0);
+  const [mobilePickerDayIndex, setMobilePickerDayIndex] = useState<number | null>(null);
 
   function updateDay(index: number, patch: Partial<StoreProgramScheduleDay>) {
     onChange(days.map((day, dayIndex) => (dayIndex === index ? { ...day, ...patch } : day)));
@@ -74,6 +78,102 @@ export function ProgramWeekGrid({
         <Text style={styles.emptySubtitle}>
           Defina a duração em semanas acima para visualizar e montar o calendário de treino.
         </Text>
+      </View>
+    );
+  }
+
+  const selectedMobileWeek = weeks[Math.min(mobileWeekIndex, Math.max(weeks.length - 1, 0))];
+
+  if (mobilePresentation === "weekly-planner" && isNarrow && selectedMobileWeek) {
+    const canGoBack = mobileWeekIndex > 0;
+    const canGoForward = mobileWeekIndex < weeks.length - 1;
+    return (
+      <View style={styles.wrapper}>
+        <View style={styles.headingRow}>
+          <View>
+            <Text style={styles.sectionTitle}>Calendário do programa</Text>
+            <Text style={styles.sectionSubtitle}>Planeje uma semana por vez para manter cada decisão legível.</Text>
+          </View>
+        </View>
+        <View style={styles.mobileWeekHeader}>
+          <Pressable
+            accessibilityLabel="Semana anterior"
+            accessibilityRole="button"
+            accessibilityState={{ disabled: !canGoBack }}
+            disabled={!canGoBack}
+            onPress={() => setMobileWeekIndex((current) => Math.max(0, current - 1))}
+            style={[styles.mobileWeekButton, !canGoBack && styles.disabled]}
+          >
+            <Ionicons color={colors.textPrimary} name="chevron-back" size={20} />
+          </Pressable>
+          <Text style={styles.mobileWeekTitle}>Semana {selectedMobileWeek.weekNumber}</Text>
+          <Pressable
+            accessibilityLabel="Próxima semana"
+            accessibilityRole="button"
+            accessibilityState={{ disabled: !canGoForward }}
+            disabled={!canGoForward}
+            onPress={() => setMobileWeekIndex((current) => Math.min(weeks.length - 1, current + 1))}
+            style={[styles.mobileWeekButton, !canGoForward && styles.disabled]}
+          >
+            <Ionicons color={colors.textPrimary} name="chevron-forward" size={20} />
+          </Pressable>
+        </View>
+        <View style={styles.mobileDays} testID="program-week-grid">
+          {selectedMobileWeek.days.map(({ day, index }) => {
+            const isPickerOpen = mobilePickerDayIndex === index;
+            return (
+              <View key={`${day.week_number}-${day.day_number}`} style={styles.mobileDay}>
+                <View style={styles.mobileDayHeader}>
+                  <Text style={styles.mobileDayTitle}>Dia {day.day_number}</Text>
+                  <Pressable
+                    accessibilityLabel={`Alterar tipo do Dia ${day.day_number}: ${describeProgramDayType(day.day_type)}`}
+                    accessibilityRole="button"
+                    accessibilityState={{ disabled: readOnly }}
+                    disabled={readOnly}
+                    onPress={() => setMobilePickerDayIndex(isPickerOpen ? null : index)}
+                    style={styles.mobileTypeButton}
+                  >
+                    <Text style={styles.mobileTypeButtonText}>{describeProgramDayType(day.day_type)}</Text>
+                    <Ionicons color={colors.purple400} name="swap-vertical-outline" size={16} />
+                  </Pressable>
+                </View>
+                <Pressable
+                  accessibilityLabel={`Abrir treino da Semana ${day.week_number}, Dia ${day.day_number}`}
+                  accessibilityRole="button"
+                  accessibilityState={{ disabled: readOnly }}
+                  disabled={readOnly}
+                  onPress={() => onOpenDayComposer(index, day.week_number, day.day_number)}
+                  style={styles.mobileDayAction}
+                >
+                  <View>
+                    <Text style={styles.mobileDayActionTitle}>{day.session_title || "Montar treino"}</Text>
+                    <Text style={styles.mobileDayActionMeta}>Abrir montagem do treino</Text>
+                  </View>
+                  <Ionicons color={colors.textSecondary} name="chevron-forward" size={20} />
+                </Pressable>
+                {isPickerOpen && !readOnly && (
+                  <View accessibilityRole="radiogroup" style={styles.mobileTypePicker}>
+                    {programDayTypes.map((type) => {
+                      const selected = day.day_type === type;
+                      return (
+                        <Pressable
+                          key={type}
+                          accessibilityLabel={`Definir Dia ${day.day_number} como ${describeProgramDayType(type)}`}
+                          accessibilityRole="radio"
+                          accessibilityState={{ selected }}
+                          onPress={() => { setDayType(index, type); setMobilePickerDayIndex(null); }}
+                          style={[styles.mobileTypeOption, selected && styles.mobileTypeOptionActive]}
+                        >
+                          <Text style={[styles.mobileTypeOptionText, selected && styles.mobileTypeOptionTextActive]}>{describeProgramDayType(type)}</Text>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                )}
+              </View>
+            );
+          })}
+        </View>
       </View>
     );
   }
@@ -128,7 +228,12 @@ export function ProgramWeekGrid({
       </View>
 
       {isNarrow ? (
-        <ScrollView horizontal showsHorizontalScrollIndicator contentContainerStyle={styles.scrollContent}>
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          testID="program-week-grid-horizontal-scroll"
+        >
           {content}
         </ScrollView>
       ) : (
@@ -232,13 +337,15 @@ function GridDayCell({
 
       {/* Seletor Rápido de Tipo de Dia */}
       {!readOnly && (
-        <View style={styles.quickTypeRow}>
+        <View accessibilityRole="radiogroup" style={styles.quickTypeRow}>
           {programDayTypes.map((type) => {
             const isSelected = day.day_type === type;
             return (
               <Pressable
                 key={type}
                 accessibilityLabel={`Mudar Dia ${day.day_number} para ${describeProgramDayType(type)}`}
+                accessibilityRole="radio"
+                accessibilityState={{ selected: isSelected }}
                 onPress={() => onChangeDayType(type)}
                 style={[styles.quickTypeBtn, isSelected && styles.quickTypeBtnActive]}
                 testID={`cell-type-btn-${day.week_number}-${day.day_number}-${type}`}
@@ -315,6 +422,66 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingBottom: spacing[2]
   },
+  mobileWeekHeader: {
+    alignItems: "center",
+    backgroundColor: colors.surface02,
+    borderColor: colors.border,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    padding: spacing[2]
+  },
+  mobileWeekButton: { alignItems: "center", height: 44, justifyContent: "center", width: 44 },
+  mobileWeekTitle: { color: colors.textPrimary, fontFamily: fontFamilies.interfaceBold, fontSize: 15 },
+  mobileDays: { gap: spacing[2] },
+  mobileDay: {
+    backgroundColor: colors.surface01,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    gap: spacing[2],
+    padding: spacing[3]
+  },
+  mobileDayHeader: { alignItems: "center", flexDirection: "row", justifyContent: "space-between", gap: spacing[3] },
+  mobileDayTitle: { color: colors.textPrimary, fontFamily: fontFamilies.interfaceBold, fontSize: 15 },
+  mobileTypeButton: {
+    alignItems: "center",
+    backgroundColor: colors.surface03,
+    borderRadius: radius.pill,
+    flexDirection: "row",
+    gap: spacing[1],
+    justifyContent: "center",
+    minHeight: 44,
+    paddingHorizontal: spacing[3]
+  },
+  mobileTypeButtonText: { color: colors.purple400, fontFamily: fontFamilies.interfaceBold, fontSize: 12 },
+  mobileDayAction: {
+    alignItems: "center",
+    backgroundColor: colors.surface02,
+    borderRadius: radius.sm,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    minHeight: 60,
+    paddingHorizontal: spacing[3]
+  },
+  mobileDayActionTitle: { color: colors.textPrimary, fontFamily: fontFamilies.interfaceSemiBold, fontSize: 14 },
+  mobileDayActionMeta: { color: colors.textSecondary, fontFamily: fontFamilies.interface, fontSize: 12, marginTop: 2 },
+  mobileTypePicker: { flexDirection: "row", flexWrap: "wrap", gap: spacing[2] },
+  mobileTypeOption: {
+    alignItems: "center",
+    backgroundColor: colors.surface03,
+    borderColor: colors.border,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    justifyContent: "center",
+    minHeight: 44,
+    paddingHorizontal: spacing[3]
+  },
+  mobileTypeOptionActive: { backgroundColor: colors.purple600, borderColor: colors.purple500 },
+  mobileTypeOptionText: { color: colors.textSecondary, fontFamily: fontFamilies.interfaceSemiBold, fontSize: 12 },
+  mobileTypeOptionTextActive: { color: colors.white },
+  disabled: { opacity: 0.48 },
   gridContainer: {
     backgroundColor: colors.surface01,
     borderColor: colors.border,
@@ -523,6 +690,7 @@ const styles = StyleSheet.create({
   quickTypeBtn: {
     flex: 1,
     paddingHorizontal: 3,
+    minHeight: 36,
     paddingVertical: 3,
     borderRadius: radius.xs,
     backgroundColor: colors.surface02,

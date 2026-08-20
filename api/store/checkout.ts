@@ -11,6 +11,8 @@ type ProductRow = {
   title: string;
   price_cents: number;
   status: "draft" | "review" | "published" | "archived";
+  // Produto excluído pelo coach continua existindo só para honrar o histórico de quem já comprou.
+  deleted_at: string | null;
 };
 
 type PendingOrderRow = {
@@ -79,13 +81,13 @@ async function handler(request: Request): Promise<Response> {
     const client = serviceRoleClient();
     const { data: product, error: productError } = await client
       .from("store_products")
-      .select("id, seller_coach_id, title, price_cents, status")
+      .select("id, seller_coach_id, title, price_cents, status, deleted_at")
       .eq("id", productId)
       .maybeSingle<ProductRow>();
 
     if (productError) throw productError;
 
-    if (!product || product.status !== "published") {
+    if (!product || product.status !== "published" || product.deleted_at !== null) {
       return failure("Produto não encontrado ou indisponível.", 404);
     }
 

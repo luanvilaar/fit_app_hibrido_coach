@@ -76,10 +76,10 @@ describe("modelo de papéis", () => {
       athlete_team_ids: []
     });
 
-    expect(userRoles.roles).toEqual(["owner"]);
+    expect(userRoles.roles).toEqual(["coach", "owner"]);
     expect(hasRole(userRoles, "owner")).toBe(true);
     expect(hasRole(userRoles, "coach")).toBe(true);
-    expect(hasRole(userRoles, "athlete")).toBe(true);
+    expect(hasRole(userRoles, "athlete")).toBe(false);
     expect(canAccessCoachArea(userRoles)).toBe(true);
     expect(canAccessOwnerArea(userRoles)).toBe(true);
   });

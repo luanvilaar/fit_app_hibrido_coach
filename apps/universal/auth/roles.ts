@@ -53,7 +53,8 @@ export function normalizeUserRoles(payload: unknown): UserRoles {
   const roles = appRoles.filter(
     (role) =>
       declaredRoles.includes(role) ||
-      (role === "coach" && (record.is_coach === true || coachTeamIds.length > 0)) ||
+      // Owner é uma capacidade administrativa/coach; jamais deve implicar a experiência de atleta.
+      (role === "coach" && (record.is_owner === true || record.is_coach === true || coachTeamIds.length > 0)) ||
       (role === "athlete" && (record.is_athlete === true || athleteTeamIds.length > 0)) ||
       (role === "owner" && record.is_owner === true)
   );
@@ -67,13 +68,18 @@ export function normalizeUserRoles(payload: unknown): UserRoles {
 }
 
 export function hasRole(userRoles: UserRoles, role: AppRole): boolean {
-  return userRoles.roles.includes(role) || userRoles.roles.includes("owner");
+  return userRoles.roles.includes(role);
 }
 
 export function canAccessCoachArea(userRoles: UserRoles): boolean {
-  return hasRole(userRoles, "coach");
+  return hasRole(userRoles, "coach") || hasRole(userRoles, "owner");
 }
 
 export function canAccessOwnerArea(userRoles: UserRoles): boolean {
   return hasRole(userRoles, "owner");
+}
+
+/** O coach/owner que abre uma rota de atleta volta para sua agenda, não para uma tela atleta. */
+export function getRoleFallbackRoute(userRoles: UserRoles, role: AppRole): Href {
+  return role === "athlete" && canAccessCoachArea(userRoles) ? "/app/coach/acompanhamento" : roleFallbackRoute;
 }

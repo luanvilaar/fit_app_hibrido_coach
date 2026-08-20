@@ -3,8 +3,9 @@ import { useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -84,10 +85,19 @@ const initialForm: ProgramBuilderForm = {
 };
 
 type ProgramBuilderScreenProps = {
+  guidedWorkspace?: boolean;
   productId?: string | null;
 };
 
-export function ProgramBuilderScreen({ productId }: ProgramBuilderScreenProps) {
+type BuilderStage = "identity" | "audience" | "plan";
+
+const builderStages: Array<{ id: BuilderStage; label: string }> = [
+  { id: "identity", label: "Base" },
+  { id: "audience", label: "Público" },
+  { id: "plan", label: "Plano" }
+];
+
+export function ProgramBuilderScreen({ guidedWorkspace = false, productId }: ProgramBuilderScreenProps) {
   const router = useRouter();
   const { width } = useWindowDimensions();
   const { hasRole } = useUserRoles();
@@ -110,6 +120,7 @@ export function ProgramBuilderScreen({ productId }: ProgramBuilderScreenProps) {
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [activeStage, setActiveStage] = useState<BuilderStage>("identity");
 
   // Modal / Composer de Dia
   const [composerDayIndex, setComposerDayIndex] = useState<number | null>(null);
@@ -364,11 +375,18 @@ export function ProgramBuilderScreen({ productId }: ProgramBuilderScreenProps) {
 
   const isDraft = product?.status === "draft" || !productId;
   const isPublished = product?.status === "published";
+  const isGuidedWorkspace = guidedWorkspace && !productId;
+
+  const configuredTrainingDays = form.schedule.filter((day) => day.day_type === "training").length;
 
   return (
-    <ScrollView contentContainerStyle={styles.scrollContent} style={styles.page} testID="program-builder-screen">
-      {/* Top Bar de Navegação & Ações */}
-      <View style={styles.topBar}>
+    <KeyboardAvoidingView
+      behavior={Platform.select({ ios: "padding", android: "height", default: undefined })}
+      style={styles.page}
+      testID="program-builder-screen"
+    >
+      <View style={styles.scrollContent}>
+      <View style={isGuidedWorkspace ? styles.commandBar : styles.topBar}>
         <View style={styles.topBarLeft}>
           <Pressable
             accessibilityLabel="Voltar para Meus Produtos"
@@ -381,11 +399,12 @@ export function ProgramBuilderScreen({ productId }: ProgramBuilderScreenProps) {
             <Text style={styles.backBtnText}>Meus Produtos</Text>
           </Pressable>
 
-          <View style={styles.titleBadgeGroup}>
-            <Text style={styles.screenHeading}>
-              {productId ? (form.title ? form.title : "Editar Programa") : "Novo Programa de Treino"}
-            </Text>
-            {product && (
+          {!isGuidedWorkspace && (
+            <View style={styles.titleBadgeGroup}>
+              <Text style={[styles.screenHeading, styles.editScreenHeading]}>
+                {productId ? form.title || "Editar Programa" : "Novo Programa de Treino"}
+              </Text>
+              {product && (
               <View
                 style={[
                   styles.statusBadge,
@@ -401,13 +420,17 @@ export function ProgramBuilderScreen({ productId }: ProgramBuilderScreenProps) {
                   {describeProductStatus(product.status)}
                 </Text>
               </View>
-            )}
-          </View>
+              )}
+            </View>
+          )}
         </View>
 
         <View style={styles.topBarActions}>
           {productId && (
             <Pressable
+              accessibilityLabel="Excluir programa"
+              accessibilityRole="button"
+              accessibilityState={{ disabled: isSaving || isDeleting }}
               disabled={isSaving || isDeleting}
               onPress={() => setConfirmingDelete(true)}
               style={({ pressed }) => [styles.deleteBtn, pressed && styles.pressed]}
@@ -419,6 +442,9 @@ export function ProgramBuilderScreen({ productId }: ProgramBuilderScreenProps) {
           )}
 
           <Pressable
+            accessibilityLabel={productId ? "Salvar alterações do programa" : "Salvar programa como rascunho"}
+            accessibilityRole="button"
+            accessibilityState={{ disabled: isSaving || isSubmitting }}
             disabled={isSaving || isSubmitting}
             onPress={() => void handleSave(false)}
             style={({ pressed }) => [styles.saveBtn, pressed && styles.pressed]}
@@ -434,8 +460,11 @@ export function ProgramBuilderScreen({ productId }: ProgramBuilderScreenProps) {
             </Text>
           </Pressable>
 
-          {isDraft && (
+          {!isGuidedWorkspace && isDraft && (
             <Pressable
+              accessibilityLabel="Enviar programa para análise"
+              accessibilityRole="button"
+              accessibilityState={{ disabled: isSaving || isSubmitting }}
               disabled={isSaving || isSubmitting}
               onPress={() => void handleSave(true)}
               style={({ pressed }) => [styles.submitBtn, pressed && styles.pressed]}
@@ -446,13 +475,29 @@ export function ProgramBuilderScreen({ productId }: ProgramBuilderScreenProps) {
               ) : (
                 <Ionicons color={colors.purple400} name="paper-plane-outline" size={16} />
               )}
-              <Text style={styles.submitBtnText}>
-                {isSubmitting ? "Enviando…" : "Enviar para Análise"}
-              </Text>
+              <Text style={styles.submitBtnText}>{isSubmitting ? "Enviando…" : "Enviar para Análise"}</Text>
             </Pressable>
           )}
+
         </View>
       </View>
+
+      {isGuidedWorkspace && <View style={[styles.intro, isNarrow && styles.introNarrow]}>
+        <View style={styles.introCopy}>
+          <Text style={styles.screenHeading}>
+            {productId ? (form.title || "Editar programa") : "Crie um programa que dá direção."}
+          </Text>
+          <Text style={styles.introDescription}>
+            Primeiro defina a proposta. Depois organize cada semana para que o atleta saiba exatamente o próximo passo.
+          </Text>
+        </View>
+        <View style={styles.planSignal} accessibilityLabel={`${form.durationWeeks || 0} semanas e ${configuredTrainingDays} treinos configurados`}>
+          <Text style={styles.planSignalValue}>{form.durationWeeks || "—"}</Text>
+          <Text style={styles.planSignalLabel}>semanas</Text>
+          <View style={styles.planSignalDivider} />
+          <Text style={styles.planSignalDetail}>{configuredTrainingDays} treinos montados</Text>
+        </View>
+      </View>}
 
       {/* Confirmação de Exclusão */}
       {confirmingDelete && (
@@ -465,6 +510,9 @@ export function ProgramBuilderScreen({ productId }: ProgramBuilderScreenProps) {
           </View>
           <View style={styles.confirmActions}>
             <Pressable
+              accessibilityLabel="Confirmar exclusão do programa"
+              accessibilityRole="button"
+              accessibilityState={{ disabled: isDeleting }}
               disabled={isDeleting}
               onPress={() => void handleDelete()}
               style={[styles.confirmDeleteBtn, isDeleting && styles.disabled]}
@@ -472,6 +520,9 @@ export function ProgramBuilderScreen({ productId }: ProgramBuilderScreenProps) {
               <Text style={styles.confirmDeleteText}>{isDeleting ? "Excluindo…" : "Sim, Excluir"}</Text>
             </Pressable>
             <Pressable
+              accessibilityLabel="Cancelar exclusão do programa"
+              accessibilityRole="button"
+              accessibilityState={{ disabled: isDeleting }}
               disabled={isDeleting}
               onPress={() => setConfirmingDelete(false)}
               style={styles.confirmCancelBtn}
@@ -483,18 +534,34 @@ export function ProgramBuilderScreen({ productId }: ProgramBuilderScreenProps) {
       )}
 
       {errorMessage && (
-        <View style={styles.alertError}>
+        <View accessibilityRole="alert" style={styles.alertError}>
           <Ionicons color={colors.error} name="alert-circle" size={18} />
           <Text style={styles.alertErrorText}>{errorMessage}</Text>
         </View>
       )}
 
       {successMessage && (
-        <View style={styles.alertSuccess}>
+        <View accessibilityRole="alert" style={styles.alertSuccess}>
           <Ionicons color={colors.success} name="checkmark-circle" size={18} />
           <Text style={styles.alertSuccessText}>{successMessage}</Text>
         </View>
       )}
+
+      {isGuidedWorkspace && <View accessibilityRole="tablist" style={styles.stageNav}>
+        {builderStages.map((stage, index) => (
+          <Pressable
+            key={stage.id}
+            accessibilityLabel={`Etapa ${index + 1}: ${stage.label}`}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: activeStage === stage.id }}
+            onPress={() => setActiveStage(stage.id)}
+            style={[styles.stageTab, activeStage === stage.id && styles.stageTabActive]}
+          >
+            <Text style={[styles.stageTabIndex, activeStage === stage.id && styles.stageTabTextActive]}>{index + 1}</Text>
+            <Text style={[styles.stageTabText, activeStage === stage.id && styles.stageTabTextActive]}>{stage.label}</Text>
+          </Pressable>
+        ))}
+      </View>}
 
       {/* Modal / Composer de Montagem de Dia (caso rascunho novo) */}
       {composerDayIndex !== null && (
@@ -509,6 +576,8 @@ export function ProgramBuilderScreen({ productId }: ProgramBuilderScreenProps) {
               </Text>
             </View>
             <Pressable
+              accessibilityLabel="Fechar montagem de treino"
+              accessibilityRole="button"
               onPress={() => setComposerDayIndex(null)}
               style={({ pressed }) => [styles.closeBtn, pressed && styles.pressed]}
             >
@@ -531,22 +600,21 @@ export function ProgramBuilderScreen({ productId }: ProgramBuilderScreenProps) {
         </View>
       )}
 
-      {/* Card 1: Informações Básicas & Comerciais */}
+      <View style={isGuidedWorkspace ? [styles.workspace, isNarrow && styles.workspaceNarrow] : undefined}>
+      {(!isGuidedWorkspace || activeStage !== "plan") && (
       <View style={styles.sectionCard} testID="coach-product-editor">
         <View style={styles.sectionHeader}>
-          <View style={styles.sectionHeaderIcon}>
-            <Ionicons color={colors.purple400} name="sparkles-outline" size={20} />
-          </View>
           <View>
-            <Text style={styles.sectionTitle}>INFORMAÇÕES DO PROGRAMA</Text>
+            <Text style={styles.sectionTitle}>{!isGuidedWorkspace ? "INFORMAÇÕES DO PROGRAMA" : activeStage === "identity" ? "Dê forma ao produto" : "Defina para quem é"}</Text>
             <Text style={styles.sectionSubtitle}>
-              Defina os parâmetros do produto, proposta de valor e duração do ciclo.
+              {!isGuidedWorkspace ? "Defina os parâmetros do produto, proposta de valor e duração do ciclo." : activeStage === "identity" ? "O essencial para identificar, vender e retomar o rascunho." : "O contexto que torna cada semana coerente com o objetivo."}
             </Text>
           </View>
         </View>
 
         <View style={[styles.formGrid, isNarrow && styles.formGridNarrow]}>
           <View style={styles.formCol}>
+            {(!isGuidedWorkspace || activeStage === "identity") && <>
             <Field label="Título do Programa">
               <TextInput
                 accessibilityLabel="Título do produto"
@@ -559,7 +627,12 @@ export function ProgramBuilderScreen({ productId }: ProgramBuilderScreenProps) {
             </Field>
 
             <Field label={`Slug · ${form.slug || "gerado automaticamente"}`}>
-              <TextInput editable={false} style={[styles.input, styles.inputDisabled]} value={form.slug} />
+              <TextInput
+                accessibilityLabel="Slug gerado para o produto"
+                editable={false}
+                style={[styles.input, styles.inputDisabled]}
+                value={form.slug}
+              />
             </Field>
 
             <View style={styles.fieldRow}>
@@ -590,7 +663,9 @@ export function ProgramBuilderScreen({ productId }: ProgramBuilderScreenProps) {
                 </Field>
               </View>
             </View>
+            </>}
 
+            {(!isGuidedWorkspace || activeStage === "audience") && <>
             <Field label="Objetivo Principal">
               <TextInput
                 accessibilityLabel="Objetivo do programa"
@@ -601,9 +676,22 @@ export function ProgramBuilderScreen({ productId }: ProgramBuilderScreenProps) {
                 value={form.objective}
               />
             </Field>
+            <Field label="Descrição Completa & Metodologia">
+              <TextInput
+                accessibilityLabel="Descrição completa do produto"
+                multiline
+                onChangeText={(v) => updateForm("description", v)}
+                placeholder="Explique como o programa progride, frequência e requisitos..."
+                placeholderTextColor={colors.textSecondary}
+                style={[styles.input, styles.textArea]}
+                value={form.description}
+              />
+            </Field>
+            </>}
           </View>
 
           <View style={styles.formCol}>
+            {(!isGuidedWorkspace || activeStage === "identity") && <>
             <Field label="Resumo Curto (para a vitrine)">
               <TextInput
                 accessibilityLabel="Resumo curto do produto"
@@ -616,21 +704,9 @@ export function ProgramBuilderScreen({ productId }: ProgramBuilderScreenProps) {
                 value={form.shortDescription}
               />
             </Field>
-
-            <Field label="Descrição Completa & Metodologia">
-              <TextInput
-                accessibilityLabel="Descrição completa do produto"
-                multiline
-                onChangeText={(v) => updateForm("description", v)}
-                placeholder="Explique detalhadamente como o programa funciona, frequência, requisitos e diferenciais..."
-                placeholderTextColor={colors.textSecondary}
-                style={[styles.input, styles.textArea]}
-                value={form.description}
-              />
-            </Field>
-
             <Field label="URL da Imagem de Capa (opcional)">
               <TextInput
+                accessibilityLabel="URL da imagem de capa"
                 autoCapitalize="none"
                 autoCorrect={false}
                 onChangeText={(v) => updateForm("coverImageUrl", v)}
@@ -640,38 +716,65 @@ export function ProgramBuilderScreen({ productId }: ProgramBuilderScreenProps) {
                 value={form.coverImageUrl}
               />
             </Field>
+            </>}
+            {(!isGuidedWorkspace || activeStage === "audience") && <View style={styles.chipsSection}>
+              <OptionSelector
+                getLabel={describeProductCategory}
+                label="Categoria"
+                onChange={(v) => updateForm("category", v)}
+                options={categories}
+                selected={form.category}
+              />
+              <OptionSelector
+                getLabel={describeProductLevel}
+                label="Nível recomendado"
+                onChange={(v) => updateForm("level", v)}
+                options={levels}
+                selected={form.level}
+              />
+            </View>}
           </View>
         </View>
-
-        {/* Seletores de Categoria & Nível */}
-        <View style={styles.chipsSection}>
-          <OptionSelector
-            getLabel={describeProductCategory}
-            label="Categoria"
-            onChange={(v) => updateForm("category", v)}
-            options={categories}
-            selected={form.category}
-          />
-          <OptionSelector
-            getLabel={describeProductLevel}
-            label="Nível Recomendado"
-            onChange={(v) => updateForm("level", v)}
-            options={levels}
-            selected={form.level}
-          />
-        </View>
+        {isGuidedWorkspace && <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={activeStage === "identity" ? "Avançar para o público" : "Avançar para o plano"}
+          onPress={() => setActiveStage(activeStage === "identity" ? "audience" : "plan")}
+          style={styles.stageAdvance}
+        >
+          <Text style={styles.stageAdvanceText}>{activeStage === "identity" ? "Continuar para público" : "Continuar para o plano"}</Text>
+          <Ionicons color={colors.white} name="arrow-forward" size={18} />
+        </Pressable>}
       </View>
+      )}
 
-      {/* Card 2: Workspace do Calendário Full-Width */}
-      <View style={styles.calendarSection}>
+      {(!isGuidedWorkspace || activeStage === "plan") && <View style={styles.calendarSection}>
+        {isGuidedWorkspace && <View style={styles.calendarLead}>
+          <Text style={styles.sectionTitle}>Estruture a jornada</Text>
+          <Text style={styles.sectionSubtitle}>Cada célula é um dia do programa. Monte o treino ou defina a recuperação.</Text>
+        </View>}
         <ProgramWeekGrid
           days={form.schedule}
+          mobilePresentation={isGuidedWorkspace ? "weekly-planner" : "grid"}
           onChange={(schedule) => updateForm("schedule", schedule)}
           onOpenDayComposer={handleOpenDayComposer}
           templates={templates.filter((t) => t.status === "published")}
         />
+        {isGuidedWorkspace && isDraft && <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Salvar e enviar programa para análise"
+          disabled={isSaving || isSubmitting}
+          onPress={() => void handleSave(true)}
+          style={({ pressed }) => [styles.submitBtn, pressed && styles.pressed, (isSaving || isSubmitting) && styles.disabled]}
+          testID="program-builder-submit-btn"
+        >
+          {isSubmitting ? <ActivityIndicator color={colors.purple400} size="small" /> : <Ionicons color={colors.purple400} name="paper-plane-outline" size={18} />}
+          <Text style={styles.submitBtnText}>{isSubmitting ? "Enviando…" : "Salvar e enviar para análise"}</Text>
+        </Pressable>}
       </View>
-    </ScrollView>
+      }
+      </View>
+      </View>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -700,14 +803,15 @@ function OptionSelector<T extends string>({
   return (
     <View style={styles.optionBlock}>
       <Text style={styles.fieldLabel}>{label}</Text>
-      <View style={styles.chipsRow}>
+      <View accessibilityRole="radiogroup" style={styles.chipsRow}>
         {options.map((option) => {
           const isSelected = selected === option;
           return (
             <Pressable
               key={option}
               accessibilityLabel={`${label}: ${getLabel(option)}`}
-              accessibilityRole="button"
+              accessibilityRole="radio"
+              accessibilityState={{ selected: isSelected }}
               onPress={() => onChange(option)}
               style={[styles.chip, isSelected && styles.chipActive]}
             >
@@ -728,9 +832,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.bg
   },
   scrollContent: {
-    padding: spacing[6],
-    gap: spacing[6],
-    maxWidth: 1400,
+    padding: spacing[7],
+    gap: spacing[7],
+    maxWidth: 1320,
     width: "100%",
     alignSelf: "center"
   },
@@ -763,6 +867,69 @@ const styles = StyleSheet.create({
     borderRadius: radius.xl,
     padding: spacing[4]
   },
+  commandBar: {
+    alignItems: "center",
+    borderBottomColor: colors.border,
+    borderBottomWidth: 1,
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: spacing[4],
+    justifyContent: "space-between",
+    paddingBottom: spacing[4]
+  },
+  intro: {
+    alignItems: "flex-end",
+    flexDirection: "row",
+    gap: spacing[7],
+    justifyContent: "space-between"
+  },
+  introNarrow: {
+    alignItems: "flex-start",
+    flexDirection: "column"
+  },
+  introCopy: { flex: 1, maxWidth: 680 },
+  introDescription: {
+    color: colors.textSecondary,
+    fontFamily: fontFamilies.interface,
+    fontSize: 17,
+    lineHeight: 26,
+    marginTop: spacing[3]
+  },
+  planSignal: {
+    alignItems: "flex-start",
+    borderColor: colors.borderPurple,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    minWidth: 190,
+    padding: spacing[4]
+  },
+  planSignalValue: { color: colors.textPrimary, fontFamily: fontFamilies.display, fontSize: 42, lineHeight: 40 },
+  planSignalLabel: { color: colors.textSecondary, fontFamily: fontFamilies.interfaceSemiBold, fontSize: 12 },
+  planSignalDivider: { backgroundColor: colors.border, height: 1, marginVertical: spacing[3], width: "100%" },
+  planSignalDetail: { color: colors.purple400, fontFamily: fontFamilies.interfaceBold, fontSize: 12 },
+  stageNav: {
+    alignSelf: "flex-start",
+    borderColor: colors.border,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    flexDirection: "row",
+    overflow: "hidden"
+  },
+  stageTab: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: spacing[2],
+    justifyContent: "center",
+    minHeight: 48,
+    minWidth: 104,
+    paddingHorizontal: spacing[3]
+  },
+  stageTabActive: { backgroundColor: colors.surface04 },
+  stageTabIndex: { color: colors.textMutedAccessible, fontFamily: fontFamilies.interfaceBold, fontSize: 12 },
+  stageTabText: { color: colors.textSecondary, fontFamily: fontFamilies.interfaceSemiBold, fontSize: 13 },
+  stageTabTextActive: { color: colors.textPrimary },
+  workspace: { gap: spacing[6] },
+  workspaceNarrow: { gap: spacing[5] },
   topBarLeft: {
     flexDirection: "row",
     alignItems: "center",
@@ -773,7 +940,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: spacing[1],
-    paddingVertical: spacing[2],
+    minHeight: 44,
     paddingHorizontal: spacing[3],
     borderRadius: radius.md,
     backgroundColor: colors.surface02
@@ -790,8 +957,16 @@ const styles = StyleSheet.create({
   },
   screenHeading: {
     color: colors.textPrimary,
+    fontFamily: fontFamilies.display,
+    fontSize: 44,
+    lineHeight: 44,
+    letterSpacing: -0.4
+  },
+  editScreenHeading: {
     fontFamily: fontFamilies.interfaceBold,
-    fontSize: 20
+    fontSize: 20,
+    letterSpacing: 0,
+    lineHeight: 24
   },
   statusBadge: {
     paddingHorizontal: spacing[2],
@@ -824,7 +999,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: spacing[2],
     backgroundColor: colors.purple600,
-    paddingVertical: spacing[2],
+    minHeight: 44,
     paddingHorizontal: spacing[4],
     borderRadius: radius.md
   },
@@ -834,13 +1009,14 @@ const styles = StyleSheet.create({
     fontSize: 13
   },
   submitBtn: {
+    alignSelf: "flex-start",
     flexDirection: "row",
     alignItems: "center",
     gap: spacing[2],
     backgroundColor: "rgba(168, 85, 247, 0.15)",
     borderColor: colors.purple600,
     borderWidth: 1,
-    paddingVertical: spacing[2],
+    minHeight: 48,
     paddingHorizontal: spacing[4],
     borderRadius: radius.md
   },
@@ -853,7 +1029,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: spacing[1],
-    paddingVertical: spacing[2],
+    minHeight: 44,
     paddingHorizontal: spacing[3],
     borderRadius: radius.md,
     backgroundColor: "rgba(239, 68, 68, 0.1)"
@@ -894,6 +1070,8 @@ const styles = StyleSheet.create({
   },
   confirmDeleteBtn: {
     backgroundColor: colors.error,
+    minHeight: 44,
+    justifyContent: "center",
     paddingVertical: spacing[2],
     paddingHorizontal: spacing[3],
     borderRadius: radius.md
@@ -905,6 +1083,8 @@ const styles = StyleSheet.create({
   },
   confirmCancelBtn: {
     backgroundColor: colors.surface02,
+    minHeight: 44,
+    justifyContent: "center",
     paddingVertical: spacing[2],
     paddingHorizontal: spacing[3],
     borderRadius: radius.md
@@ -947,8 +1127,8 @@ const styles = StyleSheet.create({
   sectionCard: {
     backgroundColor: colors.surface01,
     borderColor: colors.border,
+    borderRadius: radius.lg,
     borderWidth: 1,
-    borderRadius: radius.xl,
     padding: spacing[6],
     gap: spacing[5]
   },
@@ -968,8 +1148,8 @@ const styles = StyleSheet.create({
   sectionTitle: {
     color: colors.textPrimary,
     fontFamily: fontFamilies.interfaceBold,
-    fontSize: 13,
-    letterSpacing: 0.8
+    fontSize: 18,
+    lineHeight: 23
   },
   sectionSubtitle: {
     color: colors.textSecondary,
@@ -1009,6 +1189,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: radius.md,
     paddingHorizontal: spacing[3],
+    minHeight: 48,
     paddingVertical: spacing[2],
     color: colors.textPrimary,
     fontFamily: fontFamilies.interface,
@@ -1045,6 +1226,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: radius.pill,
     paddingHorizontal: spacing[3],
+    minHeight: 44,
+    justifyContent: "center",
     paddingVertical: spacing[1]
   },
   chipActive: {
@@ -1064,9 +1247,23 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface01,
     borderColor: colors.border,
     borderWidth: 1,
-    borderRadius: radius.xl,
-    padding: spacing[5]
+    borderRadius: radius.lg,
+    padding: spacing[6],
+    gap: spacing[5]
   },
+  calendarLead: { gap: spacing[1], maxWidth: 560 },
+  stageAdvance: {
+    alignItems: "center",
+    alignSelf: "flex-end",
+    backgroundColor: colors.purple600,
+    borderRadius: radius.md,
+    flexDirection: "row",
+    gap: spacing[2],
+    justifyContent: "center",
+    minHeight: 48,
+    paddingHorizontal: spacing[4]
+  },
+  stageAdvanceText: { color: colors.white, fontFamily: fontFamilies.interfaceBold, fontSize: 14 },
   composerCard: {
     backgroundColor: colors.surface01,
     borderColor: colors.purple600,
@@ -1092,7 +1289,10 @@ const styles = StyleSheet.create({
     marginTop: 2
   },
   closeBtn: {
-    padding: spacing[1],
+    alignItems: "center",
+    height: 44,
+    justifyContent: "center",
+    width: 44,
     borderRadius: radius.sm,
     backgroundColor: colors.surface02
   },

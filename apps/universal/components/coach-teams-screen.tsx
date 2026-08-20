@@ -68,6 +68,14 @@ export function CoachTeamsScreen() {
     setErrorMessage(null);
 
     try {
+      // Força a renovação do token se estiver vencido antes do insert: evita que uma
+      // aba aberta há muito tempo caia na RLS por auth.uid() não resolver.
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (!sessionData.session) {
+        setErrorMessage("Sua sessão expirou. Atualize a página e faça login novamente.");
+        return;
+      }
+
       const repository = createCoachFlowRepository(supabase);
       const payload = buildCreateTeamPayload(form);
       await repository.createTrainingGroup(payload);

@@ -5,7 +5,7 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import { colors, fontFamilies, radius, spacing } from "@fitblock/design-tokens";
 import { AuthLoadingScreen } from "@/components/auth-screen";
 import { useUserRoles } from "@/auth/roles-provider";
-import { hasRole, roleFallbackRoute, type AppRole } from "@/auth/roles";
+import { canAccessCoachArea, getRoleFallbackRoute, hasRole, type AppRole } from "@/auth/roles";
 
 type RequireRoleProps = PropsWithChildren<{
   role: AppRole;
@@ -16,20 +16,21 @@ type RequireRoleProps = PropsWithChildren<{
  * Libera a área somente para quem possui o papel exigido.
  * Sem o papel, redireciona para `fallbackHref`; com falha de leitura, mantém bloqueado e oferece nova tentativa.
  */
-export function RequireRole({ children, role, fallbackHref = roleFallbackRoute }: RequireRoleProps) {
+export function RequireRole({ children, role, fallbackHref }: RequireRoleProps) {
   const router = useRouter();
   const { userRoles, isLoading, error, refresh } = useUserRoles();
-  const isAllowed = hasRole(userRoles, role);
+  const isAllowed = role === "coach" ? canAccessCoachArea(userRoles) : hasRole(userRoles, role);
+  const destination = fallbackHref ?? getRoleFallbackRoute(userRoles, role);
   const shouldRedirect = !isLoading && !error && !isAllowed;
 
   useEffect(() => {
-    if (shouldRedirect) router.replace(fallbackHref);
-  }, [fallbackHref, router, shouldRedirect]);
+    if (shouldRedirect) router.replace(destination);
+  }, [destination, router, shouldRedirect]);
 
   if (isLoading) return <AuthLoadingScreen />;
 
   if (error) {
-    return <RoleGateError message={error} onRetry={refresh} onLeave={() => router.replace(fallbackHref)} />;
+    return <RoleGateError message={error} onRetry={refresh} onLeave={() => router.replace(destination)} />;
   }
 
   if (!isAllowed) return <AuthLoadingScreen />;

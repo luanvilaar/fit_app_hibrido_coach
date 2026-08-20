@@ -99,6 +99,10 @@ const progress = {
 
 describe("TodayScreen", () => {
   beforeEach(() => {
+    // Fixa "agora" na mesma data do fixture (quinta, 2026-08-06) para que a
+    // comparação isViewingToday enxergue o dashboard mockado como "hoje".
+    jest.useFakeTimers({ advanceTimers: true });
+    jest.setSystemTime(new Date("2026-08-06T12:00:00"));
     jest.clearAllMocks();
     mockRepository.getToday.mockResolvedValue(dashboard);
     mockRepository.startSession.mockResolvedValue(progress);
@@ -107,6 +111,10 @@ describe("TodayScreen", () => {
       completed_block_ids: ["11111111-1111-1111-1111-111111111111"]
     });
     mockCalendarRepository.listPublishedSessions.mockResolvedValue([]);
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
   });
 
   it("mostra a sessão publicada de hoje com dados do backend", async () => {
@@ -192,6 +200,20 @@ describe("TodayScreen", () => {
     expect(screen.getByText("SEM SESSÃO HOJE")).toBeTruthy();
   });
 
+  it("mostra a data no lugar de 'hoje' quando o dia sem sessão não é o dia real", async () => {
+    mockRepository.getToday.mockImplementation((date?: string) =>
+      Promise.resolve(date === "2026-08-04" ? { ...dashboard, reference_date: "2026-08-04", session: null } : dashboard)
+    );
+
+    const screen = await render(<TodayScreen />);
+
+    await waitFor(() => expect(screen.getByText("Base forte")).toBeTruthy());
+    await fireEvent.press(screen.getByTestId("week-strip-day-2026-08-04"));
+
+    await waitFor(() => expect(screen.getByTestId("today-empty")).toBeTruthy());
+    expect(screen.getByText("SEM SESSÃO · 04 AGO")).toBeTruthy();
+  });
+
   it("comunica a falha do backend sem quebrar a tela", async () => {
     mockRepository.getToday.mockRejectedValue(new Error("permission denied for function get_athlete_today"));
 
@@ -199,5 +221,44 @@ describe("TodayScreen", () => {
 
     await waitFor(() => expect(screen.getByTestId("today-error")).toBeTruthy());
     expect(screen.getByText("Você não tem permissão para esta operação.")).toBeTruthy();
+  });
+
+  it("carrega a sessão do dia clicado na faixa semanal sem navegar para o calendário", async () => {
+    const otherDayDashboard: TodayDashboardRecord = {
+      ...dashboard,
+      reference_date: "2026-08-04",
+      session: { ...dashboard.session!, id: "instance-02", scheduled_date: "2026-08-04" }
+    };
+    mockRepository.getToday.mockImplementation((date?: string) =>
+      Promise.resolve(date === "2026-08-04" ? otherDayDashboard : dashboard)
+    );
+
+    const screen = await render(<TodayScreen />);
+
+    await waitFor(() => expect(screen.getByText("Base forte")).toBeTruthy());
+
+    await fireEvent.press(screen.getByTestId("week-strip-day-2026-08-04"));
+
+    await waitFor(() => expect(mockRepository.getToday).toHaveBeenCalledWith("2026-08-04"));
+    expect(mockPush).not.toHaveBeenCalledWith("/app/calendario");
+  });
+
+  it("esconde o CTA de check-in ao visualizar um dia diferente de hoje", async () => {
+    const otherDayDashboard: TodayDashboardRecord = {
+      ...dashboard,
+      reference_date: "2026-08-04",
+      session: { ...dashboard.session!, id: "instance-02", scheduled_date: "2026-08-04" }
+    };
+    mockRepository.getToday.mockImplementation((date?: string) =>
+      Promise.resolve(date === "2026-08-04" ? otherDayDashboard : dashboard)
+    );
+
+    const screen = await render(<TodayScreen />);
+
+    await waitFor(() => expect(screen.getByText("Base forte")).toBeTruthy());
+    await fireEvent.press(screen.getByTestId("week-strip-day-2026-08-04"));
+
+    await waitFor(() => expect(screen.getByText("Sem check-in neste dia")).toBeTruthy());
+    expect(screen.queryByTestId("open-checkin")).toBeNull();
   });
 });

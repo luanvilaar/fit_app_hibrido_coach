@@ -26,7 +26,8 @@ const product = {
   seller_coach_id: "coach-1",
   title: "Base de Força",
   price_cents: 19900,
-  status: "published" as "published" | "draft"
+  status: "published" as "published" | "draft",
+  deleted_at: null as string | null
 };
 
 function createClient(options: {
@@ -135,6 +136,19 @@ describe("POST /api/store/checkout", () => {
 
   it("não permite comprar produto que saiu da vitrine", async () => {
     const fake = createClient({ product: { ...product, status: "draft" } });
+    mockServiceRoleClient.mockReturnValue(fake.client);
+
+    const response = await handler(new Request("https://fitblock.app/api/store/checkout", {
+      method: "POST",
+      body: JSON.stringify({ product_id: "product-1", method: "pix", start_date: "2026-08-17" })
+    }));
+
+    expect(response.status).toBe(404);
+    expect(mockGetValidAccessToken).not.toHaveBeenCalled();
+  });
+
+  it("não permite comprar produto publicado que o coach excluiu", async () => {
+    const fake = createClient({ product: { ...product, deleted_at: "2026-08-18T12:00:00.000Z" } });
     mockServiceRoleClient.mockReturnValue(fake.client);
 
     const response = await handler(new Request("https://fitblock.app/api/store/checkout", {

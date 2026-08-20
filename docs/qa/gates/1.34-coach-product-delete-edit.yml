@@ -1,0 +1,61 @@
+schema: 1
+story: '1.34'
+gate: PASS
+status_reason: 'Os cinco bloqueios da iteração 1 foram corrigidos e verificados de forma independente: o rollback restaura o slug antes de apagar a auditoria, o guarda deleted_at cobre exatamente as RPCs que criam estado, os testes de contrato agora resistem a mutação e a documentação está completa. Nota 10/10 limpa, sem ressalvas.'
+reviewer: 'Quinn'
+reviewed_revision: 'working-tree:uncommitted@99f9b2d (QA Loop iteração 2)'
+updated: '2026-08-19T12:00:00Z'
+score: 10.0
+gate_rule: 'Story-specific: PASS exige 10/10 limpo. CONCERNS e WAIVED não são aceitos.'
+qa_loop:
+  iteration: 2
+  max_iterations: 5
+  previous: 'iteração 1 — FAIL 8.3/10 (REL-001, SEC-002, DOC-003, TEST-004, DOC-005)'
+
+quality_gates_executed_by_qa:
+  lint: 'PASS — exit 0'
+  typecheck: 'PASS — exit 0'
+  test: 'PASS — 579 testes, 68 suítes (era 574 na iteração 1)'
+  build: 'PASS — 21 rotas exportadas'
+  git_diff_check: 'PASS — sem whitespace danificado'
+  coderabbit: 'PASS — `coderabbit review --agent --uncommitted --include-untracked`: 0 findings em 30 arquivos, incluindo os dois .sql'
+
+top_issues: []
+
+resolved_this_iteration:
+  - id: 'REL-001'
+    severity_was: high
+    resolution: 'Rollback passo 4b restaura `slug` de `store_product_audit.previous_value->>''slug''` (distinct on por produto, `order by created_at asc`) antes do `delete ... action = ''PRODUCT_DELETED''` e antes do `drop column deleted_at`. Ordem verificada no arquivo e por teste de posição. `order by ... asc` é a escolha correta: se houvesse múltiplos PRODUCT_DELETED, o mais antigo carrega o slug pré-mutilação — mas não pode haver, porque `delete_store_product` retorna cedo quando `deleted_at is not null`. Modos de falha (colisão no índice único de slug; auditoria removida manualmente) documentados no cabeçalho do rollback e no "Risco operacional" do snapshot.'
+    verified_by: 'leitura do SQL + teste de ordem + verificação independente de que a reexclusão é idempotente'
+  - id: 'SEC-002'
+    severity_was: medium
+    resolution: '`and deleted_at is null` estendido a `create_training_program_delivery`, `approve_store_product` e `submit_store_product_review`, recriadas na migration NOVA (a 20260819100000 não foi editada retroativamente para isso). Escopo confirmado por auditoria independente: os únicos gravadores das quatro FKs `on delete restrict` são checkout.ts (já bloqueia `deleted_at`), `create_training_program_delivery` (guardada), `create_store_program_version_internal` (só chamada por `approve`, guardada), `settle_store_order` e `grant_store_program_delivery` (honram pedido já pago — não devem ser guardados). `reject_store_product` e `get_coach_store_product_schedule` corretamente fora.'
+    verified_by: 'diff normalizado: as três funções são idênticas às versões canônicas de 20260819100000 exceto pela única linha de guarda — sem risco de 42P13. O rollback restaura as três originais byte a byte, antes do drop da coluna.'
+  - id: 'DOC-003'
+    severity_was: medium
+    resolution: 'Completion Notes registram o risco aceito do AC 8 com os dois efeitos: preço ao vivo × conteúdo congelado (checkout.ts:84 vs :137-145) e vitrine sem nova moderação. Com razão (AC 8 + escopo) e caminho de fechamento futuro.'
+  - id: 'TEST-004'
+    severity_was: medium
+    resolution: 'Asserções normalizam SQL (comentários removidos, whitespace colapsado) e passaram a ser semânticas: comandos de policy extraídos, tabelas de `store_product_has_history` comparadas como lista ordenada, blocos verificados como statement contíguo, ordem do rollback verificada por posição. Redação da autoavaliação de DoD corrigida para "revisão estática + asserção textual, sem execução em banco".'
+    verified_by: 'mutação independente do @qa: remover o guarda deleted_at, remover o índice novo, reintroduzir o índice duplicado, inverter a ordem do rollback e mover a restauração das RPCs para depois do drop derrubam exatamente as asserções correspondentes; reindentar/quebrar linhas não derruba nenhuma.'
+  - id: 'DOC-005'
+    severity_was: low
+    resolution: '`supabase/migrations/20260819100000_training_program_versions_delivery.sql` incluído na File List com a nota de correção arrastada da 1.33.'
+  - id: 'PERF-006'
+    severity_was: low
+    resolution: '`training_program_deliveries_product_idx` criado (era a única das quatro FKs sem índice por product_id) e `store_products_not_deleted_idx` removido por duplicar `store_products_seller_idx`. A avaliação por linha de `store_product_has_history` fica como dívida consciente e justificada — com o índice novo são 4 sondagens de índice por produto.'
+
+verified_clean:
+  - 'Rollback: as seis funções restauradas (`archive_store_product`, `update_store_training_program`, `create_training_program_delivery`, `submit_store_product_review`, `approve_store_product`, `list_coach_store_products`, `list_store_products`, `get_store_product`, `list_store_products_for_review`) são idênticas — após normalização — às versões canônicas pré-migration.'
+  - 'Ordem do rollback correta em todos os pontos que importam: policy sem deleted_at, RPCs sem guarda e restauração de slug acontecem ANTES do `drop column deleted_at`; sem isso o drop falharia por dependência da policy ou deixaria dado corrompido.'
+  - 'Nenhum COMMENT pré-existente é destruído: 20260817100000 e 20260819100000 não declaram comment em nenhuma das funções recriadas.'
+  - 'Migration aplicável em transação única no SQL Editor: sem ALTER TYPE ADD VALUE, sem CREATE INDEX CONCURRENTLY.'
+  - 'Itens já limpos na iteração 1 permanecem intactos: 5 UPDATEs sem 42P01/42P10, security definer + search_path, cobertura exata das 4 FKs on delete restrict, SELECT ... FOR UPDATE fechando a corrida com o checkout, conversão archived → draft auditada.'
+  - 'UI (AC 1/2/5/11): "Arquivar" com zero ocorrências em apps/, packages/ e api/; "Excluir" incondicional; aviso condicionado a has_history; produto legado archived aparece rotulado e acionável.'
+  - 'CodeRabbit CLI: 0 findings.'
+
+non_blocking_observations:
+  - 'A nota do @dev diz "12 → 15 testes" no arquivo de contrato; o delta real da suíte foi +5 (574 → 579) e os mtimes mostram que só os arquivos da migration foram tocados nesta rodada, então o arquivo provavelmente saiu de 10. Imprecisão numérica em prosa, sem efeito sobre código, risco ou cobertura — não é achado.'
+  - 'A story descreve o `drop index if exists store_products_not_deleted_idx` do rollback como "comentado"; o statement está ativo (é o comportamento correto) com um comentário explicativo acima. Ambiguidade de redação, não de código.'
+
+waiver: { active: false }

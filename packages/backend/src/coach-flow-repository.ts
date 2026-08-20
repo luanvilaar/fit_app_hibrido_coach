@@ -308,14 +308,12 @@ export function createCoachFlowRepository(client: FitBlockSupabaseClient) {
 
     async createTrainingGroup(input: CreateTrainingGroupRequest): Promise<TrainingGroupRecord> {
       const { data, error } = await client
-        .from("teams")
-        .insert({
-          name: input.name,
-          description: input.description,
-          level: input.level,
-          objective: input.objective
+        .rpc("create_training_group", {
+          p_name: input.name,
+          p_description: input.description,
+          p_level: input.level,
+          p_objective: input.objective
         })
-        .select("id,name,description,level,objective,created_by,created_at")
         .single();
 
       if (error) {
